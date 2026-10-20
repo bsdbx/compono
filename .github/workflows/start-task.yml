@@ -35,9 +35,10 @@ jobs:
           set -euo pipefail
           owner=${GH_REPO%/*}
 
-          data=$(gh api graphql -F number="$NUMBER" -f owner="$owner" -f repo="${GH_REPO#*/}" --jq .data.repository -f query='
-            query($owner: String!, $repo: String!, $number: Int!) {
+          data=$(gh api graphql -F number="$NUMBER" -f owner="$owner" -f repo="${GH_REPO#*/}" -f search="/$NUMBER" --jq .data.repository -f query='
+            query($owner: String!, $repo: String!, $number: Int!, $search: String!) {
               repository(owner: $owner, name: $repo) {
+                refs(refPrefix: "refs/heads/", query: $search, first: 20) { nodes { name } }
                 id
                 defaultBranchRef { target { oid } }
                 issue(number: $number) {
@@ -47,6 +48,7 @@ jobs:
                   state
                   assignees(first: 10) { nodes { login } }
                   linkedBranches(first: 1) { totalCount }
+                  closedByPullRequestsReferences(first: 1, includeClosedPrs: false) { totalCount }
                   labels(first: 50) { nodes { name } }
                 }
               }
@@ -62,8 +64,11 @@ jobs:
             echo "::error::Task #$NUMBER isn't assigned to $ACTOR."
             exit 1
           fi
-          # Started before, so there's nothing left to do
-          if [ "$(field .issue.linkedBranches.totalCount)" -gt 0 ]; then
+          # Started before, so there's nothing left to do. Its branch is linked to the task,
+          # or GitHub swapped that link for its open pull request's, or it's there by name.
+          started=$(field --arg n "$NUMBER" '.issue.linkedBranches.totalCount + .issue.closedByPullRequestsReferences.totalCount
+            + ([.refs.nodes[].name | select(test("^[a-z]+/" + $n + "(-|$)"))] | length)')
+          if [ "$started" -gt 0 ]; then
             exit 0
           fi
 

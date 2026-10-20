@@ -23,6 +23,22 @@ def run(github: GitHub) -> None:
     number = issue_number(branch)
 
     git.fetch()
+    task = github.issue(number)
+    if not task.is_open:
+        # Merged on the website, say, after the last submit
+        if github.merged_head(branch) == git.head():
+            print(f"#{number} is already merged.")
+            _clean_up(branch, git.head())
+            return
+        raise TaskError(
+            f"Task #{number} is closed, so its work can't be submitted. Ask the admin for a new task."
+        )
+    if github.me not in task.assignees:
+        raise TaskError(f"Task #{number} isn't assigned to you.")
+
+    # Someone else, like a reviewer, may have pushed to the branch
+    if git.fast_forward():
+        print(f"Got the latest commits on {branch} from GitHub.")
     if not git.subjects(since=git.ORIGIN_MAIN):
         raise TaskError(
             f"Nothing to submit: {branch} has no commits that aren't on {git.MAIN}."
@@ -33,17 +49,12 @@ def run(github: GitHub) -> None:
         )
 
     head = _push(branch)
-    pull_request = github.open_pull_request(branch) or _open(github, number, branch)
-    _wait_for_ci(github, pull_request, head, branch)
-    if not _merge(github, pull_request):
-        return
-
-    git.update_main()
-    if git.commit(f"refs/heads/{branch}") == head:
-        git.delete_branch(branch)
-        print(f"Deleted {branch}. You're on {git.MAIN}.")
-    else:
-        print(f"Kept {branch}: it has commits that weren't in the merged pull request.")
+    pull_request = github.open_pull_request(branch) or _open(
+        github, task.title, number, branch
+    )
+    _wait_for_ci(github, pull_request, head)
+    if _merge(github, pull_request):
+        _clean_up(branch, head)
 
 
 def _push(branch: str) -> str:
@@ -58,34 +69,35 @@ def _push(branch: str) -> str:
     return git.head()
 
 
-def _open(github: GitHub, number: int, branch: str) -> int:
+def _open(github: GitHub, title: str, number: int, branch: str) -> int:
     """Opens the pull request, which closes the task when merged, and asks everyone else to review it."""
     commits = "\n".join(
         f"- {subject}" for subject in git.subjects(since=git.ORIGIN_MAIN)
     )
     reviewers = [login for login in github.collaborators() if login != github.me]
     pull_request = github.create_pull_request(
-        branch, github.issue(number).title, f"Closes #{number}\n\n{commits}", reviewers
+        branch, title, f"Closes #{number}\n\n{commits}", reviewers
     )
     print(f"Opened https://github.com/{github.repository}/pull/{pull_request}")
     return pull_request
 
 
-def _wait_for_ci(github: GitHub, pull_request: int, head: str, branch: str) -> None:
-    print(f"Waiting for CI on #{pull_request}. This takes a minute or two...")
+def _wait_for_ci(github: GitHub, pull_request: int, head: str) -> None:
+    print(f"Waiting for the checks on #{pull_request}. This takes a minute or two...")
     deadline = time.monotonic() + _CI_START_TIMEOUT
     while not github.checks_started(pull_request, head):
         if time.monotonic() > deadline:
             raise TaskError(
-                f"CI didn't start on #{pull_request}. See https://github.com/{github.repository}/actions"
+                f"The checks didn't start on #{pull_request}. See https://github.com/{github.repository}/actions"
             )
         time.sleep(_POLL_INTERVAL)
     if not github.checks_pass(pull_request):
+        failed = "\n".join(f"  {check}" for check in github.failed_checks(pull_request))
         raise TaskError(
-            f"CI failed. See why: gh run view {github.last_ci_run(branch)} --log-failed\n"
+            f"Some checks failed. See why:\n{failed}\n"
             "Fix it, commit, then run ./tasks.sh submit again."
         )
-    print("CI passed.")
+    print("The checks passed.")
 
 
 def _merge(github: GitHub, pull_request: int) -> bool:
@@ -115,3 +127,13 @@ def _merge(github: GitHub, pull_request: int) -> bool:
     github.merge(pull_request)
     print(f"Merged #{pull_request}.")
     return True
+
+
+def _clean_up(branch: str, head: str) -> None:
+    """Switches to the updated main, and deletes the branch unless it has unmerged commits."""
+    git.update_main()
+    if git.commit(f"refs/heads/{branch}") == head:
+        git.delete_branch(branch)
+        print(f"Deleted {branch}. You're on {git.MAIN}.")
+    else:
+        print(f"Kept {branch}: it has commits that weren't in the merged pull request.")

@@ -82,8 +82,37 @@ def rebase(onto: str) -> bool:
 
 
 def push(branch: str) -> None:
-    """Pushes `branch`, replacing GitHub's copy, which a rebase may have changed."""
-    _git("push", "--quiet", "--force-with-lease", "--set-upstream", "origin", branch)
+    """Pushes `branch`, replacing GitHub's copy, which a rebase may have changed.
+
+    It refuses if GitHub's copy has commits that this one never had, like a fix that
+    someone else pushed, so that they aren't erased.
+    """
+    result = _git(
+        *("push", "--quiet", "--force-with-lease", "--force-if-includes"),
+        *("--set-upstream", "origin", branch),
+        check=False,
+    )
+    if result.returncode != 0:
+        raise TaskError(
+            f"Couldn't push {branch}:\n{result.stderr.strip()}\n"
+            "If GitHub has commits that you don't, get them with `git pull --rebase`, "
+            "then run ./tasks.sh submit again."
+        )
+
+
+def fast_forward() -> bool:
+    """Catches the current branch up with GitHub's copy, if it's only behind it.
+
+    Returns whether it did. When both have commits that the other doesn't, it leaves
+    them alone: push then refuses, and says how to combine them.
+    """
+    upstream = commit("@{upstream}")
+    if upstream is None or upstream == head():
+        return False
+    if _git("merge-base", "--is-ancestor", "HEAD", upstream, check=False).returncode:
+        return False
+    _git("merge", "--quiet", "--ff-only", upstream)
+    return True
 
 
 def switch(branch: str) -> None:
