@@ -1,10 +1,12 @@
 name: Task check
 
-# Every change is a task. A pull request passes only if it comes from the branch that
-# `./tasks.sh work` created for an open task assigned to the pull request's author.
+# Every change is a task. A pull request passes only if it comes from the branch of an
+# open task that's assigned to the pull request's author, and closes that task when merged.
+# (Only admins can create branches, so other people's branches come from ./tasks.sh work.)
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    # `edited`: the description says which task the pull request closes
+    types: [opened, reopened, synchronize, edited]
 
 permissions:
   contents: read
@@ -18,6 +20,7 @@ jobs:
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ github.token }}
+      PULL_REQUEST: ${{ github.event.pull_request.number }}
       BRANCH: ${{ github.event.pull_request.head.ref }}
       HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
       AUTHOR: ${{ github.event.pull_request.user.login }}
@@ -35,20 +38,23 @@ jobs:
           number=$(printf '%s\n' "$BRANCH" | sed -nE 's|^[a-z]+/([0-9]+)(-.*)?$|\1|p')
           [ -n "$number" ] || fail "$BRANCH isn't a task branch."
 
-          data=$(gh api graphql -F number="$number" -f owner="${GH_REPO%/*}" -f name="${GH_REPO#*/}" --jq .data.repository.issue -f query='
-            query($owner: String!, $name: String!, $number: Int!) {
+          data=$(gh api graphql -F number="$number" -F pr="$PULL_REQUEST" -f owner="${GH_REPO%/*}" -f name="${GH_REPO#*/}" --jq .data.repository -f query='
+            query($owner: String!, $name: String!, $number: Int!, $pr: Int!) {
               repository(owner: $owner, name: $name) {
                 issue(number: $number) {
                   state
                   assignees(first: 10) { nodes { login } }
-                  linkedBranches(first: 10) { nodes { ref { name } } }
+                }
+                pullRequest(number: $pr) {
+                  closingIssuesReferences(first: 20) { nodes { number } }
                 }
               }
             }' 2>/dev/null) || fail "Task #$number doesn't exist."
 
-          [ "$(jq -r .state <<<"$data")" = OPEN ] || fail "Task #$number is closed."
-          jq -e --arg author "$AUTHOR" '[.assignees.nodes[].login] | index($author) != null' <<<"$data" >/dev/null ||
+          [ "$(jq -r .issue.state <<<"$data")" = OPEN ] || fail "Task #$number is closed."
+          jq -e --arg author "$AUTHOR" '[.issue.assignees.nodes[].login] | index($author) != null' <<<"$data" >/dev/null ||
             fail "Task #$number isn't assigned to $AUTHOR."
-          jq -e --arg branch "$BRANCH" '[.linkedBranches.nodes[].ref.name] | index($branch) != null' <<<"$data" >/dev/null ||
-            fail "$BRANCH isn't the branch that ./tasks.sh work created for task #$number."
+          # ./tasks.sh submit writes "Closes #<number>" in the description, which links the two
+          jq -e --argjson number "$number" '[.pullRequest.closingIssuesReferences.nodes[].number] | index($number) != null' <<<"$data" >/dev/null ||
+            fail "This pull request doesn't close task #$number. Write \"Closes #$number\" in its description."
           echo "This is task #$number, assigned to $AUTHOR."
