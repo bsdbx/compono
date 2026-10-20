@@ -1,4 +1,4 @@
-# Match the 4-space indentation uv uses when it edits pyproject.toml,
-# so `uv add` and `uv remove` leave the file already formatted.
 [format.rules]
+# Set indentation width to 4 spaces.
+# `uv add` uses 4 spaces, this is set so we don't need to reformat `pyproject.toml`.
 indent-width = 4

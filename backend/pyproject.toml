@@ -4,12 +4,16 @@ version = "0.1.0"
 description = "Backend for Compono"
 
 requires-python = ">=3.14"
+# Authors are unnecessary for non-public project.
+# If there will be a sufficient amount of contributors, then considering automatic population.
 authors = []
 dependencies = []
 
 [project.scripts]
+# Register the `compono` command in .venv. This allows `uv run compono`
 compono = "compono:main"
 
+# Dev-only tools. Must never be in the app directly
 [dependency-groups]
 dev = [
     "commit-check>=2.19.2",
@@ -21,35 +25,37 @@ dev = [
     "typos>=1.51.1",
 ]
 
+# Build system uses uv_build
 [build-system]
 requires = ["uv_build>=0.12.24,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.mypy]
-# An absolute path (mypy fills in this folder), so mypy's cache can tell the
-# pre-commit hook's temporary copies apart and never reuses stale results.
+# An absolute path (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
 files = ["$MYPY_CONFIG_FILE_DIR/src"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
 # Everything below covers what `strict` doesn't by default.
-warn_unreachable = true
-strict_equality_for_none = true
-disallow_any_unimported = true
-disallow_any_explicit = true
-disallow_any_decorated = true
-disallow_any_expr = true
+warn_unreachable = true  # Code that can never run
+strict_equality_for_none = true  # Comparing to `None` when the value can't be `None`
+disallow_any_unimported = true  # Types that became `Any` because an import could not be found
+disallow_any_explicit = true  # Writing `Any` yourself. Some libraries force it, so consider disabling in certain places
+disallow_any_decorated = true  # A function that becomes `Any` because of the decorator
+disallow_any_expr = true  # Any value of type `Any` at all
+
+# Extra error codes
 enable_error_code = [
-    "deprecated",
-    "exhaustive-match",
-    "explicit-override",
-    "ignore-without-code",
-    "mutable-override",
-    "possibly-undefined",
-    "redundant-expr",
-    "redundant-self",
-    "truthy-bool",
-    "truthy-iterable",
-    "unimported-reveal",
+    "deprecated",  # Using things marked deprecated
+    "exhaustive-match",  # A `match` must cover every case
+    "explicit-override",  # Overriding a method needs `@override`
+    "ignore-without-code",  # A `# type: ignore` must name the error.
+    "mutable-override",  # An unsafe change to an attribute's type in a subclass
+    "possibly-undefined",  # A variable that might not be set
+    "redundant-expr",  # A condition that is always True or always False
+    "redundant-self",  # An unnecessary `Self` annotation
+    "truthy-bool",  # An `if` on something that is always True
+    "truthy-iterable",  # `reveal_type` must be imported
+    "unimported-reveal",  # A forgotten `await`
     "unused-awaitable",
 ]
 

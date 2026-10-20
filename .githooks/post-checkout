@@ -1,3 +1,5 @@
 #!/bin/sh
+# This file is a small script rather than a link, because Git on Windows doesn't create links by default
+
 # Same job as post-merge, after branch switches.
 exec "$(dirname "$0")/post-merge" "$@"

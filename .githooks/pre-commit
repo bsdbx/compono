@@ -3,6 +3,8 @@
 # Where uv's installer puts uv, for Git clients that don't load the shell profile.
 PATH="$PATH:${XDG_BIN_HOME:-$HOME/.local/bin}"
 
+# Find the repo and tmp snapshot folder
+# Remove the tmp folder on exit, kill, KeyboardInterrupt, ...
 repo=$(git rev-parse --show-toplevel) || exit 1
 snapshot=$(mktemp -d) || exit 1
 trap 'rm -rf "$snapshot"' EXIT
@@ -25,10 +27,13 @@ check() {
 # tool COMMAND...: runs a tool from backend/.venv without changing uv.lock.
 tool() { check uv run -q --frozen --project "$repo/backend" "$@"; }
 
+# If staged `uv.lock` doesn't match staged `pyproject.toml` - warn and encourage to stage both
 if ! output=$(uv lock --check --project backend 2>&1); then
 	printf '%s\n' "$output" 'Run "uv lock" in backend/, then stage both pyproject.toml and uv.lock.'
 	status=1
 fi
+
+# Run formatting checks
 tool ruff check || fixable=1
 tool ruff format --check || fixable=1
 tool tombi format --check || fixable=1
@@ -38,7 +43,10 @@ tool shfmt -d . || fixable=1
 # Check spelling. Not fixed by `./format.sh` on purpose
 tool typos --format brief
 
+# Run mypy check from `backend` directory
 tool --directory backend mypy --cache-dir "$repo/backend/.mypy_cache"
 
+# If there was anything to fix - suggest running ./format.sh
 [ $fixable -eq 0 ] || echo 'Run ./format.sh to fix what it can automatically, then stage the changes.'
+
 exit $status

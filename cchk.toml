@@ -1,10 +1,8 @@
-# Commit message rules.
-# Subject: "<type>(<scope>)!: <Summary>." where the scope and "!" are optional,
-# e.g. "feat: Add share links."
 [commit]
+# "<type>(<scope>)!: <Summary>." Where the scope and "!" are optional
 message_pattern = '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: [A-Z][^\n]*\.(\n\n[\s\S]*)?\n?$'
 # The same types as above. The checks below use them to find where the summary starts.
 allow_commit_types = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
 subject_capitalized = true
 subject_imperative = true
-allow_empty_commits = false  # empty messages too, even with `git commit --allow-empty-message`
+allow_empty_commits = false  # Disallow any form of empty messages

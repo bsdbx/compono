@@ -3,6 +3,6 @@
 __pycache__/
 .mypy_cache/
 
-# Formatting
+# Formatting cache
 .ruff_cache/
 .rumdl_cache/

@@ -1,10 +1,11 @@
-# Don't merge in .editorconfig files from folders above the project.
+# Read only one .editorconfig from project's root
 root = true
 
-# Editors that read this file (e.g. JetBrains IDEs, Neovim) save with LF line endings.
+# Save with LF line endings on every OS, including Windows.
+# Requires an editor that reads .editorconfig
 [*]
 end_of_line = lf
 
-# shfmt: don't search the virtual environment for shell scripts.
+# Don't search .venv for shell scripts
 [backend/.venv/**]
 ignore = true

@@ -19,7 +19,7 @@
     "editor.defaultFormatter": "mkhl.shfmt"
   },
   "shfmt.executablePath": "uv",
-  "shfmt.executableArgs": ["run", "-q", "--project", "backend", "shfmt"],
+  "shfmt.executableArgs": ["run", "-q", "--frozen", "--project", "backend", "shfmt"],
   "cSpell.ignorePaths": [
     "package-lock.json",
     "node_modules",
