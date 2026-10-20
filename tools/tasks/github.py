@@ -10,7 +10,6 @@ from tasks import TaskError
 from tasks.git import MAIN
 
 START_WORKFLOW = "start-task.yml"
-CI_WORKFLOW = "ci.yml"
 
 # The --jq programs below print one line per item, with its fields separated by
 # this character, which can't appear in a title. Lists inside a field use commas,
@@ -23,10 +22,14 @@ _ISSUE_JQ = (
     r'\([.assignees[].login] | join(","))\u001f\([.labels[].name] | join(","))"'
 )
 
-_LINKED_BRANCH_QUERY = """
-query($owner: String!, $name: String!, $number: Int!) {
+_TASK_BRANCH_QUERY = """
+query($owner: String!, $name: String!, $number: Int!, $search: String!) {
   repository(owner: $owner, name: $name) {
-    issue(number: $number) { linkedBranches(first: 1) { nodes { ref { name } } } }
+    issue(number: $number) {
+      linkedBranches(first: 1) { nodes { ref { name } } }
+      closedByPullRequestsReferences(first: 1, includeClosedPrs: false) { nodes { headRefName } }
+    }
+    refs(refPrefix: "refs/heads/", query: $search, first: 20) { nodes { name } }
   }
 }
 """
@@ -238,8 +241,13 @@ class GitHub:
             remove_assignee=",".join(unassign) or None,
         )
 
-    def linked_branch(self, number: int) -> str | None:
-        """The branch that the Start task workflow created for the issue, if it did."""
+    def task_branch(self, number: int) -> str | None:
+        """The branch of the task, or None if it hasn't been started.
+
+        The Start task workflow links the branch it creates to the issue, but GitHub swaps
+        that link for the pull request's once one is opened from the branch. So this looks
+        for either, and then for a branch named like the task's: <type>/<number>-<title>.
+        """
         owner, _, name = self.repository.partition("/")
         branch = _output(
             "api graphql",
@@ -247,9 +255,14 @@ class GitHub:
             raw_field=[
                 f"owner={owner}",
                 f"name={name}",
-                f"query={_LINKED_BRANCH_QUERY}",
+                f"search=/{number}",
+                f"query={_TASK_BRANCH_QUERY}",
             ],
-            jq=".data.repository.issue.linkedBranches.nodes[0].ref.name // empty",
+            jq=".data.repository"
+            " | .issue.linkedBranches.nodes[0].ref.name"
+            " // .issue.closedByPullRequestsReferences.nodes[0].headRefName"
+            f' // ([.refs.nodes[].name | select(test("^[a-z]+/{number}(-|$)"))][0])'
+            " // empty",
         )
         return branch or None
 
@@ -311,17 +324,19 @@ class GitHub:
         )
         return status == 0
 
-    def last_ci_run(self, branch: str) -> str:
-        """The ID of the latest CI run on `branch`."""
-        return _output(
-            "run list",
-            repo=self.repository,
-            branch=branch,
-            workflow=CI_WORKFLOW,
-            limit=1,
-            json="databaseId",
-            jq=".[0].databaseId",
+    def failed_checks(self, pull_request: int) -> list[str]:
+        """The checks that failed on the pull request, as "<workflow> / <check>: <link>"."""
+        # gh exits with an error when checks failed, so this reads what it printed regardless
+        result = _run(
+            "pr checks",
+            [str(pull_request)],
+            {
+                "repo": self.repository,
+                "json": "workflow,name,bucket,link",
+                "jq": r'.[] | select(.bucket == "fail") | "\(.workflow) / \(.name): \(.link)"',
+            },
         )
+        return result.stdout.splitlines()
 
     def review_decision(self, pull_request: int) -> str:
         """APPROVED, CHANGES_REQUESTED or REVIEW_REQUIRED."""

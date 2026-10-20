@@ -32,9 +32,12 @@ def run(github: GitHub, task: str | None = None) -> None:
             f"Task #{number} isn't assigned to you. Ask the admin to assign it to you."
         )
 
-    branch = github.linked_branch(number) or _start(github, issue)
+    branch = github.task_branch(number) or _start(github, issue)
     git.fetch()
     git.switch(branch)
+    # Someone else, like a reviewer, may have pushed to the branch
+    if git.fast_forward():
+        print(f"Got the latest commits on {branch} from GitHub.")
     print(f"You're on {branch}. Commit as usual, then run: ./tasks.sh submit")
 
 
@@ -49,7 +52,7 @@ def _start(github: GitHub, issue: Issue) -> str:
     deadline = time.monotonic() + _START_TIMEOUT
     while time.monotonic() < deadline:
         time.sleep(_POLL_INTERVAL)
-        if branch := github.linked_branch(issue.number):
+        if branch := github.task_branch(issue.number):
             return branch
     raise TaskError(
         f"GitHub didn't create the branch. See why: https://github.com/{github.repository}/actions/workflows/{START_WORKFLOW}"
