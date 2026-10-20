@@ -34,6 +34,10 @@ tool ruff format --check || fixable=1
 tool tombi format --check || fixable=1
 tool rumdl fmt --check || fixable=1
 tool shfmt -d . || fixable=1
+
+# Check spelling. Not fixed by `./format.sh` on purpose
+tool typos --format brief
+
 tool --directory backend mypy --cache-dir "$repo/backend/.mypy_cache"
 
 [ $fixable -eq 0 ] || echo 'Run ./format.sh to fix what it can automatically, then stage the changes.'

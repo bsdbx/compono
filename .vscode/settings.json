@@ -19,5 +19,29 @@
     "editor.defaultFormatter": "mkhl.shfmt"
   },
   "shfmt.executablePath": "uv",
-  "shfmt.executableArgs": ["run", "-q", "--project", "backend", "shfmt"]
+  "shfmt.executableArgs": ["run", "-q", "--project", "backend", "shfmt"],
+  "cSpell.ignorePaths": [
+    "package-lock.json",
+    "node_modules",
+    "vscode-extension",
+    ".git/{info,lfs,logs,refs,objects}/**",
+    ".git/{index,*refs,*HEAD}",
+    ".vscode",
+    ".vscode-insiders",
+    "**/uv.lock"
+  ],
+  "cSpell.words": [
+    "Bohdan",
+    "compono",
+    "datablock",
+    "Koshovenko",
+    "mypy",
+    "pycache",
+    "pyproject",
+    "rumdl",
+    "shfmt",
+    "tombi",
+    "toplevel",
+    "venv"
+]
 }
