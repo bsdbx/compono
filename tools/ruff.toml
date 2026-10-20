@@ -1,0 +1,2 @@
+# The same settings as the backend, so ruff doesn't fall back to a personal config here
+extend = "../backend/pyproject.toml"

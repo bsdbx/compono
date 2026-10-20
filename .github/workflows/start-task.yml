@@ -1,32 +1,36 @@
-name: Issue branch
+name: Start task
 
-# Assigning someone to an issue means they took it: create the issue's branch and move the issue to "In progress".
+# `./tasks.sh work` runs this the first time someone starts a task:
+# it creates the task's branch and moves the task to "In progress".
 on:
-  issues:
-    types: [assigned, labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Number of the issue to start
+        required: true
+        type: number
 
-# One run per issue at a time, so two events can't both create the branch
-concurrency: issue-branch-${{ github.event.issue.number }}
+# One run per task at a time, so two runs can't both create the branch
+concurrency: start-task-${{ inputs.issue }}
 
 permissions:
   issues: write
 
 jobs:
-  branch:
-    if: github.event.issue.assignee && github.event.issue.state == 'open'
+  start:
     runs-on: ubuntu-latest
     env:
       GH_REPO: ${{ github.repository }}
-      NUMBER: ${{ github.event.issue.number }}
-      EVENT: ${{ github.event.action }}
+      NUMBER: ${{ inputs.issue }}
+      ACTOR: ${{ github.actor }}
       PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
-      # A classic token with the `project` and `public_repo` scopes.
+      # A classic token with the `project`, `public_repo` and `read:org` scopes.
       # The default token can't edit a project owned by a user.
       GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
       # Comments are posted as github-actions, not as the token's owner
       BOT_TOKEN: ${{ github.token }}
     steps:
-      - name: Create the branch and move the issue to "In progress"
+      - name: Create the branch and move the task to "In progress"
         run: |
           set -euo pipefail
           owner=${GH_REPO%/*}
@@ -40,28 +44,35 @@ jobs:
                   id
                   url
                   title
+                  state
+                  assignees(first: 10) { nodes { login } }
                   linkedBranches(first: 1) { totalCount }
                   labels(first: 50) { nodes { name } }
                 }
               }
             }')
-          field() { jq -r "$1" <<<"$data"; }
+          field() { jq -r "$@" <<<"$data"; }
 
-          # The issue already has a branch, e.g. it was reassigned
+          if [ "$(field .issue.state)" != OPEN ]; then
+            echo "::error::Task #$NUMBER is closed."
+            exit 1
+          fi
+          # Only the task's assignee starts it
+          if [ "$(field --arg actor "$ACTOR" '[.issue.assignees.nodes[].login] | index($actor) != null')" != true ]; then
+            echo "::error::Task #$NUMBER isn't assigned to $ACTOR."
+            exit 1
+          fi
+          # Started before, so there's nothing left to do
           if [ "$(field .issue.linkedBranches.totalCount)" -gt 0 ]; then
             exit 0
           fi
 
-          # The branch type comes from the "type: ..." label.
-          # Without one, wait: adding the label runs this again.
+          # The branch name starts with the type from the "type: ..." label
           type=$(field '[.issue.labels.nodes[].name | select(startswith("type: ")) | ltrimstr("type: ")][0] // empty')
           if [ -z "$type" ]; then
-            if [ "$EVENT" = assigned ]; then
-              GH_TOKEN=$BOT_TOKEN gh issue comment "$NUMBER" --body 'Add a `type: ...` label, and the branch will be created.'
-            fi
-            exit 0
+            echo "::error::Task #$NUMBER has no type: label."
+            exit 1
           fi
-
           # "Add share links!" -> "add-share-links"
           slug=$(field .issue.title | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//' | cut -c1-40 | sed -E 's/-$//')
           branch="$type/$NUMBER${slug:+-$slug}"
@@ -80,9 +91,4 @@ jobs:
             --field-id "$(jq -r .id <<<"$status")" \
             --single-select-option-id "$(jq -r '.options[] | select(.name == "In progress") | .id' <<<"$status")" >/dev/null
 
-          GH_TOKEN=$BOT_TOKEN gh issue comment "$NUMBER" --body "Branch \`$branch\` is ready:
-
-          \`\`\`sh
-          git fetch origin
-          git switch $branch
-          \`\`\`"
+          GH_TOKEN=$BOT_TOKEN gh issue comment "$NUMBER" --body "$ACTOR started this task on \`$branch\`."
