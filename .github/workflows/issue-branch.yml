@@ -1,0 +1,88 @@
+name: Issue branch
+
+# Assigning someone to an issue means they took it: create the issue's branch and move the issue to "In progress".
+on:
+  issues:
+    types: [assigned, labeled]
+
+# One run per issue at a time, so two events can't both create the branch
+concurrency: issue-branch-${{ github.event.issue.number }}
+
+permissions:
+  issues: write
+
+jobs:
+  branch:
+    if: github.event.issue.assignee && github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      NUMBER: ${{ github.event.issue.number }}
+      EVENT: ${{ github.event.action }}
+      PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+      # A classic token with the `project` and `public_repo` scopes.
+      # The default token can't edit a project owned by a user.
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      # Comments are posted as github-actions, not as the token's owner
+      BOT_TOKEN: ${{ github.token }}
+    steps:
+      - name: Create the branch and move the issue to "In progress"
+        run: |
+          set -euo pipefail
+          owner=${GH_REPO%/*}
+
+          data=$(gh api graphql -F number="$NUMBER" -f owner="$owner" -f repo="${GH_REPO#*/}" --jq .data.repository -f query='
+            query($owner: String!, $repo: String!, $number: Int!) {
+              repository(owner: $owner, name: $repo) {
+                id
+                defaultBranchRef { target { oid } }
+                issue(number: $number) {
+                  id
+                  url
+                  title
+                  linkedBranches(first: 1) { totalCount }
+                  labels(first: 50) { nodes { name } }
+                }
+              }
+            }')
+          field() { jq -r "$1" <<<"$data"; }
+
+          # The issue already has a branch, e.g. it was reassigned
+          if [ "$(field .issue.linkedBranches.totalCount)" -gt 0 ]; then
+            exit 0
+          fi
+
+          # The branch type comes from the "type: ..." label.
+          # Without one, wait: adding the label runs this again.
+          type=$(field '[.issue.labels.nodes[].name | select(startswith("type: ")) | ltrimstr("type: ")][0] // empty')
+          if [ -z "$type" ]; then
+            if [ "$EVENT" = assigned ]; then
+              GH_TOKEN=$BOT_TOKEN gh issue comment "$NUMBER" --body 'Add a `type: ...` label, and the branch will be created.'
+            fi
+            exit 0
+          fi
+
+          # "Add share links!" -> "add-share-links"
+          slug=$(field .issue.title | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-//; s/-$//' | cut -c1-40 | sed -E 's/-$//')
+          branch="$type/$NUMBER${slug:+-$slug}"
+
+          # A linked branch shows in the issue's Development section,
+          # and a pull request from it is linked to the issue and closes it on merge.
+          gh api graphql --silent -f issue="$(field .issue.id)" -f repo="$(field .id)" -f oid="$(field .defaultBranchRef.target.oid)" -f name="$branch" -f query='
+            mutation($issue: ID!, $repo: ID!, $oid: GitObjectID!, $name: String!) {
+              createLinkedBranch(input: {issueId: $issue, repositoryId: $repo, oid: $oid, name: $name}) { linkedBranch { id } }
+            }'
+
+          item=$(gh project item-add "$PROJECT_NUMBER" --owner "$owner" --url "$(field .issue.url)" --format json --jq .id)
+          project=$(gh project view "$PROJECT_NUMBER" --owner "$owner" --format json --jq .id)
+          status=$(gh project field-list "$PROJECT_NUMBER" --owner "$owner" --format json --jq '.fields[] | select(.name == "Status")')
+          gh project item-edit --id "$item" --project-id "$project" \
+            --field-id "$(jq -r .id <<<"$status")" \
+            --single-select-option-id "$(jq -r '.options[] | select(.name == "In progress") | .id' <<<"$status")" >/dev/null
+
+          GH_TOKEN=$BOT_TOKEN gh issue comment "$NUMBER" --body "Branch \`$branch\` is ready:
+
+          \`\`\`sh
+          git fetch origin
+          git switch $branch
+          \`\`\`"

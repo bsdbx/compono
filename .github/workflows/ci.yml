@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # The ruleset on main requires this job by name, so don't rename it
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      # The whole history, to read every commit of the pull request
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The same uv version as install.sh
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.12.24"
+
+      - name: Install Python and backend dependencies
+        run: uv --directory backend sync --locked
+
+      # Hooks only run on each developer's machine and can be skipped, so run them again here
+      - name: Run the pre-commit checks
+        run: .githooks/pre-commit
+
+      - name: Check commit messages
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          failed=0
+          for commit in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            git log -1 --format=%B "$commit" > "$RUNNER_TEMP/message"
+            if ! .githooks/commit-msg "$RUNNER_TEMP/message"; then
+              echo "::error::Commit $commit has a bad message. Fix it with git rebase -i."
+              failed=1
+            fi
+          done
+          exit $failed
