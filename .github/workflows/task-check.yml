@@ -1,0 +1,54 @@
+name: Task check
+
+# Every change is a task. A pull request passes only if it comes from the branch that
+# `./tasks.sh work` created for an open task assigned to the pull request's author.
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  # The "Every change is a task" ruleset requires this job by name, so don't rename it
+  task:
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: ${{ github.event.pull_request.head.ref }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
+    steps:
+      - name: Check that the pull request is a task
+        run: |
+          set -euo pipefail
+          fail() {
+            echo "::error::$1 Every change needs a task: the admin creates and assigns it, then you start it with ./tasks.sh work."
+            exit 1
+          }
+
+          [ "$HEAD_REPO" = "$GH_REPO" ] || fail "This pull request comes from a fork."
+          # Task branches are named <type>/<issue number>-<title>
+          number=$(printf '%s\n' "$BRANCH" | sed -nE 's|^[a-z]+/([0-9]+)(-.*)?$|\1|p')
+          [ -n "$number" ] || fail "$BRANCH isn't a task branch."
+
+          data=$(gh api graphql -F number="$number" -f owner="${GH_REPO%/*}" -f name="${GH_REPO#*/}" --jq .data.repository.issue -f query='
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                issue(number: $number) {
+                  state
+                  assignees(first: 10) { nodes { login } }
+                  linkedBranches(first: 10) { nodes { ref { name } } }
+                }
+              }
+            }' 2>/dev/null) || fail "Task #$number doesn't exist."
+
+          [ "$(jq -r .state <<<"$data")" = OPEN ] || fail "Task #$number is closed."
+          jq -e --arg author "$AUTHOR" '[.assignees.nodes[].login] | index($author) != null' <<<"$data" >/dev/null ||
+            fail "Task #$number isn't assigned to $AUTHOR."
+          jq -e --arg branch "$BRANCH" '[.linkedBranches.nodes[].ref.name] | index($branch) != null' <<<"$data" >/dev/null ||
+            fail "$BRANCH isn't the branch that ./tasks.sh work created for task #$number."
+          echo "This is task #$number, assigned to $AUTHOR."
