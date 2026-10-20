@@ -1,5 +1,6 @@
 [files]
 # Also check hidden files
 ignore-hidden = false
-# Exclude `uv.lock` and `.git/`
-extend-exclude = [".git/", "uv.lock"]
+# Exclude `uv.lock`, `.git/` and the tools' caches. The caches matter in the pre-commit hook: it checks
+# a copy of the staged files outside Git, where .gitignore doesn't apply, after the formatters cached there.
+extend-exclude = [".git/", "uv.lock", ".mypy_cache/", ".ruff_cache/", ".rumdl_cache/"]
