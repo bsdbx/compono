@@ -23,7 +23,7 @@ uv run compono
 
 All backend code lives in the `compono` package, in `backend/src/compono/`. Run [uv] commands from `backend/`.
 
-After dependencie change (e.g `uv add`, `uv remove`), commit `pyproject.toml` and `uv.lock` **TOGETHER**!
+After a dependency change (e.g. `uv add`, `uv remove`), commit `pyproject.toml` and `uv.lock` **TOGETHER**!
 
 > If using [Visual Studio Code]: select `backend/.venv` as the Python interpreter.
 
@@ -52,12 +52,12 @@ The pre-commit hook checks the same things. To run its checks without committing
 
 ## Commit messages
 
-We use [Conventional Commits](https://www.conventionalcommits.org/). The first line is `<type>(<scope>): <Summary>.` `scope` is optional
+We use [Conventional Commits](https://www.conventionalcommits.org/). The first line is `<type>(<scope>): <Summary>.` `scope` is optional.
 
-First word **must** be a **verb** from [.githooks/verbs.txt](.githooks/verbs.txt). If a verb you need is missing, add it to the list.
+The summary's first word **must** be a **verb** from [.githooks/verbs.txt](.githooks/verbs.txt). If a verb you need is missing, add it to the list.
 
-For more information: [cchk.toml](cchk.toml), read by [commit-check](https://github.com/commit-check/commit-check), and in [.githooks/verbs.txt](.githooks/verbs.txt).
+For the full rules, see [cchk.toml](cchk.toml) (read by [commit-check](https://github.com/commit-check/commit-check)) and [.githooks/verbs.txt](.githooks/verbs.txt).
 
-[Visual Studio Code]: https://github.com/microsoft/vscode.git
+[Visual Studio Code]: https://code.visualstudio.com/
 [uv]: https://docs.astral.sh/uv/
 [mypy]: https://mypy.readthedocs.io/
