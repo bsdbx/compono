@@ -31,17 +31,29 @@
     "**/uv.lock"
   ],
   "cSpell.words": [
+    "argjson",
+    "autostash",
     "Bohdan",
+    "brakkk9",
+    "bsdbx",
     "compono",
     "datablock",
+    "elif",
     "Koshovenko",
+    "ltrimstr",
     "mypy",
+    "pipefail",
     "pycache",
     "pyproject",
     "rumdl",
     "shfmt",
+    "startswith",
     "tombi",
     "toplevel",
+    "unassigns",
     "venv"
+],
+"cSpell.ignoreWords": [
+    "Rollup"
 ]
 }

@@ -1030,3 +1030,4 @@ work
 worry
 wrap
 write
+rewrtite
