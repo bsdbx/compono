@@ -31,8 +31,9 @@ requires = ["uv_build>=0.12.24,<0.13.0"]
 build-backend = "uv_build"
 
 [tool.mypy]
-# An absolute path (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
-files = ["$MYPY_CONFIG_FILE_DIR/src"]
+# Absolute paths (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
+# tools/ holds the scripts for working on the project, like ./tasks.sh. They run on the backend's Python, so they're checked the same way.
+files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/../tools"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
 # Everything below covers what `strict` doesn't by default.

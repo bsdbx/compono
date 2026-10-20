@@ -1,0 +1,117 @@
+"""./tasks.sh submit: hands in the current task, from pushing it to merging it.
+
+Run it again after a review: it picks up where the pull request is.
+"""
+
+import time
+
+from tasks import TaskError, git
+from tasks.github import GitHub
+from tasks.prompt import confirm
+from tasks.references import issue_number
+
+# How long to wait for CI to start after a push, and how often to look
+_CI_START_TIMEOUT = 120
+_POLL_INTERVAL = 5
+
+
+def run(github: GitHub) -> None:
+    """Pushes the task, opens its pull request, waits for CI, and merges it if it may be merged."""
+    branch = git.current_branch()
+    if branch in ("", git.MAIN):
+        raise TaskError("Switch to a task first: ./tasks.sh work")
+    number = issue_number(branch)
+
+    git.fetch()
+    if not git.subjects(since=git.ORIGIN_MAIN):
+        raise TaskError(
+            f"Nothing to submit: {branch} has no commits that aren't on {git.MAIN}."
+        )
+    if git.has_uncommitted_changes():
+        print(
+            "Note: uncommitted changes aren't submitted. Commit them first if they belong to this task."
+        )
+
+    head = _push(branch)
+    pull_request = github.open_pull_request(branch) or _open(github, number, branch)
+    _wait_for_ci(github, pull_request, head, branch)
+    if not _merge(github, pull_request):
+        return
+
+    git.update_main()
+    if git.commit(f"refs/heads/{branch}") == head:
+        git.delete_branch(branch)
+        print(f"Deleted {branch}. You're on {git.MAIN}.")
+    else:
+        print(f"Kept {branch}: it has commits that weren't in the merged pull request.")
+
+
+def _push(branch: str) -> str:
+    """Pushes new commits on top of the latest main, so that they can be merged. Returns the pushed commit."""
+    if git.head() != git.commit(f"origin/{branch}"):
+        if not git.contains(git.ORIGIN_MAIN) and not git.rebase(git.ORIGIN_MAIN):
+            raise TaskError(
+                f"Your commits conflict with {git.MAIN}. Run `git rebase {git.ORIGIN_MAIN}`, fix the conflicts, "
+                "run `git rebase --continue`, then run ./tasks.sh submit again."
+            )
+        git.push(branch)
+    return git.head()
+
+
+def _open(github: GitHub, number: int, branch: str) -> int:
+    """Opens the pull request, which closes the task when merged, and asks everyone else to review it."""
+    commits = "\n".join(
+        f"- {subject}" for subject in git.subjects(since=git.ORIGIN_MAIN)
+    )
+    reviewers = [login for login in github.collaborators() if login != github.me]
+    pull_request = github.create_pull_request(
+        branch, github.issue(number).title, f"Closes #{number}\n\n{commits}", reviewers
+    )
+    print(f"Opened https://github.com/{github.repository}/pull/{pull_request}")
+    return pull_request
+
+
+def _wait_for_ci(github: GitHub, pull_request: int, head: str, branch: str) -> None:
+    print(f"Waiting for CI on #{pull_request}. This takes a minute or two...")
+    deadline = time.monotonic() + _CI_START_TIMEOUT
+    while not github.checks_started(pull_request, head):
+        if time.monotonic() > deadline:
+            raise TaskError(
+                f"CI didn't start on #{pull_request}. See https://github.com/{github.repository}/actions"
+            )
+        time.sleep(_POLL_INTERVAL)
+    if not github.checks_pass(pull_request):
+        raise TaskError(
+            f"CI failed. See why: gh run view {github.last_ci_run(branch)} --log-failed\n"
+            "Fix it, commit, then run ./tasks.sh submit again."
+        )
+    print("CI passed.")
+
+
+def _merge(github: GitHub, pull_request: int) -> bool:
+    """Merges the pull request if it may be merged now. Returns whether it did."""
+    match github.review_decision(pull_request):
+        case "APPROVED":
+            pass
+        case "CHANGES_REQUESTED":
+            print(
+                f"Changes were requested on #{pull_request}. Read them with: gh pr view {pull_request} --comments"
+            )
+            return False
+        case _ if not github.is_admin:
+            print(
+                f"#{pull_request} is waiting for review. Once it's approved, run ./tasks.sh submit again to merge it."
+            )
+            return False
+        case _:
+            if not confirm(
+                f"#{pull_request} isn't approved. Merge it anyway, as admin?"
+            ):
+                print("Not merged. Once it's approved, run ./tasks.sh submit again.")
+                return False
+            github.merge(pull_request, as_admin=True)
+            print(f"Merged #{pull_request}.")
+            return True
+    github.merge(pull_request)
+    print(f"Merged #{pull_request}.")
+    return True
