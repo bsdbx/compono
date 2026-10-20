@@ -1,2 +1,3 @@
+# Apply to all .md files
 [global]
-disable = ["MD013"]
+disable = ["MD013"]  # Disable 80 character line-length limit

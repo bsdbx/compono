@@ -1,3 +1,2 @@
-# Check out text files with LF line endings on every OS, including Windows,
-# so shell scripts and hooks run and formatters see identical files.
+# For every file: decide whether the file is text or binary and set line ending to LF, Windows uses CRLF
 * text=auto eol=lf
