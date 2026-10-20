@@ -1,0 +1,30 @@
+name: Guard assignments
+
+# Only the repository admin assigns tasks (`./tasks.sh assign`).
+# When anyone else assigns one, this undoes it.
+on:
+  issues:
+    types: [assigned]
+
+permissions:
+  issues: write
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ github.event.issue.number }}
+      SENDER: ${{ github.event.sender.login }}
+      ASSIGNEE: ${{ github.event.assignee.login }}
+    steps:
+      - name: Undo the assignment unless an admin made it
+        run: |
+          set -euo pipefail
+          permission=$(gh api "repos/$GH_REPO/collaborators/$SENDER/permission" --jq .permission)
+          if [ "$permission" = admin ]; then
+            exit 0
+          fi
+          gh issue edit "$NUMBER" --remove-assignee "$ASSIGNEE"
+          gh issue comment "$NUMBER" --body "Unassigned $ASSIGNEE: only the repository admin assigns tasks, and $SENDER isn't one."
