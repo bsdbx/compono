@@ -1,0 +1,5 @@
+[files]
+# Also check hidden files
+ignore-hidden = false
+# Exclude `uv.lock` and `.git/`
+extend-exclude = [".git/", "uv.lock"]

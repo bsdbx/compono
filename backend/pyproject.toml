@@ -18,6 +18,7 @@ dev = [
     "rumdl>=0.3.0",
     "shfmt-py>=4.2.0",
     "tombi>=1.8.9",
+    "typos>=1.51.1",
 ]
 
 [build-system]

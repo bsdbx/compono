@@ -46,7 +46,7 @@ disallow_any_expr = false
 
 Run `./format.sh` to format files across the whole codebase.
 
-The pre-commit hook checks the same things. To run its checks without committing, stage your changes and run `.githooks/pre-commit`.
+The pre-commit hook checks the same things, plus spelling with [typos](https://github.com/crate-ci/typos), which also checks commit messages. Spelling isn't fixed automatically. To run the checks without committing, stage your changes and run `.githooks/pre-commit`.
 
 > If using [Visual Studio Code]: files are formatted on save.
 

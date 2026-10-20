@@ -19,3 +19,10 @@ if ! grep -qxF "$verb" "$(dirname "$0")/verbs.txt"; then
 	echo "\"$verb\" is not in .githooks/verbs.txt. Start the summary with a verb from that list, or add the verb to it."
 	exit 1
 fi
+
+# Check spelling of the message only: drop Git's "#" comment lines and the diff
+# that `git commit -v` adds below the scissors line.
+if ! sed -e '/^# -* >8 -*$/,$d' -e '/^#/d' "$1" | uv run -q --frozen --project backend typos --format brief -; then
+	echo 'Fix the spelling in the commit message.'
+	exit 1
+fi
