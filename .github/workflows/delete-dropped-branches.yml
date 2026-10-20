@@ -1,0 +1,43 @@
+name: Delete dropped branches
+
+# When a task is closed without being merged, or deleted, delete its branch on GitHub.
+# (GitHub deletes merged branches itself.) A branch with commits that aren't on main
+# is kept, so no work is lost.
+on:
+  issues:
+    types: [closed, deleted]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: read
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    env:
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ github.event.issue.number }}
+      EVENT: ${{ github.event.action }}
+    steps:
+      - name: Delete the task's branches that hold no work
+        run: |
+          set -euo pipefail
+          # Task branches are named <type>/<issue number>-<title>
+          branches=$(gh api "repos/$GH_REPO/git/matching-refs/heads/" --jq '.[].ref | ltrimstr("refs/heads/")' | grep -E "^[a-z]+/$NUMBER(-|\$)" || true)
+          for branch in $branches; do
+            # Merged, so GitHub deletes it
+            if [ -n "$(gh pr list --head "$branch" --state merged --json number --jq '.[].number')" ]; then
+              continue
+            fi
+            ahead=$(gh api "repos/$GH_REPO/compare/main...$branch" --jq .ahead_by)
+            if [ "$ahead" -eq 0 ]; then
+              gh api -X DELETE "repos/$GH_REPO/git/refs/heads/$branch" --silent
+              echo "Deleted $branch"
+            elif [ "$EVENT" = closed ]; then
+              gh issue comment "$NUMBER" --body "Kept the branch \`$branch\`: it has $ahead commits that aren't on main. Once they aren't needed, delete it with \`git push origin --delete $branch\`."
+            else
+              echo "Kept $branch: it has $ahead commits that aren't on main."
+            fi
+          done

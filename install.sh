@@ -24,6 +24,8 @@ uv --directory backend sync --locked
 echo "==> Enabling Git hooks"
 if git rev-parse --git-dir >/dev/null 2>&1; then
 	git config core.hooksPath .githooks
+	# Forget branches that were deleted on GitHub on every fetch, so the hooks can clean up merged ones
+	git config fetch.prune true
 else
 	echo "    Skipped: this folder is not a Git repository. Run ./install.sh again after git init."
 fi

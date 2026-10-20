@@ -8,3 +8,11 @@ PATH="$PATH:${XDG_BIN_HOME:-$HOME/.local/bin}"
 
 # Sync `.venv` to `uv.lock` while ensuring the lockfile is never rewritten
 uv --directory backend sync --locked -q
+
+# Delete local branches whose pull requests were merged, as `./tasks.sh clean` does.
+# Only when a local branch was deleted on GitHub, which keeps this instant otherwise,
+# and not when ./tasks.sh runs git itself, since it cleans up on its own.
+# It never fails the git command, even when the GitHub CLI isn't set up.
+if [ -z "${COMPONO_TASKS-}" ] && git for-each-ref --format='%(upstream:track)' refs/heads | grep -qxF '[gone]'; then
+	./tasks.sh clean --hook 2>/dev/null || true
+fi
