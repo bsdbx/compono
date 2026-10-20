@@ -1,0 +1,23 @@
+{
+  "editor.formatOnSave": true,
+  "files.eol": "\n",
+  "files.readonlyInclude": { "**/uv.lock": true },
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": { "source.organizeImports.ruff": "explicit" }
+  },
+  "[toml]": {
+    "editor.defaultFormatter": "tombi-toml.tombi"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "rvben.rumdl",
+    "files.trimTrailingWhitespace": false
+  },
+  "[shellscript]": {
+    "editor.defaultFormatter": "mkhl.shfmt"
+  },
+  "shfmt.executablePath": "uv",
+  "shfmt.executableArgs": ["run", "-q", "--project", "backend", "shfmt"]
+}

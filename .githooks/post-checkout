@@ -1,0 +1,3 @@
+#!/bin/sh
+# Same job as post-merge, after branch switches.
+exec "$(dirname "$0")/post-merge" "$@"

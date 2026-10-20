@@ -1,0 +1,11 @@
+#!/bin/sh
+# Keeps backend/.venv in sync with uv.lock after pulls (post-merge) and
+# branch switches (post-checkout, which calls this file).
+
+# post-checkout passes "0" as $3 for file checkouts, which can't change dependencies.
+[ "${3-1}" = 0 ] && exit 0
+
+# Where uv's installer puts uv, for Git clients that don't load the shell profile.
+PATH="$PATH:${XDG_BIN_HOME:-$HOME/.local/bin}"
+
+uv --directory backend sync --locked -q

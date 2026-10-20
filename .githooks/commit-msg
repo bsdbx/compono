@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Let through the messages Git writes itself.
+case "$(head -n 1 "$1")" in
+"Merge "* | "Revert \""* | "fixup! "* | "squash! "* | "amend! "*) exit 0 ;;
+esac
+
+# Where uv's installer puts uv, for Git clients that don't load the shell profile.
+PATH="$PATH:${XDG_BIN_HOME:-$HOME/.local/bin}"
+
+if ! uv run -q --frozen --project backend commit-check --no-banner -m "$1"; then
+	echo 'Expected e.g. "feat: Add share links." or "fix(backend): Handle empty names."'
+	exit 1
+fi
+
+# The summary must start with a verb from verbs.txt, next to this hook.
+verb=$(head -n 1 "$1" | sed -E 's/^[^:]*: ([A-Za-z-]+).*/\1/' | tr '[:upper:]' '[:lower:]')
+if ! grep -qxF "$verb" "$(dirname "$0")/verbs.txt"; then
+	echo "\"$verb\" is not in .githooks/verbs.txt. Start the summary with a verb from that list, or add the verb to it."
+	exit 1
+fi
