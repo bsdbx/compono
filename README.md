@@ -26,7 +26,7 @@ To see the milestones of the project: [Compono Milestones](https://github.com/bs
 
 ### Tasks
 
-During the development of the initial project all tasks are assigned by [@bsdbx](https://github.com/bsdbx) or [@brakkk9](https://github.com/brakkk9).
+To work with the tasks: `./tasks.sh`. Run `./tasks.sh --help` to see the usage.
 
 > [!WARNING]
 > This project is a University project. Any contribution is disallowed for the time being. Contributing will be possible once the initial project is completed
