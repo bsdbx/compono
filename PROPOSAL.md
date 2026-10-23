@@ -10,6 +10,7 @@ Build a handy tool for frontend developers who do not enjoy coding but love desi
 
 - Bohdan Rak
 - Anastasia Koshovenko
+- Yevhenii Pron
 
 ### 2. Project Title
 
@@ -95,6 +96,8 @@ One person can hold more than one role; for example, two authors in a small team
 
 **Bohdan Rak**: Build and test the core of the application.
 
-**Anastasia Koshovenko**: Build, test and document the nodes using the core framework.
+**Yevhenii Pron**: Build and test the backend of the application.
+
+**Anastasia Koshovenko**: Build, test and document front-end of the application. Use the core API to build nodes.
 
 [React]: https://github.com/react/react

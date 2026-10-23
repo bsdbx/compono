@@ -11,7 +11,7 @@ For an in-depth product description, see `PROPOSAL.md`.
 
 The final deadline is 15.12.2026, the date of the final submission. To make it convenient, we have decided to split our work into milestones (`M0`-`M7`) to have a sense of time and understand what we can or cannot implement in that time frame.
 
-As the task requires, the team consists of 2 people: Bohdan Rak and Anastasia Koshovenko. The project is set to be maintained afterwards, so contributions will be happily accepted.
+As the task requires, the team consists of 3 people: Bohdan Rak, Anastasia Koshovenko and Yevhenii Pron. The project is set to be maintained afterwards, so contributions will be happily accepted.
 
 The course states that the app must follow the mandatory stack: FastAPI, PostgreSQL, authentication and authorization, several roles and a non-trivial backend. It also states that there must be at least two roles with genuinely different capabilities, not only "user" and "admin who can see everything".
 
