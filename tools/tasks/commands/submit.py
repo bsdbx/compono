@@ -1,6 +1,7 @@
-"""./tasks.sh submit: hands in the current task, from pushing it to merging it.
+"""./tasks.sh submit: hands in the current task, from pushing it to its review.
 
-Run it again after a review: it picks up where the pull request is.
+Only the admin merges, so it merges the admin's own tasks; others wait for
+`./tasks.sh merge`. Run it again after a review: it picks up where the pull request is.
 """
 
 import time
@@ -16,7 +17,7 @@ _POLL_INTERVAL = 5
 
 
 def run(github: GitHub) -> None:
-    """Pushes the task, opens its pull request, waits for CI, and merges it if it may be merged."""
+    """Pushes the task, opens its pull request, waits for CI, and merges it if it's the admin's."""
     branch = git.current_branch()
     if branch in ("", git.MAIN):
         raise TaskError("Switch to a task first: ./tasks.sh work")
@@ -52,7 +53,7 @@ def run(github: GitHub) -> None:
     pull_request = github.open_pull_request(branch) or _open(
         github, task.title, number, branch
     )
-    _wait_for_ci(github, pull_request, head)
+    wait_for_checks(github, pull_request, head)
     if _merge(github, pull_request):
         _clean_up(branch, head)
 
@@ -82,7 +83,8 @@ def _open(github: GitHub, title: str, number: int, branch: str) -> int:
     return pull_request
 
 
-def _wait_for_ci(github: GitHub, pull_request: int, head: str) -> None:
+def wait_for_checks(github: GitHub, pull_request: int, head: str) -> None:
+    """Waits for the checks on the pull request's `head` commit, and raises TaskError if any failed."""
     print(f"Waiting for the checks on #{pull_request}. This takes a minute or two...")
     deadline = time.monotonic() + _CI_START_TIMEOUT
     while not github.checks_started(pull_request, head):
@@ -101,30 +103,29 @@ def _wait_for_ci(github: GitHub, pull_request: int, head: str) -> None:
 
 
 def _merge(github: GitHub, pull_request: int) -> bool:
-    """Merges the pull request if it may be merged now. Returns whether it did."""
-    match github.review_decision(pull_request):
-        case "APPROVED":
-            pass
-        case "CHANGES_REQUESTED":
+    """Merges the admin's own pull request; says where anyone else's stands. Returns whether it merged."""
+    decision = github.review_decision(pull_request)
+    if decision == "CHANGES_REQUESTED":
+        print(
+            f"Changes were requested on #{pull_request}. Read them with: gh pr view {pull_request} --comments"
+        )
+        return False
+    if not github.is_admin:
+        if decision == "APPROVED":
             print(
-                f"Changes were requested on #{pull_request}. Read them with: gh pr view {pull_request} --comments"
+                f"#{pull_request} is approved, and the admin merges it. "
+                f"Your branch is cleaned up the next time you pull {git.MAIN}."
             )
-            return False
-        case _ if not github.is_admin:
-            print(
-                f"#{pull_request} is waiting for review. Once it's approved, run ./tasks.sh submit again to merge it."
-            )
-            return False
-        case _:
-            if not confirm(
-                f"#{pull_request} isn't approved. Merge it anyway, as admin?"
-            ):
-                print("Not merged. Once it's approved, run ./tasks.sh submit again.")
-                return False
-            github.merge(pull_request, as_admin=True)
-            print(f"Merged #{pull_request}.")
-            return True
-    github.merge(pull_request)
+        else:
+            print(f"#{pull_request} is waiting for the admin's review.")
+        return False
+    if decision != "APPROVED" and not confirm(
+        f"#{pull_request} isn't approved. Merge it anyway, as admin?"
+    ):
+        print("Not merged. Once it's approved, run ./tasks.sh submit again.")
+        return False
+    # Only the admin may update main, by bypassing that rule
+    github.merge(pull_request, as_admin=True)
     print(f"Merged #{pull_request}.")
     return True
 

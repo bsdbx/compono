@@ -75,6 +75,18 @@ class Milestone:
     due: str
 
 
+@dataclass(frozen=True)
+class PullRequest:
+    number: int
+    title: str
+    author: str
+
+    @property
+    def summary(self) -> str:
+        """One line for menus, like "#13 Add share links (bsdbx)"."""
+        return f"#{self.number} {self.title} ({self.author})"
+
+
 def _run(
     command: str, arguments: Sequence[str], options: Mapping[str, _Option]
 ) -> subprocess.CompletedProcess[str]:
@@ -287,6 +299,46 @@ class GitHub:
         )
         return int(number) if number else None
 
+    def open_pull_requests(self) -> list[PullRequest]:
+        """The open pull requests, newest first."""
+        rows = _rows(
+            "pr list",
+            repo=self.repository,
+            state="open",
+            limit=100,
+            json="number,title,author",
+            jq=r'.[] | "\(.number)\u001f\(.title)\u001f\(.author.login)"',
+        )
+        return [
+            PullRequest(int(number), title, author) for number, title, author in rows
+        ]
+
+    def pull_request(self, number: int) -> PullRequest:
+        """The pull request with this number."""
+        rows = _rows(
+            "pr view",
+            str(number),
+            repo=self.repository,
+            json="number,title,author",
+            jq=r'"\(.number)\u001f\(.title)\u001f\(.author.login)"',
+        )
+        number_field, title, author = rows[0]
+        return PullRequest(int(number_field), title, author)
+
+    def pull_request_head(self, pull_request: int) -> str:
+        """The pull request's last commit."""
+        return _output(
+            "pr view",
+            str(pull_request),
+            repo=self.repository,
+            json="headRefOid",
+            jq=".headRefOid",
+        )
+
+    def approve(self, pull_request: int) -> None:
+        """Approves the pull request, as the user running this."""
+        _gh("pr review", str(pull_request), repo=self.repository, approve=True)
+
     def create_pull_request(
         self, branch: str, title: str, body: str, reviewers: Sequence[str]
     ) -> int:
@@ -349,7 +401,7 @@ class GitHub:
         )
 
     def merge(self, pull_request: int, *, as_admin: bool = False) -> None:
-        """Rebases the pull request onto main. As admin, even without the required approval."""
+        """Rebases the pull request onto main. As admin, by bypassing the rules that only the admin may."""
         _gh(
             "pr merge",
             str(pull_request),
