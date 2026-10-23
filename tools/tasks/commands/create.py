@@ -1,4 +1,4 @@
-"""./tasks.sh create: creates a task, and offers to assign it."""
+"""./tasks.sh create: anyone creates a task. The admin is also offered to assign it."""
 
 from tasks import TaskError
 from tasks.commands import assign
@@ -7,10 +7,7 @@ from tasks.prompt import ask, choose
 
 
 def run(github: GitHub) -> None:
-    """Asks for the task's details, creates its issue and offers to assign it."""
-    if not github.is_admin:
-        raise TaskError("Only the repository admin can create tasks.")
-
+    """Asks for the task's details, creates its issue, and lets the admin assign it."""
     title = ask("Title: ")
     if not title:
         raise TaskError("A task needs a title.")
@@ -27,6 +24,10 @@ def run(github: GitHub) -> None:
     )
     print(f"Created #{number}. It's in Ready on the board.")
 
+    # Only the admin assigns tasks
+    if not github.is_admin:
+        print("The admin assigns it.")
+        return
     user = ask("Assign to (a username, @me, or Enter to leave it unassigned): ")
     if user:
         assign.give(github, number, user)

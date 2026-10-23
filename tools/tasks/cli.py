@@ -3,17 +3,20 @@
 import sys
 
 from tasks import TaskError
-from tasks.commands import assign, clean, create, submit, work
+from tasks.commands import assign, clean, create, merge, submit, work
 from tasks.github import GitHub
 
 USAGE = """\
 Usage: ./tasks.sh <command>
 
 Commands:
-  create                Create a task. Asks for its title, type, area and milestone. Admin only.
+  create                Create a task. Asks for its title, type, area and milestone.
   assign [task] [user]  Give a task to a user or @me. Asks for anything left out. Admin only.
   work [task]           Start or continue one of your tasks. Lists them if no task is given.
-  submit                Push the current task, open its pull request, wait for CI and merge it once approved.
+  submit                Push the current task, open its pull request and wait for CI.
+                        The admin's own tasks are merged too; everyone else's wait for review.
+  merge [task]          Merge a task's pull request once its checks pass. Lists them if no task is given.
+                        Admin only.
   clean                 Delete local branches whose pull requests were merged.
                         Pulling and switching branches does this too, through the Git hooks.
 
@@ -35,6 +38,8 @@ def main(arguments: list[str]) -> int:
                 work.run(GitHub(), *rest)
             case ["submit"]:
                 submit.run(GitHub())
+            case ["merge", *rest] if len(rest) <= 1:
+                merge.run(GitHub(), *rest)
             case ["clean"]:
                 clean.run(GitHub())
             case ["clean", "--hook"]:
