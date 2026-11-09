@@ -36,6 +36,14 @@
       "react": "recommended"
     }
   },
+  "overrides": [
+    {
+      "includes": ["frontend/src/components/ui/**"],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ],
   "assist": {
     "actions": {
       "source": {
