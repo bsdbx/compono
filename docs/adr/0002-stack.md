@@ -16,7 +16,7 @@ The alpha has no email: no password reset, and no invitations sent by email.
 ### Repository and tooling
 
 - The frontend lives in `frontend/`, next to `backend/`, in the same repository.
-- Node.js 24 LTS and **pnpm**, with both versions pinned in the repository.
+- Node.js 26 LTS and **pnpm**, with both versions pinned in the repository.
 - **Biome** to lint and format TypeScript, JSON and CSS.
 - TypeScript in `strict` mode, plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`.
 - The pre-commit hook and CI run Biome, the TypeScript compiler and the frontend's tests.
