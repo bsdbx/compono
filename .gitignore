@@ -6,3 +6,6 @@ __pycache__/
 # Formatting cache
 .ruff_cache/
 .rumdl_cache/
+
+# Temporary
+.hidden/
