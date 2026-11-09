@@ -1,3 +1,10 @@
 {
-  "recommendations": ["charliermarsh.ruff", "tombi-toml.tombi", "rvben.rumdl", "mkhl.shfmt", "streetsidesoftware.code-spell-checker"]
+  "recommendations": [
+    "charliermarsh.ruff",
+    "tombi-toml.tombi",
+    "rvben.rumdl",
+    "mkhl.shfmt",
+    "streetsidesoftware.code-spell-checker",
+    "biomejs.biome"
+  ]
 }
