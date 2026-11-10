@@ -110,3 +110,11 @@ testpaths = ["tests"]
 
 # Present (even though empty) so ruff uses its defaults, not a personal config.
 [tool.ruff]
+
+# How Vercel serves the backend
+[tool.vercel]
+entrypoint = "compono.app:app"
+
+# Vercel runs this on every deployment, after installing the dependencies: it migrates that deployment's database
+[tool.vercel.scripts]
+build = "python -m alembic upgrade head"

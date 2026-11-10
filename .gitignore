@@ -9,3 +9,6 @@ __pycache__/
 
 # Temporary
 .hidden/
+
+# Vercel CLI's link to the project
+.vercel/
