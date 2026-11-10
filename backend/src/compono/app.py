@@ -14,7 +14,7 @@ from compono.database import sessions
 
 
 def operation_id(route: APIRoute) -> str:
-    """Names each operation after its function, so the frontend's client calls it `health()`, not `healthApiHealthGet()`."""
+    """Names each operation after its function."""
     return route.name
 
 
@@ -48,5 +48,5 @@ def health(session: Database) -> Health:
 
 
 def print_openapi() -> None:
-    """Prints the API's OpenAPI description, which the frontend's client is generated from."""
+    """Prints the API's OpenAPI description."""
     print(json.dumps(app.openapi(), indent=2))
