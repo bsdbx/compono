@@ -15,7 +15,7 @@ if context.is_offline_mode():
     raise SystemExit("Migrations run against a database, not as SQL scripts.")
 
 engine = make_engine(
-    context.config.get_main_option("sqlalchemy.url") or settings.database_url
+    context.config.get_alembic_option("sqlalchemy.url") or settings.database_url
 )
 
 with engine.connect() as connection:

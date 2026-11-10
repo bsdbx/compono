@@ -50,6 +50,10 @@ jobs:
       - name: Install Node.js and frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
+      # Through the command line, as each Vercel deployment runs them
+      - name: Migrate the database
+        run: uv --directory backend run --frozen alembic upgrade head
+
       # Also runs the migrations, and checks that they match the models
       - name: Run the backend's tests
         run: uv --directory backend run --frozen pytest
