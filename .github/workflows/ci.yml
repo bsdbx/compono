@@ -10,8 +10,24 @@ permissions:
 
 jobs:
   # The ruleset on main requires this job by name, so don't rename it
-  checks:
+ checks:
     runs-on: ubuntu-latest
+    # PostgreSQL for the backend's tests, set up as compose.yaml sets it up locally
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_USER: compono
+          POSTGRES_PASSWORD: compono
+          POSTGRES_DB: compono
+        # The same port as compose.yaml, so the backend's default DATABASE_URL works here too
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready --username=compono --dbname=compono"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 15
     steps:
       # The whole history, to read every commit of the pull request
       - uses: actions/checkout@v7
@@ -33,6 +49,10 @@ jobs:
 
       - name: Install Node.js and frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
+
+      # Also runs the migrations, and checks that they match the models
+      - name: Run the backend's tests
+        run: uv --directory backend run --frozen pytest
 
       # Hooks only run on each developer's machine and can be skipped, so run them again here
       - name: Run the pre-commit checks
