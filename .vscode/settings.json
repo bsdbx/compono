@@ -77,6 +77,7 @@
     "pydantic",
     "pyproject",
     "pytest",
+    "redoc",
     "repr",
     "rumdl",
     "sessionmaker",
@@ -88,6 +89,7 @@
     "toplevel",
     "unassigns",
     "venv",
+    "Vercel",
     "Yevhenii"
   ],
   "cSpell.ignoreWords": ["Rollup"]

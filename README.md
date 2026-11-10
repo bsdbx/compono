@@ -12,7 +12,7 @@ Run this once after cloning. On Windows, run it in Git Bash, which comes with [G
 
 After that, the Git hooks keep `backend/.venv` and `frontend/node_modules` up to date when you pull. On Windows, also turn on Developer Mode, which the pre-commit hook needs.
 
-Run the backend with:
+Run the backend:
 
 ```sh
 cd backend
