@@ -1,0 +1,21 @@
+name: compono
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: compono
+      POSTGRES_PASSWORD: compono
+      POSTGRES_DB: compono
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - "db:/var/lib/postgresql"
+    healthcheck:
+      test: ["CMD", "pg_isready", "--username=compono", "--dbname=compono"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  db:

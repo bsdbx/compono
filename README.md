@@ -19,6 +19,12 @@ cd backend
 uv run compono
 ```
 
+Run the DB with Docker:
+
+```sh
+docker compose up -d --wait
+```
+
 Run the frontend with:
 
 ```sh
