@@ -6,10 +6,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import Engine, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
+from compono.app import app, database
 from compono.database import make_engine
 from compono.settings import settings
 
@@ -65,3 +67,12 @@ def session(engine: Engine) -> Iterator[Session]:
         with sessions() as session:
             yield session
         transaction.rollback()
+
+
+@pytest.fixture()
+def client(session: Session) -> Iterator[TestClient]:
+    """The API, with its requests using the test's session."""
+    app.dependency_overrides[database] = lambda: session
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()

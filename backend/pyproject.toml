@@ -9,6 +9,7 @@ requires-python = ">=3.14"
 authors = []
 dependencies = [
     "alembic>=1.20.1",
+    "fastapi>=0.162.3",
     "psycopg[binary]>=3.3.8",
     "pydantic-settings>=2.16.2",
     "sqlalchemy>=2.1.8",
@@ -22,6 +23,7 @@ compono = "compono:main"
 [dependency-groups]
 dev = [
     "commit-check>=2.19.2",
+    "httpx2>=2.16.0",
     "mypy>=2.4.0",
     "pytest>=9.2.0",
     "ruff>=0.17.1",
@@ -29,6 +31,7 @@ dev = [
     "shfmt-py>=4.2.0",
     "tombi>=1.8.9",
     "typos>=1.51.1",
+    "uvicorn>=0.54.0",
 ]
 
 # Build system uses uv_build
@@ -86,6 +89,11 @@ enable_error_code = [
     "unimported-reveal",  # A forgotten `await`
     "unused-awaitable",
 ]
+
+# FastAPI types its route decorators and dependency overrides with Any
+[[tool.mypy.overrides]]
+module = ["compono.app", "conftest"]
+disallow_any_expr = false
 
 # Typed __init__ for pydantic models, so a wrong or unknown field is a type error
 [tool.pydantic-mypy]
