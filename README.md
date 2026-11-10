@@ -39,6 +39,13 @@ cd frontend
 pnpm dev
 ```
 
+When the backend's API changes, generate the frontend's API client from it again.
+
+```sh
+cd frontend
+pnpm generate
+```
+
 We suggest using [Visual Studio Code] for development of this project.
 
 ## Deployment
