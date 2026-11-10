@@ -23,6 +23,7 @@ compono = "compono:main"
 dev = [
     "commit-check>=2.19.2",
     "mypy>=2.4.0",
+    "pytest>=9.2.0",
     "ruff>=0.17.1",
     "rumdl>=0.3.0",
     "shfmt-py>=4.2.0",
@@ -56,7 +57,7 @@ options = "format REVISION_SCRIPT_FILENAME"
 [tool.mypy]
 # Absolute paths (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
 # tools/ holds the scripts for working on the project, like ./tasks.sh. They run on the backend's Python, so they're checked the same way.
-files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/migrations", "$MYPY_CONFIG_FILE_DIR/../tools"]
+files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/migrations", "$MYPY_CONFIG_FILE_DIR/tests", "$MYPY_CONFIG_FILE_DIR/../tools"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
 # Plugins
@@ -91,6 +92,13 @@ enable_error_code = [
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+# Tests against a real PostgreSQL.
+[tool.pytest]
+addopts = ["--import-mode=importlib"]
+filterwarnings = ["error"]
+strict = true
+testpaths = ["tests"]
 
 # Present (even though empty) so ruff uses its defaults, not a personal config.
 [tool.ruff]
