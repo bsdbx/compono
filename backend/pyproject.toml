@@ -7,7 +7,11 @@ requires-python = ">=3.14"
 # Authors are unnecessary for non-public project.
 # If there will be a sufficient amount of contributors, then considering automatic population.
 authors = []
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.3.8",
+    "pydantic-settings>=2.16.2",
+    "sqlalchemy>=2.1.8",
+]
 
 [project.scripts]
 # Register the `compono` command in .venv. This allows `uv run compono`
@@ -36,6 +40,9 @@ build-backend = "uv_build"
 files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/../tools"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
+# Plugins
+plugins = ["pydantic.mypy"]  # Understands pydantic models, such as the settings
+
 # Everything below covers what `strict` doesn't by default.
 warn_unreachable = true  # Code that can never run
 strict_equality_for_none = true  # Comparing to `None` when the value can't be `None`
@@ -59,6 +66,12 @@ enable_error_code = [
     "unimported-reveal",  # A forgotten `await`
     "unused-awaitable",
 ]
+
+# Typed __init__ for pydantic models, so a wrong or unknown field is a type error
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 # Present (even though empty) so ruff uses its defaults, not a personal config.
 [tool.ruff]
