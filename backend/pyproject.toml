@@ -60,7 +60,7 @@ options = "format REVISION_SCRIPT_FILENAME"
 [tool.mypy]
 # Absolute paths (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
 # tools/ holds the scripts for working on the project, like ./tasks.sh. They run on the backend's Python, so they're checked the same way.
-files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/migrations", "$MYPY_CONFIG_FILE_DIR/tests", "$MYPY_CONFIG_FILE_DIR/../tools"]
+files = ["$MYPY_CONFIG_FILE_DIR/main.py", "$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/migrations", "$MYPY_CONFIG_FILE_DIR/tests", "$MYPY_CONFIG_FILE_DIR/../tools"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
 # Plugins
@@ -113,7 +113,7 @@ testpaths = ["tests"]
 
 # How Vercel serves the backend
 [tool.vercel]
-entrypoint = "compono.app:app"
+entrypoint = "main:app"
 
 # Vercel runs this on every deployment, after installing the dependencies: it migrates that deployment's database
 [tool.vercel.scripts]
