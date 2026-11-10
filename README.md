@@ -10,11 +10,20 @@ Run this once after cloning. On Windows, run it in Git Bash, which comes with [G
 ./install.sh
 ```
 
-After that, the Git hooks keep `backend/.venv` up to date when you pull. Run the backend with:
+After that, the Git hooks keep `backend/.venv` and `frontend/node_modules` up to date when you pull. On Windows, also turn on Developer Mode, which the pre-commit hook needs.
+
+Run the backend with:
 
 ```sh
 cd backend
 uv run compono
+```
+
+Run the frontend with:
+
+```sh
+cd frontend
+pnpm dev
 ```
 
 We suggest using [Visual Studio Code] for development of this project.
