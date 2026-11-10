@@ -69,6 +69,15 @@ elif MSYS=winsymlinks:nativestrict ln -s "$repo/frontend/node_modules" frontend/
 	check next typegen frontend
 	check tsc --noEmit --project frontend
 	check vitest run --root frontend
+
+	# If the API client doesn't match the backend's OpenAPI description - say how to update it.
+	# Generates both again here: PYTHONPATH imports the snapshot's backend instead of the working tree's.
+	before=$(find frontend/openapi.json frontend/src/api -type f -exec cksum {} + | sort)
+	check sh -c 'PYTHONPATH="$1/backend/src" uv run -q --frozen --project "$2/backend" compono-openapi > frontend/openapi.json && cd frontend && openapi-ts --silent' sh "$snapshot" "$repo"
+	if [ "$before" != "$(find frontend/openapi.json frontend/src/api -type f -exec cksum {} + | sort)" ]; then
+		echo 'The API client is out of date. Run "pnpm generate" in frontend/, then stage the changes.'
+		status=1
+	fi
 else
 	echo 'Could not link frontend/node_modules into the snapshot. On Windows, turn on Developer Mode.'
 	status=1
