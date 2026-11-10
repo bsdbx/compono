@@ -7,7 +7,13 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["frontend/**", ".vscode/*.json", "!**/*.md"]
+    "includes": [
+      "frontend/**",
+      ".vscode/*.json",
+      "!**/*.md",
+      "!frontend/openapi.json",
+      "!frontend/src/api"
+    ]
   },
   "formatter": {
     "enabled": true,

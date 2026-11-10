@@ -9,9 +9,11 @@
     "lint": "biome check --error-on-warnings",
     "format": "biome check --write",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "generate": "uv --directory ../backend run --frozen compono-openapi > openapi.json && openapi-ts"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.107.1",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "lucide-react": "^1.70.0",
@@ -23,6 +25,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
+    "@hey-api/openapi-ts": "^0.99.0",
     "@tailwindcss/turbopack": "4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
