@@ -18,6 +18,9 @@
   "[shellscript]": {
     "editor.defaultFormatter": "mkhl.shfmt"
   },
+  "[mako]": {
+    "editor.formatOnSave": false
+  },
   "[css][javascript][javascriptreact][json][jsonc][typescript][typescriptreact]": {
     "editor.defaultFormatter": "biomejs.biome",
     "editor.codeActionsOnSave": { "source.organizeImports.biome": "explicit" }
@@ -70,8 +73,10 @@
     "pycache",
     "pydantic",
     "pyproject",
+    "repr",
     "rumdl",
     "shfmt",
+    "sqlalchemy",
     "startswith",
     "tombi",
     "toplevel",

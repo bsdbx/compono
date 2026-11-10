@@ -8,6 +8,7 @@ requires-python = ">=3.14"
 # If there will be a sufficient amount of contributors, then considering automatic population.
 authors = []
 dependencies = [
+    "alembic>=1.20.1",
     "psycopg[binary]>=3.3.8",
     "pydantic-settings>=2.16.2",
     "sqlalchemy>=2.1.8",
@@ -34,10 +35,28 @@ dev = [
 requires = ["uv_build>=0.12.24,<0.13.0"]
 build-backend = "uv_build"
 
+# Migrations.
+[tool.alembic]
+script_location = "%(here)s/migrations"
+file_template = "%%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d%%(minute).2d-%%(rev)s_%%(slug)s"
+
+# Fix and format every new migration, so that it passes the pre-commit hook
+[[tool.alembic.post_write_hooks]]
+name = "ruff-check"
+type = "module"
+module = "ruff"
+options = "check --fix REVISION_SCRIPT_FILENAME"
+
+[[tool.alembic.post_write_hooks]]
+name = "ruff-format"
+type = "module"
+module = "ruff"
+options = "format REVISION_SCRIPT_FILENAME"
+
 [tool.mypy]
 # Absolute paths (mypy fills in this folder), so mypy's cache can tell the pre-commit hook's temporary copies apart and never reuses stale results.
 # tools/ holds the scripts for working on the project, like ./tasks.sh. They run on the backend's Python, so they're checked the same way.
-files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/../tools"]
+files = ["$MYPY_CONFIG_FILE_DIR/src", "$MYPY_CONFIG_FILE_DIR/migrations", "$MYPY_CONFIG_FILE_DIR/../tools"]
 strict = true  # `strict` must always be set to `true`, to enforce "strict" type checking.
 
 # Plugins
