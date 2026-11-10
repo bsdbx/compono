@@ -43,7 +43,7 @@ We suggest using [Visual Studio Code] for development of this project.
 
 ## Deployment
 
-[Vercel](https://vercel.com) deploys `main` to production. Frontend at `/`, backend at `/api`. PostgreSQL DB is hosted via [Neon](https://neon.com).
+[Vercel](https://vercel.com) deploys `main` to production at <https://compono-app.vercel.app>. Frontend at `/`, backend at `/api`. PostgreSQL DB is hosted via [Neon](https://neon.com).
 
 ## Development & Contribution
 
