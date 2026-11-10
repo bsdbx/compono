@@ -5,9 +5,20 @@
 
 # Where uv's installer puts uv, for Git clients that don't load the shell profile.
 PATH="$PATH:${XDG_BIN_HOME:-$HOME/.local/bin}"
+# Where pnpm's installer puts pnpm, on Linux and on macOS.
+PATH="$PATH:${XDG_DATA_HOME:-$HOME/.local/share}/pnpm/bin:$HOME/Library/pnpm/bin"
 
 # Sync `.venv` to `uv.lock` while ensuring the lockfile is never rewritten
 uv --directory backend sync --locked -q
+
+# Install Node.js + frontend/node_modules to match `pnpm-lock.yaml`, on commits that have a frontend
+if [ -f frontend/package.json ]; then
+	if command -v pnpm >/dev/null 2>&1; then
+		pnpm --dir frontend install --frozen-lockfile --loglevel=error
+	else
+		echo 'pnpm is missing, so frontend/node_modules was not updated. Run ./install.sh.'
+	fi
+fi
 
 # Delete local branches whose pull requests were merged, as `./tasks.sh clean` does.
 # Only when a local branch was deleted on GitHub, which keeps this instant otherwise,
