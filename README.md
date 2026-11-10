@@ -19,6 +19,13 @@ cd backend
 uv run compono
 ```
 
+Run its tests, while the database runs:
+
+```sh
+cd backend
+uv run pytest
+```
+
 Run the DB with Docker:
 
 ```sh
