@@ -26,6 +26,14 @@ jobs:
       - name: Install Python and backend dependencies
         run: uv --directory backend sync --locked
 
+      # The pnpm version that frontend/package.json pins, as install.sh installs
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Install Node.js and frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
       # Hooks only run on each developer's machine and can be skipped, so run them again here
       - name: Run the pre-commit checks
         run: .githooks/pre-commit
