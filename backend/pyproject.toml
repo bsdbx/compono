@@ -18,6 +18,8 @@ dependencies = [
 [project.scripts]
 # Register the `compono` command in .venv. This allows `uv run compono`
 compono = "compono:main"
+# Prints the OpenAPI description, for the frontend's `pnpm generate`
+compono-openapi = "compono.app:print_openapi"
 
 # Dev-only tools. Must never be in the app directly
 [dependency-groups]
