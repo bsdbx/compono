@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, HealthData, HealthResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses } from './types.gen';
+import type { CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, HealthData, HealthResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -96,5 +96,20 @@ export const currentAccount = <ThrowOnError extends boolean = false>(options?: O
             type: 'apiKey'
         }],
     url: '/api/account',
+    ...options
+});
+
+/**
+ * My Teams
+ *
+ * The signed-in account's teams
+ */
+export const myTeams = <ThrowOnError extends boolean = false>(options?: Options<MyTeamsData, ThrowOnError>): RequestResult<MyTeamsResponses, MyTeamsErrors, ThrowOnError> => (options?.client ?? client).get<MyTeamsResponses, MyTeamsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams',
     ...options
 });

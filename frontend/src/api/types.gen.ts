@@ -108,6 +108,34 @@ export type SignUp = {
 };
 
 /**
+ * Team
+ *
+ * Team response model.
+ */
+export type Team = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Url
+     */
+    url: string;
+    role: TeamRole;
+};
+
+/**
+ * TeamRole
+ *
+ * What an account can do in a team.
+ */
+export type TeamRole = 'OWNER' | 'MEMBER';
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -284,3 +312,30 @@ export type CurrentAccountResponses = {
 };
 
 export type CurrentAccountResponse = CurrentAccountResponses[keyof CurrentAccountResponses];
+
+export type MyTeamsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/teams';
+};
+
+export type MyTeamsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+};
+
+export type MyTeamsError = MyTeamsErrors[keyof MyTeamsErrors];
+
+export type MyTeamsResponses = {
+    /**
+     * Response My Teams
+     *
+     * Successful Response
+     */
+    200: Array<Team>;
+};
+
+export type MyTeamsResponse = MyTeamsResponses[keyof MyTeamsResponses];
