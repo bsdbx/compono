@@ -83,6 +83,7 @@
     "northwind",
     "ondelete",
     "onupdate",
+    "outerjoin",
     "pg_get_constraintdef",
     "pg_isready",
     "pipefail",
