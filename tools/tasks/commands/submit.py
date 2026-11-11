@@ -89,8 +89,11 @@ def wait_for_checks(github: GitHub, pull_request: int, head: str) -> None:
     deadline = time.monotonic() + _CI_START_TIMEOUT
     while not github.checks_started(pull_request, head):
         if time.monotonic() > deadline:
+            required = ", ".join(sorted(github.required_checks))
             raise TaskError(
-                f"The checks didn't start on #{pull_request}. See https://github.com/{github.repository}/actions"
+                f"The checks that main requires ({required}) didn't start on #{pull_request}. "
+                f"See https://github.com/{github.repository}/actions, and https://www.githubstatus.com "
+                "in case GitHub Actions is down. Then run this again."
             )
         time.sleep(_POLL_INTERVAL)
     if not github.checks_pass(pull_request):

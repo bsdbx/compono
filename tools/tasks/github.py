@@ -354,16 +354,30 @@ class GitHub:
         )
         return int(url.rpartition("/")[2])
 
+    @cached_property
+    def required_checks(self) -> frozenset[str]:
+        """The checks that main's rules require to pass before merging, like "checks" and "task"."""
+        names = _output(
+            "api",
+            f"repos/{self.repository}/rules/branches/{MAIN}",
+            jq='.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context',
+        )
+        return frozenset(names.split("\n")) - {""}
+
     def checks_started(self, pull_request: int, commit: str) -> bool:
-        """Whether GitHub has `commit` as the pull request's last commit, and CI has started on it."""
-        head, _, count = _output(
+        """Whether GitHub has `commit` as the pull request's last commit, and every check that main requires has started on it."""
+        head, *reported = _output(
             "pr view",
             str(pull_request),
             repo=self.repository,
             json="headRefOid,statusCheckRollup",
-            jq=r'"\(.headRefOid) \(.statusCheckRollup | length)"',
-        ).partition(" ")
-        return head == commit and count != "0"
+            # A check run has a name, and a commit status, like Vercel's, has a context
+            jq=r".headRefOid, (.statusCheckRollup[] | .name // .context)",
+        ).split("\n")
+        # Every check that main requires, not just any: Vercel's can report while CI still waits for a runner
+        return (
+            head == commit and bool(reported) and self.required_checks <= set(reported)
+        )
 
     def checks_pass(self, pull_request: int) -> bool:
         """Waits for the pull request's checks to finish, and returns whether they all passed."""
