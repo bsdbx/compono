@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
+import type { CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -276,5 +276,152 @@ export const joinTeam = <ThrowOnError extends boolean = false>(options: Options<
             type: 'apiKey'
         }],
     url: '/api/invite-links/{token}',
+    ...options
+});
+
+/**
+ * Team Projects
+ *
+ * The team's projects that the signed-in account can see, the most recently edited first. Owners see them all.
+ */
+export const teamProjects = <ThrowOnError extends boolean = false>(options: Options<TeamProjectsData, ThrowOnError>): RequestResult<TeamProjectsResponses, TeamProjectsErrors, ThrowOnError> => (options.client ?? client).get<TeamProjectsResponses, TeamProjectsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects',
+    ...options
+});
+
+/**
+ * Create Project
+ *
+ * Creates a project in the team, with the signed-in account as its first lead.
+ */
+export const createProject = <ThrowOnError extends boolean = false>(options: Options<CreateProjectData, ThrowOnError>): RequestResult<CreateProjectResponses, CreateProjectErrors, ThrowOnError> => (options.client ?? client).post<CreateProjectResponses, CreateProjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Project
+ *
+ * Deletes a project, with its components.
+ */
+export const deleteProject = <ThrowOnError extends boolean = false>(options: Options<DeleteProjectData, ThrowOnError>): RequestResult<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError> => (options.client ?? client).delete<DeleteProjectResponses, DeleteProjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}',
+    ...options
+});
+
+/**
+ * Project
+ *
+ * A project that the signed-in account can see.
+ */
+export const project = <ThrowOnError extends boolean = false>(options: Options<ProjectData, ThrowOnError>): RequestResult<ProjectResponses, ProjectErrors, ThrowOnError> => (options.client ?? client).get<ProjectResponses, ProjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}',
+    ...options
+});
+
+/**
+ * Update Project
+ *
+ * Changes a project's name or description. A new name gives it a new URL.
+ */
+export const updateProject = <ThrowOnError extends boolean = false>(options: Options<UpdateProjectData, ThrowOnError>): RequestResult<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError> => (options.client ?? client).patch<UpdateProjectResponses, UpdateProjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Project Members
+ *
+ * A project's members, in the order they were added.
+ */
+export const projectMembers = <ThrowOnError extends boolean = false>(options: Options<ProjectMembersData, ThrowOnError>): RequestResult<ProjectMembersResponses, ProjectMembersErrors, ThrowOnError> => (options.client ?? client).get<ProjectMembersResponses, ProjectMembersErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/members',
+    ...options
+});
+
+/**
+ * Remove Project Member
+ *
+ * Takes a member out of a project.
+ */
+export const removeProjectMember = <ThrowOnError extends boolean = false>(options: Options<RemoveProjectMemberData, ThrowOnError>): RequestResult<RemoveProjectMemberResponses, RemoveProjectMemberErrors, ThrowOnError> => (options.client ?? client).delete<RemoveProjectMemberResponses, RemoveProjectMemberErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/members/{account_id}',
+    ...options
+});
+
+/**
+ * Set Project Member
+ *
+ * Adds a member of the team to a project with the role, or gives them the role if they're in it.
+ */
+export const setProjectMember = <ThrowOnError extends boolean = false>(options: Options<SetProjectMemberData, ThrowOnError>): RequestResult<SetProjectMemberResponses, SetProjectMemberErrors, ThrowOnError> => (options.client ?? client).put<SetProjectMemberResponses, SetProjectMemberErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/members/{account_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Leave Project
+ *
+ * Takes the signed-in account out of a project.
+ */
+export const leaveProject = <ThrowOnError extends boolean = false>(options: Options<LeaveProjectData, ThrowOnError>): RequestResult<LeaveProjectResponses, LeaveProjectErrors, ThrowOnError> => (options.client ?? client).delete<LeaveProjectResponses, LeaveProjectErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/membership',
     ...options
 });
