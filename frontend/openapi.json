@@ -197,6 +197,44 @@
           }
         ]
       }
+    },
+    "/api/teams": {
+      "get": {
+        "summary": "My Teams",
+        "description": "The signed-in account's teams",
+        "operationId": "my_teams",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Team"
+                  },
+                  "type": "array",
+                  "title": "Response My Teams"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotSignedInError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -338,6 +376,44 @@
         ],
         "title": "SignUp",
         "description": "Sign up model."
+      },
+      "Team": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "role": {
+            "$ref": "#/components/schemas/TeamRole"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "url",
+          "role"
+        ],
+        "title": "Team",
+        "description": "Team response model."
+      },
+      "TeamRole": {
+        "type": "string",
+        "enum": [
+          "OWNER",
+          "MEMBER"
+        ],
+        "title": "TeamRole",
+        "description": "What an account can do in a team."
       },
       "ValidationError": {
         "properties": {

@@ -80,6 +80,7 @@
     "ltrimstr",
     "mypy",
     "nativestrict",
+    "northwind",
     "ondelete",
     "onupdate",
     "pg_get_constraintdef",

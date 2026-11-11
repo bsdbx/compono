@@ -5,7 +5,7 @@ import json
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 
-from compono.api import accounts, health
+from compono.api import accounts, health, teams
 
 
 def operation_id(route: APIRoute) -> str:
@@ -23,6 +23,7 @@ app = FastAPI(
 
 app.include_router(health.router)
 app.include_router(accounts.router)
+app.include_router(teams.router)
 
 
 def print_openapi() -> None:

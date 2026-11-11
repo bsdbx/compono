@@ -4,8 +4,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { currentAccount, health, type Options, signIn, signOut, signOutEverywhere, signUp } from '../sdk.gen';
-import type { CurrentAccountData, CurrentAccountError, CurrentAccountResponse, HealthData, HealthResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse } from '../types.gen';
+import { currentAccount, health, myTeams, type Options, signIn, signOut, signOutEverywhere, signUp } from '../sdk.gen';
+import type { CurrentAccountData, CurrentAccountError, CurrentAccountResponse, HealthData, HealthResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -154,4 +154,24 @@ export const currentAccountOptions = (options?: Options<CurrentAccountData>) => 
         return data;
     },
     queryKey: currentAccountQueryKey(options)
+});
+
+export const myTeamsQueryKey = (options?: Options<MyTeamsData>) => createQueryKey('myTeams', options);
+
+/**
+ * My Teams
+ *
+ * The signed-in account's teams
+ */
+export const myTeamsOptions = (options?: Options<MyTeamsData>) => queryOptions<MyTeamsResponse, MyTeamsError, MyTeamsResponse, ReturnType<typeof myTeamsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await myTeams({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: myTeamsQueryKey(options)
 });
