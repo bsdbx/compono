@@ -87,6 +87,7 @@
     "pipefail",
     "pooler",
     "psycopg",
+    "pwdlib",
     "pycache",
     "pydantic",
     "pyproject",
