@@ -53,6 +53,7 @@
     "**/uv.lock"
   ],
   "cSpell.words": [
+    "_refuse_unstorable",
     "addopts",
     "anyascii",
     "argjson",
@@ -76,6 +77,7 @@
     "filterwarnings",
     "healthcheck",
     "httpx2",
+    "jsonable_encoder",
     "Koshovenko",
     "ltrimstr",
     "mypy",

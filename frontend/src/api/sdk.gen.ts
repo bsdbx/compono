@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
+import type { ComponentData, ComponentErrors, ComponentResponses, CreateComponentData, CreateComponentErrors, CreateComponentResponses, CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteComponentData, DeleteComponentErrors, DeleteComponentResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DuplicateComponentData, DuplicateComponentErrors, DuplicateComponentResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectComponentsData, ProjectComponentsErrors, ProjectComponentsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, RenameComponentData, RenameComponentErrors, RenameComponentResponses, SaveComponentData, SaveComponentErrors, SaveComponentResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -423,5 +423,122 @@ export const leaveProject = <ThrowOnError extends boolean = false>(options: Opti
             type: 'apiKey'
         }],
     url: '/api/teams/{team_url}/projects/{project_url}/membership',
+    ...options
+});
+
+/**
+ * Project Components
+ *
+ * A project's components, in the order they were created.
+ */
+export const projectComponents = <ThrowOnError extends boolean = false>(options: Options<ProjectComponentsData, ThrowOnError>): RequestResult<ProjectComponentsResponses, ProjectComponentsErrors, ThrowOnError> => (options.client ?? client).get<ProjectComponentsResponses, ProjectComponentsErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components',
+    ...options
+});
+
+/**
+ * Create Component
+ *
+ * Creates a component with an empty graph and the default screen sizes.
+ */
+export const createComponent = <ThrowOnError extends boolean = false>(options: Options<CreateComponentData, ThrowOnError>): RequestResult<CreateComponentResponses, CreateComponentErrors, ThrowOnError> => (options.client ?? client).post<CreateComponentResponses, CreateComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Component
+ *
+ * Deletes a component.
+ */
+export const deleteComponent = <ThrowOnError extends boolean = false>(options: Options<DeleteComponentData, ThrowOnError>): RequestResult<DeleteComponentResponses, DeleteComponentErrors, ThrowOnError> => (options.client ?? client).delete<DeleteComponentResponses, DeleteComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}',
+    ...options
+});
+
+/**
+ * Component
+ *
+ * A component, with its graph and screen sizes.
+ */
+export const component = <ThrowOnError extends boolean = false>(options: Options<ComponentData, ThrowOnError>): RequestResult<ComponentResponses, ComponentErrors, ThrowOnError> => (options.client ?? client).get<ComponentResponses, ComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}',
+    ...options
+});
+
+/**
+ * Rename Component
+ *
+ * Gives a component a new name.
+ */
+export const renameComponent = <ThrowOnError extends boolean = false>(options: Options<RenameComponentData, ThrowOnError>): RequestResult<RenameComponentResponses, RenameComponentErrors, ThrowOnError> => (options.client ?? client).patch<RenameComponentResponses, RenameComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Save Component
+ *
+ * Saves a component's graph and screen sizes. Answers 409 if someone else saved it after the version the save started from.
+ */
+export const saveComponent = <ThrowOnError extends boolean = false>(options: Options<SaveComponentData, ThrowOnError>): RequestResult<SaveComponentResponses, SaveComponentErrors, ThrowOnError> => (options.client ?? client).put<SaveComponentResponses, SaveComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}/content',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Duplicate Component
+ *
+ * Copies a component, as FeatureGridCopy for FeatureGrid.
+ */
+export const duplicateComponent = <ThrowOnError extends boolean = false>(options: Options<DuplicateComponentData, ThrowOnError>): RequestResult<DuplicateComponentResponses, DuplicateComponentErrors, ThrowOnError> => (options.client ?? client).post<DuplicateComponentResponses, DuplicateComponentErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}/copies',
     ...options
 });
