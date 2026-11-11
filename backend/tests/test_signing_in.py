@@ -10,7 +10,8 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from compono import auth, models
-from compono.app import Account, app
+from compono.api.accounts import Account
+from compono.app import app
 
 PASSWORD = "correct horse battery staple"
 

@@ -11,7 +11,8 @@ from sqlalchemy import Engine, make_url, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
-from compono.app import app, database
+from compono.api.dependencies import database
+from compono.app import app
 from compono.database import make_engine
 from compono.settings import settings
 
