@@ -9,6 +9,7 @@ from pydantic import BaseModel, StringConstraints
 
 from compono import models, teams
 from compono.api.dependencies import Database, NotSignedInError, SignedIn
+from compono.api.text import NO_NUL, PathText
 from compono.models import TeamRole
 from compono.permissions import TeamAction, can
 
@@ -16,7 +17,9 @@ router = APIRouter()
 
 # Stripped team name length is between 1 and 100
 TeamName = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
+    NO_NUL,
 ]
 
 # Team URL length is between 3 and 39 and matches the pattern, e.g: my-awesome-team-1
@@ -65,7 +68,7 @@ URL_TAKEN: Final = (status.HTTP_409_CONFLICT, UrlTakenError)
 
 
 def membership(
-    team_url: str,
+    team_url: PathText,
     account: SignedIn,
     database: Database,
 ) -> teams.Membership:
@@ -304,7 +307,7 @@ INVITE_LINK_NOT_VALID: Final = (status.HTTP_404_NOT_FOUND, InviteLinkNotValidErr
 
 
 @router.get("/api/invite-links/{token}", responses=answers(INVITE_LINK_NOT_VALID))
-def invite(token: str, database: Database) -> Invite:
+def invite(token: PathText, database: Database) -> Invite:
     """The team that an invite link joins. Also for someone not signed in."""
     try:
         team = teams.team_of_invite(database, token)
@@ -320,7 +323,7 @@ def invite(token: str, database: Database) -> Invite:
     "/api/invite-links/{token}",
     responses=answers(NOT_SIGNED_IN, INVITE_LINK_NOT_VALID),
 )
-def join_team(token: str, account: SignedIn, database: Database) -> Team:
+def join_team(token: PathText, account: SignedIn, database: Database) -> Team:
     """Adds the signed-in account to an invite link's team as a member."""
     try:
         joined = teams.join(database, token, account)

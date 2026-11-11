@@ -18,6 +18,7 @@ from compono.api.teams import (
     answers,
     require,
 )
+from compono.api.text import NO_NUL, PathText
 from compono.models import ProjectRole, TeamRole, make_url_from_project_name
 from compono.permissions import ProjectAction, TeamAction, can_in_project
 
@@ -45,7 +46,9 @@ ProjectName = Annotated[
 ]
 
 # Stripped description is at most 500 characters long
-Description = Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]
+Description = Annotated[
+    str, StringConstraints(strip_whitespace=True, max_length=500), NO_NUL
+]
 
 
 class Project(BaseModel):
@@ -119,7 +122,7 @@ class ProjectAccess(NamedTuple):
 
 
 def project_access(
-    project_url: str,
+    project_url: PathText,
     membership: InTeam,
     account: SignedIn,
     database: Database,
