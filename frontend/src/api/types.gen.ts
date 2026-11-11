@@ -56,12 +56,125 @@ export type Health = {
 };
 
 /**
+ * Invite
+ *
+ * What the join page shows of the team.
+ */
+export type Invite = {
+    /**
+     * Team Name
+     */
+    team_name: string;
+};
+
+/**
+ * InviteLink
+ *
+ * What makes a team's invite link: compono.app/join/{token}.
+ */
+export type InviteLink = {
+    /**
+     * Token
+     */
+    token: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * InviteLinkNotValidError
+ */
+export type InviteLinkNotValidError = {
+    /**
+     * Detail
+     */
+    detail: 'invite_link_not_valid';
+};
+
+/**
+ * LastOwnerError
+ */
+export type LastOwnerError = {
+    /**
+     * Detail
+     */
+    detail: 'last_owner';
+};
+
+/**
+ * Member
+ *
+ * A member of a team.
+ */
+export type Member = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Email
+     */
+    email: string;
+    role: TeamRole;
+};
+
+/**
+ * MemberNotFoundError
+ */
+export type MemberNotFoundError = {
+    /**
+     * Detail
+     */
+    detail: 'team_not_found' | 'member_not_found';
+};
+
+/**
+ * NewTeam
+ */
+export type NewTeam = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
  * NotSignedInError
  *
  * Error wrapper.
  */
 export type NotSignedInError = {
     detail: Reason;
+};
+
+/**
+ * OwnerCannotBeRemovedError
+ */
+export type OwnerCannotBeRemovedError = {
+    /**
+     * Detail
+     */
+    detail: 'owner_cannot_be_removed';
+};
+
+/**
+ * OwnersOnlyError
+ */
+export type OwnersOnlyError = {
+    /**
+     * Detail
+     */
+    detail: 'owners_only';
 };
 
 /**
@@ -129,11 +242,47 @@ export type Team = {
 };
 
 /**
+ * TeamChanges
+ *
+ * What to change of a team.
+ */
+export type TeamChanges = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Url
+     */
+    url?: string | null;
+};
+
+/**
+ * TeamNotFoundError
+ */
+export type TeamNotFoundError = {
+    /**
+     * Detail
+     */
+    detail: 'team_not_found';
+};
+
+/**
  * TeamRole
  *
  * What an account can do in a team.
  */
 export type TeamRole = 'OWNER' | 'MEMBER';
+
+/**
+ * UrlTakenError
+ */
+export type UrlTakenError = {
+    /**
+     * Detail
+     */
+    detail: 'url_taken';
+};
 
 /**
  * ValidationError
@@ -339,3 +488,454 @@ export type MyTeamsResponses = {
 };
 
 export type MyTeamsResponse = MyTeamsResponses[keyof MyTeamsResponses];
+
+export type CreateTeamData = {
+    body: NewTeam;
+    path?: never;
+    query?: never;
+    url: '/api/teams';
+};
+
+export type CreateTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Conflict
+     */
+    409: UrlTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
+
+export type CreateTeamResponses = {
+    /**
+     * Successful Response
+     */
+    201: Team;
+};
+
+export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
+
+export type DeleteTeamData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}';
+};
+
+export type DeleteTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteTeamError = DeleteTeamErrors[keyof DeleteTeamErrors];
+
+export type DeleteTeamResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteTeamResponse = DeleteTeamResponses[keyof DeleteTeamResponses];
+
+export type TeamData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}';
+};
+
+export type TeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamError = TeamErrors[keyof TeamErrors];
+
+export type TeamResponses = {
+    /**
+     * Successful Response
+     */
+    200: Team;
+};
+
+export type TeamResponse = TeamResponses[keyof TeamResponses];
+
+export type UpdateTeamData = {
+    body: TeamChanges;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}';
+};
+
+export type UpdateTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Conflict
+     */
+    409: UrlTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateTeamError = UpdateTeamErrors[keyof UpdateTeamErrors];
+
+export type UpdateTeamResponses = {
+    /**
+     * Successful Response
+     */
+    200: Team;
+};
+
+export type UpdateTeamResponse = UpdateTeamResponses[keyof UpdateTeamResponses];
+
+export type TeamMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/members';
+};
+
+export type TeamMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamMembersError = TeamMembersErrors[keyof TeamMembersErrors];
+
+export type TeamMembersResponses = {
+    /**
+     * Response Team Members
+     *
+     * Successful Response
+     */
+    200: Array<Member>;
+};
+
+export type TeamMembersResponse = TeamMembersResponses[keyof TeamMembersResponses];
+
+export type MakeOwnerData = {
+    body?: never;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/owners/{account_id}';
+};
+
+export type MakeOwnerErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: MemberNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MakeOwnerError = MakeOwnerErrors[keyof MakeOwnerErrors];
+
+export type MakeOwnerResponses = {
+    /**
+     * Successful Response
+     */
+    200: Member;
+};
+
+export type MakeOwnerResponse = MakeOwnerResponses[keyof MakeOwnerResponses];
+
+export type RemoveMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/members/{account_id}';
+};
+
+export type RemoveMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: MemberNotFoundError;
+    /**
+     * Conflict
+     */
+    409: OwnerCannotBeRemovedError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
+
+export type RemoveMemberResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
+
+export type LeaveTeamData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/membership';
+};
+
+export type LeaveTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Conflict
+     */
+    409: LastOwnerError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LeaveTeamError = LeaveTeamErrors[keyof LeaveTeamErrors];
+
+export type LeaveTeamResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type LeaveTeamResponse = LeaveTeamResponses[keyof LeaveTeamResponses];
+
+export type InviteLinkData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/invite-link';
+};
+
+export type InviteLinkErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InviteLinkError = InviteLinkErrors[keyof InviteLinkErrors];
+
+export type InviteLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: InviteLink;
+};
+
+export type InviteLinkResponse = InviteLinkResponses[keyof InviteLinkResponses];
+
+export type InviteData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/invite-links/{token}';
+};
+
+export type InviteErrors = {
+    /**
+     * Not Found
+     */
+    404: InviteLinkNotValidError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InviteError = InviteErrors[keyof InviteErrors];
+
+export type InviteResponses = {
+    /**
+     * Successful Response
+     */
+    200: Invite;
+};
+
+export type InviteResponse = InviteResponses[keyof InviteResponses];
+
+export type JoinTeamData = {
+    body?: never;
+    path: {
+        /**
+         * Token
+         */
+        token: string;
+    };
+    query?: never;
+    url: '/api/invite-links/{token}';
+};
+
+export type JoinTeamErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: InviteLinkNotValidError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JoinTeamError = JoinTeamErrors[keyof JoinTeamErrors];
+
+export type JoinTeamResponses = {
+    /**
+     * Successful Response
+     */
+    200: Team;
+};
+
+export type JoinTeamResponse = JoinTeamResponses[keyof JoinTeamResponses];

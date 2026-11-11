@@ -4,8 +4,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { currentAccount, health, myTeams, type Options, signIn, signOut, signOutEverywhere, signUp } from '../sdk.gen';
-import type { CurrentAccountData, CurrentAccountError, CurrentAccountResponse, HealthData, HealthResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse } from '../types.gen';
+import { createTeam, currentAccount, deleteTeam, health, invite, inviteLink, joinTeam, leaveTeam, makeOwner, myTeams, type Options, removeMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, updateTeam } from '../sdk.gen';
+import type { CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -161,7 +161,7 @@ export const myTeamsQueryKey = (options?: Options<MyTeamsData>) => createQueryKe
 /**
  * My Teams
  *
- * The signed-in account's teams
+ * The signed-in account's teams.
  */
 export const myTeamsOptions = (options?: Options<MyTeamsData>) => queryOptions<MyTeamsResponse, MyTeamsError, MyTeamsResponse, ReturnType<typeof myTeamsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {
@@ -175,3 +175,216 @@ export const myTeamsOptions = (options?: Options<MyTeamsData>) => queryOptions<M
     },
     queryKey: myTeamsQueryKey(options)
 });
+
+/**
+ * Create Team
+ *
+ * Creates a team, with the signed-in account as its owner.
+ */
+export const createTeamMutation = (options?: Partial<Options<CreateTeamData>>): UseMutationOptions<CreateTeamResponse, CreateTeamError, Options<CreateTeamData>> => {
+    const mutationOptions: UseMutationOptions<CreateTeamResponse, CreateTeamError, Options<CreateTeamData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Team
+ *
+ * Deletes a team, with its projects and components.
+ */
+export const deleteTeamMutation = (options?: Partial<Options<DeleteTeamData>>): UseMutationOptions<DeleteTeamResponse, DeleteTeamError, Options<DeleteTeamData>> => {
+    const mutationOptions: UseMutationOptions<DeleteTeamResponse, DeleteTeamError, Options<DeleteTeamData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const teamQueryKey = (options: Options<TeamData>) => createQueryKey('team', options);
+
+/**
+ * Team
+ *
+ * A team of the signed-in account.
+ */
+export const teamOptions = (options: Options<TeamData>) => queryOptions<TeamResponse, TeamError, TeamResponse, ReturnType<typeof teamQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await team({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: teamQueryKey(options)
+});
+
+/**
+ * Update Team
+ *
+ * Changes a team's name or URL.
+ */
+export const updateTeamMutation = (options?: Partial<Options<UpdateTeamData>>): UseMutationOptions<UpdateTeamResponse, UpdateTeamError, Options<UpdateTeamData>> => {
+    const mutationOptions: UseMutationOptions<UpdateTeamResponse, UpdateTeamError, Options<UpdateTeamData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const teamMembersQueryKey = (options: Options<TeamMembersData>) => createQueryKey('teamMembers', options);
+
+/**
+ * Team Members
+ *
+ * A team's members, in the order they joined.
+ */
+export const teamMembersOptions = (options: Options<TeamMembersData>) => queryOptions<TeamMembersResponse, TeamMembersError, TeamMembersResponse, ReturnType<typeof teamMembersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await teamMembers({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: teamMembersQueryKey(options)
+});
+
+/**
+ * Make Owner
+ *
+ * Makes a member of a team one of its owners.
+ */
+export const makeOwnerMutation = (options?: Partial<Options<MakeOwnerData>>): UseMutationOptions<MakeOwnerResponse, MakeOwnerError, Options<MakeOwnerData>> => {
+    const mutationOptions: UseMutationOptions<MakeOwnerResponse, MakeOwnerError, Options<MakeOwnerData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await makeOwner({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Remove Member
+ *
+ * Takes a member out of a team and its projects. Owners leave by themselves.
+ */
+export const removeMemberMutation = (options?: Partial<Options<RemoveMemberData>>): UseMutationOptions<RemoveMemberResponse, RemoveMemberError, Options<RemoveMemberData>> => {
+    const mutationOptions: UseMutationOptions<RemoveMemberResponse, RemoveMemberError, Options<RemoveMemberData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await removeMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Leave Team
+ *
+ * Takes the signed-in account out of a team and its projects.
+ */
+export const leaveTeamMutation = (options?: Partial<Options<LeaveTeamData>>): UseMutationOptions<LeaveTeamResponse, LeaveTeamError, Options<LeaveTeamData>> => {
+    const mutationOptions: UseMutationOptions<LeaveTeamResponse, LeaveTeamError, Options<LeaveTeamData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await leaveTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const inviteLinkQueryKey = (options: Options<InviteLinkData>) => createQueryKey('inviteLink', options);
+
+/**
+ * Invite Link
+ *
+ * A team's invite link. A new one if the last one has expired.
+ */
+export const inviteLinkOptions = (options: Options<InviteLinkData>) => queryOptions<InviteLinkResponse, InviteLinkError, InviteLinkResponse, ReturnType<typeof inviteLinkQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await inviteLink({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: inviteLinkQueryKey(options)
+});
+
+export const inviteQueryKey = (options: Options<InviteData>) => createQueryKey('invite', options);
+
+/**
+ * Invite
+ *
+ * The team that an invite link joins. Also for someone not signed in.
+ */
+export const inviteOptions = (options: Options<InviteData>) => queryOptions<InviteResponse, InviteError, InviteResponse, ReturnType<typeof inviteQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await invite({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: inviteQueryKey(options)
+});
+
+/**
+ * Join Team
+ *
+ * Adds the signed-in account to an invite link's team as a member.
+ */
+export const joinTeamMutation = (options?: Partial<Options<JoinTeamData>>): UseMutationOptions<JoinTeamResponse, JoinTeamError, Options<JoinTeamData>> => {
+    const mutationOptions: UseMutationOptions<JoinTeamResponse, JoinTeamError, Options<JoinTeamData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await joinTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};

@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, HealthData, HealthResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses } from './types.gen';
+import type { CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -102,7 +102,7 @@ export const currentAccount = <ThrowOnError extends boolean = false>(options?: O
 /**
  * My Teams
  *
- * The signed-in account's teams
+ * The signed-in account's teams.
  */
 export const myTeams = <ThrowOnError extends boolean = false>(options?: Options<MyTeamsData, ThrowOnError>): RequestResult<MyTeamsResponses, MyTeamsErrors, ThrowOnError> => (options?.client ?? client).get<MyTeamsResponses, MyTeamsErrors, ThrowOnError>({
     security: [{
@@ -111,5 +111,170 @@ export const myTeams = <ThrowOnError extends boolean = false>(options?: Options<
             type: 'apiKey'
         }],
     url: '/api/teams',
+    ...options
+});
+
+/**
+ * Create Team
+ *
+ * Creates a team, with the signed-in account as its owner.
+ */
+export const createTeam = <ThrowOnError extends boolean = false>(options: Options<CreateTeamData, ThrowOnError>): RequestResult<CreateTeamResponses, CreateTeamErrors, ThrowOnError> => (options.client ?? client).post<CreateTeamResponses, CreateTeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Team
+ *
+ * Deletes a team, with its projects and components.
+ */
+export const deleteTeam = <ThrowOnError extends boolean = false>(options: Options<DeleteTeamData, ThrowOnError>): RequestResult<DeleteTeamResponses, DeleteTeamErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTeamResponses, DeleteTeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}',
+    ...options
+});
+
+/**
+ * Team
+ *
+ * A team of the signed-in account.
+ */
+export const team = <ThrowOnError extends boolean = false>(options: Options<TeamData, ThrowOnError>): RequestResult<TeamResponses, TeamErrors, ThrowOnError> => (options.client ?? client).get<TeamResponses, TeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}',
+    ...options
+});
+
+/**
+ * Update Team
+ *
+ * Changes a team's name or URL.
+ */
+export const updateTeam = <ThrowOnError extends boolean = false>(options: Options<UpdateTeamData, ThrowOnError>): RequestResult<UpdateTeamResponses, UpdateTeamErrors, ThrowOnError> => (options.client ?? client).patch<UpdateTeamResponses, UpdateTeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Team Members
+ *
+ * A team's members, in the order they joined.
+ */
+export const teamMembers = <ThrowOnError extends boolean = false>(options: Options<TeamMembersData, ThrowOnError>): RequestResult<TeamMembersResponses, TeamMembersErrors, ThrowOnError> => (options.client ?? client).get<TeamMembersResponses, TeamMembersErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/members',
+    ...options
+});
+
+/**
+ * Make Owner
+ *
+ * Makes a member of a team one of its owners.
+ */
+export const makeOwner = <ThrowOnError extends boolean = false>(options: Options<MakeOwnerData, ThrowOnError>): RequestResult<MakeOwnerResponses, MakeOwnerErrors, ThrowOnError> => (options.client ?? client).put<MakeOwnerResponses, MakeOwnerErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/owners/{account_id}',
+    ...options
+});
+
+/**
+ * Remove Member
+ *
+ * Takes a member out of a team and its projects. Owners leave by themselves.
+ */
+export const removeMember = <ThrowOnError extends boolean = false>(options: Options<RemoveMemberData, ThrowOnError>): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError> => (options.client ?? client).delete<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/members/{account_id}',
+    ...options
+});
+
+/**
+ * Leave Team
+ *
+ * Takes the signed-in account out of a team and its projects.
+ */
+export const leaveTeam = <ThrowOnError extends boolean = false>(options: Options<LeaveTeamData, ThrowOnError>): RequestResult<LeaveTeamResponses, LeaveTeamErrors, ThrowOnError> => (options.client ?? client).delete<LeaveTeamResponses, LeaveTeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/membership',
+    ...options
+});
+
+/**
+ * Invite Link
+ *
+ * A team's invite link. A new one if the last one has expired.
+ */
+export const inviteLink = <ThrowOnError extends boolean = false>(options: Options<InviteLinkData, ThrowOnError>): RequestResult<InviteLinkResponses, InviteLinkErrors, ThrowOnError> => (options.client ?? client).get<InviteLinkResponses, InviteLinkErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/teams/{team_url}/invite-link',
+    ...options
+});
+
+/**
+ * Invite
+ *
+ * The team that an invite link joins. Also for someone not signed in.
+ */
+export const invite = <ThrowOnError extends boolean = false>(options: Options<InviteData, ThrowOnError>): RequestResult<InviteResponses, InviteErrors, ThrowOnError> => (options.client ?? client).get<InviteResponses, InviteErrors, ThrowOnError>({ url: '/api/invite-links/{token}', ...options });
+
+/**
+ * Join Team
+ *
+ * Adds the signed-in account to an invite link's team as a member.
+ */
+export const joinTeam = <ThrowOnError extends boolean = false>(options: Options<JoinTeamData, ThrowOnError>): RequestResult<JoinTeamResponses, JoinTeamErrors, ThrowOnError> => (options.client ?? client).post<JoinTeamResponses, JoinTeamErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/invite-links/{token}',
     ...options
 });
