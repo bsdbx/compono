@@ -14,6 +14,7 @@ from compono.api.dependencies import (
     SessionToken,
     SignedIn,
 )
+from compono.api.text import NO_NUL
 
 router = APIRouter()
 
@@ -59,7 +60,9 @@ class SignUp(BaseModel):
 
     # A stripped name must be of length between 1 and 100
     name: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=100),
+        NO_NUL,
     ]
     # Pydantic EmailStr handles email verification on its own
     email: EmailStr
@@ -104,7 +107,7 @@ class SignIn(BaseModel):
     """Sign in model."""
 
     # Email is a string of length at most 254
-    email: Annotated[str, Field(max_length=254)]
+    email: Annotated[str, Field(max_length=254), NO_NUL]
 
     # Password is a string of length at most 128
     password: Annotated[str, Field(max_length=128)]
