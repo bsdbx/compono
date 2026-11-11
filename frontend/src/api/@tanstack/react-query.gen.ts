@@ -4,8 +4,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createTeam, currentAccount, deleteTeam, health, invite, inviteLink, joinTeam, leaveTeam, makeOwner, myTeams, type Options, removeMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, updateTeam } from '../sdk.gen';
-import type { CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
+import { createProject, createTeam, currentAccount, deleteProject, deleteTeam, health, invite, inviteLink, joinTeam, leaveProject, leaveTeam, makeOwner, myTeams, type Options, project, projectMembers, removeMember, removeProjectMember, setProjectMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, teamProjects, updateProject, updateTeam } from '../sdk.gen';
+import type { CreateProjectData, CreateProjectError, CreateProjectResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveProjectData, LeaveProjectError, LeaveProjectResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, ProjectData, ProjectError, ProjectMembersData, ProjectMembersError, ProjectMembersResponse, ProjectResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RemoveProjectMemberData, RemoveProjectMemberError, RemoveProjectMemberResponse, SetProjectMemberData, SetProjectMemberError, SetProjectMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamProjectsData, TeamProjectsError, TeamProjectsResponse, TeamResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -379,6 +379,180 @@ export const joinTeamMutation = (options?: Partial<Options<JoinTeamData>>): UseM
     const mutationOptions: UseMutationOptions<JoinTeamResponse, JoinTeamError, Options<JoinTeamData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await joinTeam({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const teamProjectsQueryKey = (options: Options<TeamProjectsData>) => createQueryKey('teamProjects', options);
+
+/**
+ * Team Projects
+ *
+ * The team's projects that the signed-in account can see, the most recently edited first. Owners see them all.
+ */
+export const teamProjectsOptions = (options: Options<TeamProjectsData>) => queryOptions<TeamProjectsResponse, TeamProjectsError, TeamProjectsResponse, ReturnType<typeof teamProjectsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await teamProjects({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: teamProjectsQueryKey(options)
+});
+
+/**
+ * Create Project
+ *
+ * Creates a project in the team, with the signed-in account as its first lead.
+ */
+export const createProjectMutation = (options?: Partial<Options<CreateProjectData>>): UseMutationOptions<CreateProjectResponse, CreateProjectError, Options<CreateProjectData>> => {
+    const mutationOptions: UseMutationOptions<CreateProjectResponse, CreateProjectError, Options<CreateProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Project
+ *
+ * Deletes a project, with its components.
+ */
+export const deleteProjectMutation = (options?: Partial<Options<DeleteProjectData>>): UseMutationOptions<DeleteProjectResponse, DeleteProjectError, Options<DeleteProjectData>> => {
+    const mutationOptions: UseMutationOptions<DeleteProjectResponse, DeleteProjectError, Options<DeleteProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const projectQueryKey = (options: Options<ProjectData>) => createQueryKey('project', options);
+
+/**
+ * Project
+ *
+ * A project that the signed-in account can see.
+ */
+export const projectOptions = (options: Options<ProjectData>) => queryOptions<ProjectResponse, ProjectError, ProjectResponse, ReturnType<typeof projectQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await project({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: projectQueryKey(options)
+});
+
+/**
+ * Update Project
+ *
+ * Changes a project's name or description. A new name gives it a new URL.
+ */
+export const updateProjectMutation = (options?: Partial<Options<UpdateProjectData>>): UseMutationOptions<UpdateProjectResponse, UpdateProjectError, Options<UpdateProjectData>> => {
+    const mutationOptions: UseMutationOptions<UpdateProjectResponse, UpdateProjectError, Options<UpdateProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await updateProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const projectMembersQueryKey = (options: Options<ProjectMembersData>) => createQueryKey('projectMembers', options);
+
+/**
+ * Project Members
+ *
+ * A project's members, in the order they were added.
+ */
+export const projectMembersOptions = (options: Options<ProjectMembersData>) => queryOptions<ProjectMembersResponse, ProjectMembersError, ProjectMembersResponse, ReturnType<typeof projectMembersQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await projectMembers({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: projectMembersQueryKey(options)
+});
+
+/**
+ * Remove Project Member
+ *
+ * Takes a member out of a project.
+ */
+export const removeProjectMemberMutation = (options?: Partial<Options<RemoveProjectMemberData>>): UseMutationOptions<RemoveProjectMemberResponse, RemoveProjectMemberError, Options<RemoveProjectMemberData>> => {
+    const mutationOptions: UseMutationOptions<RemoveProjectMemberResponse, RemoveProjectMemberError, Options<RemoveProjectMemberData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await removeProjectMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Set Project Member
+ *
+ * Adds a member of the team to a project with the role, or gives them the role if they're in it.
+ */
+export const setProjectMemberMutation = (options?: Partial<Options<SetProjectMemberData>>): UseMutationOptions<SetProjectMemberResponse, SetProjectMemberError, Options<SetProjectMemberData>> => {
+    const mutationOptions: UseMutationOptions<SetProjectMemberResponse, SetProjectMemberError, Options<SetProjectMemberData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await setProjectMember({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Leave Project
+ *
+ * Takes the signed-in account out of a project.
+ */
+export const leaveProjectMutation = (options?: Partial<Options<LeaveProjectData>>): UseMutationOptions<LeaveProjectResponse, LeaveProjectError, Options<LeaveProjectData>> => {
+    const mutationOptions: UseMutationOptions<LeaveProjectResponse, LeaveProjectError, Options<LeaveProjectData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await leaveProject({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

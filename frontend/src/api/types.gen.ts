@@ -104,6 +104,49 @@ export type LastOwnerError = {
 };
 
 /**
+ * LeadsOnlyError
+ */
+export type LeadsOnlyError = {
+    /**
+     * Detail
+     */
+    detail: 'leads_only';
+};
+
+/**
+ * ListedProject
+ *
+ * A project in the list of a team's projects.
+ */
+export type ListedProject = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Edited At
+     */
+    edited_at: string;
+    role: ProjectRole | null;
+    /**
+     * Members
+     */
+    members: Array<MemberName>;
+};
+
+/**
  * Member
  *
  * A member of a team.
@@ -125,6 +168,22 @@ export type Member = {
 };
 
 /**
+ * MemberName
+ *
+ * A project member's name, for their avatar.
+ */
+export type MemberName = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
  * MemberNotFoundError
  */
 export type MemberNotFoundError = {
@@ -132,6 +191,39 @@ export type MemberNotFoundError = {
      * Detail
      */
     detail: 'team_not_found' | 'member_not_found';
+};
+
+/**
+ * MemberRole
+ *
+ * The role to give a member of a project.
+ */
+export type MemberRole = {
+    role: ProjectRole;
+};
+
+/**
+ * NameTakenError
+ */
+export type NameTakenError = {
+    /**
+     * Detail
+     */
+    detail: 'name_taken';
+};
+
+/**
+ * NewProject
+ */
+export type NewProject = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description?: string;
 };
 
 /**
@@ -176,6 +268,99 @@ export type OwnersOnlyError = {
      */
     detail: 'owners_only';
 };
+
+/**
+ * Project
+ *
+ * A project, with the signed-in account's role in it.
+ */
+export type Project = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Description
+     */
+    description: string;
+    /**
+     * Edited At
+     */
+    edited_at: string;
+    role: ProjectRole | null;
+};
+
+/**
+ * ProjectChanges
+ *
+ * What to change of a project. What's left out stays.
+ */
+export type ProjectChanges = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Description
+     */
+    description?: string | null;
+};
+
+/**
+ * ProjectMember
+ *
+ * A member of a project.
+ */
+export type ProjectMember = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Email
+     */
+    email: string;
+    role: ProjectRole;
+};
+
+/**
+ * ProjectMemberNotFoundError
+ */
+export type ProjectMemberNotFoundError = {
+    /**
+     * Detail
+     */
+    detail: 'team_not_found' | 'project_not_found' | 'member_not_found';
+};
+
+/**
+ * ProjectNotFoundError
+ */
+export type ProjectNotFoundError = {
+    /**
+     * Detail
+     */
+    detail: 'team_not_found' | 'project_not_found';
+};
+
+/**
+ * ProjectRole
+ *
+ * What an account can do in a project.
+ */
+export type ProjectRole = 'LEAD' | 'DEVELOPER';
 
 /**
  * Reason
@@ -939,3 +1124,413 @@ export type JoinTeamResponses = {
 };
 
 export type JoinTeamResponse = JoinTeamResponses[keyof JoinTeamResponses];
+
+export type TeamProjectsData = {
+    body?: never;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects';
+};
+
+export type TeamProjectsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TeamProjectsError = TeamProjectsErrors[keyof TeamProjectsErrors];
+
+export type TeamProjectsResponses = {
+    /**
+     * Response Team Projects
+     *
+     * Successful Response
+     */
+    200: Array<ListedProject>;
+};
+
+export type TeamProjectsResponse = TeamProjectsResponses[keyof TeamProjectsResponses];
+
+export type CreateProjectData = {
+    body: NewProject;
+    path: {
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects';
+};
+
+export type CreateProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: OwnersOnlyError;
+    /**
+     * Not Found
+     */
+    404: TeamNotFoundError;
+    /**
+     * Conflict
+     */
+    409: NameTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateProjectError = CreateProjectErrors[keyof CreateProjectErrors];
+
+export type CreateProjectResponses = {
+    /**
+     * Successful Response
+     */
+    201: Project;
+};
+
+export type CreateProjectResponse = CreateProjectResponses[keyof CreateProjectResponses];
+
+export type DeleteProjectData = {
+    body?: never;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}';
+};
+
+export type DeleteProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: LeadsOnlyError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteProjectError = DeleteProjectErrors[keyof DeleteProjectErrors];
+
+export type DeleteProjectResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteProjectResponse = DeleteProjectResponses[keyof DeleteProjectResponses];
+
+export type ProjectData = {
+    body?: never;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}';
+};
+
+export type ProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProjectError = ProjectErrors[keyof ProjectErrors];
+
+export type ProjectResponses = {
+    /**
+     * Successful Response
+     */
+    200: Project;
+};
+
+export type ProjectResponse = ProjectResponses[keyof ProjectResponses];
+
+export type UpdateProjectData = {
+    body: ProjectChanges;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}';
+};
+
+export type UpdateProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: LeadsOnlyError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Conflict
+     */
+    409: NameTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateProjectError = UpdateProjectErrors[keyof UpdateProjectErrors];
+
+export type UpdateProjectResponses = {
+    /**
+     * Successful Response
+     */
+    200: Project;
+};
+
+export type UpdateProjectResponse = UpdateProjectResponses[keyof UpdateProjectResponses];
+
+export type ProjectMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/members';
+};
+
+export type ProjectMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProjectMembersError = ProjectMembersErrors[keyof ProjectMembersErrors];
+
+export type ProjectMembersResponses = {
+    /**
+     * Response Project Members
+     *
+     * Successful Response
+     */
+    200: Array<ProjectMember>;
+};
+
+export type ProjectMembersResponse = ProjectMembersResponses[keyof ProjectMembersResponses];
+
+export type RemoveProjectMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/members/{account_id}';
+};
+
+export type RemoveProjectMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: LeadsOnlyError;
+    /**
+     * Not Found
+     */
+    404: ProjectMemberNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveProjectMemberError = RemoveProjectMemberErrors[keyof RemoveProjectMemberErrors];
+
+export type RemoveProjectMemberResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveProjectMemberResponse = RemoveProjectMemberResponses[keyof RemoveProjectMemberResponses];
+
+export type SetProjectMemberData = {
+    body: MemberRole;
+    path: {
+        /**
+         * Account Id
+         */
+        account_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/members/{account_id}';
+};
+
+export type SetProjectMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Forbidden
+     */
+    403: LeadsOnlyError;
+    /**
+     * Not Found
+     */
+    404: ProjectMemberNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetProjectMemberError = SetProjectMemberErrors[keyof SetProjectMemberErrors];
+
+export type SetProjectMemberResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectMember;
+};
+
+export type SetProjectMemberResponse = SetProjectMemberResponses[keyof SetProjectMemberResponses];
+
+export type LeaveProjectData = {
+    body?: never;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/membership';
+};
+
+export type LeaveProjectErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LeaveProjectError = LeaveProjectErrors[keyof LeaveProjectErrors];
+
+export type LeaveProjectResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type LeaveProjectResponse = LeaveProjectResponses[keyof LeaveProjectResponses];
