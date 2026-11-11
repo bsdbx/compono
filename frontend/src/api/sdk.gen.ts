@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { HealthData, HealthResponses } from './types.gen';
+import type { CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, HealthData, HealthResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -25,3 +25,76 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
  * Whether the API runs and reaches the database.
  */
 export const health = <ThrowOnError extends boolean = false>(options?: Options<HealthData, ThrowOnError>): RequestResult<HealthResponses, unknown, ThrowOnError> => (options?.client ?? client).get<HealthResponses, unknown, ThrowOnError>({ url: '/api/health', ...options });
+
+/**
+ * Sign Up
+ *
+ * Creates an account and signs it in.
+ */
+export const signUp = <ThrowOnError extends boolean = false>(options: Options<SignUpData, ThrowOnError>): RequestResult<SignUpResponses, SignUpErrors, ThrowOnError> => (options.client ?? client).post<SignUpResponses, SignUpErrors, ThrowOnError>({
+    url: '/api/accounts',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sign Out Everywhere
+ *
+ * Signs the account out in every browser.
+ */
+export const signOutEverywhere = <ThrowOnError extends boolean = false>(options?: Options<SignOutEverywhereData, ThrowOnError>): RequestResult<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError> => (options?.client ?? client).delete<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/sessions',
+    ...options
+});
+
+/**
+ * Sign In
+ *
+ * Signs an account in with its email and password.
+ */
+export const signIn = <ThrowOnError extends boolean = false>(options: Options<SignInData, ThrowOnError>): RequestResult<SignInResponses, SignInErrors, ThrowOnError> => (options.client ?? client).post<SignInResponses, SignInErrors, ThrowOnError>({
+    url: '/api/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sign Out
+ *
+ * Signs this browser out.
+ */
+export const signOut = <ThrowOnError extends boolean = false>(options?: Options<SignOutData, ThrowOnError>): RequestResult<SignOutResponses, unknown, ThrowOnError> => (options?.client ?? client).delete<SignOutResponses, unknown, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/sessions/current',
+    ...options
+});
+
+/**
+ * Current Account
+ *
+ * The signed-in account.
+ */
+export const currentAccount = <ThrowOnError extends boolean = false>(options?: Options<CurrentAccountData, ThrowOnError>): RequestResult<CurrentAccountResponses, CurrentAccountErrors, ThrowOnError> => (options?.client ?? client).get<CurrentAccountResponses, CurrentAccountErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/account',
+    ...options
+});
