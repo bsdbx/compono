@@ -5,6 +5,7 @@
     "rvben.rumdl",
     "mkhl.shfmt",
     "streetsidesoftware.code-spell-checker",
-    "biomejs.biome"
+    "biomejs.biome",
+    "bierner.markdown-mermaid"
   ]
 }
