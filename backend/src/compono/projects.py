@@ -61,7 +61,7 @@ def projects_of(
     database: orm.Session, team: Team, team_role: TeamRole, account: Account
 ) -> list[ListedProject]:
     """The team's projects that the account can see, the most recently edited first."""
-    # Projects and project member roles, as a single row, where project member may not existed
+    # Projects and project member roles, as a single row, where project member may not exist
     # Sorted by last edited and name
     query = (
         select(Project, ProjectMember.role)
@@ -76,7 +76,7 @@ def projects_of(
         .order_by(Project.edited_at.desc(), Project.name)
     )
 
-    # Only show projects the account has joined unless its team role rants access without a project membership.
+    # Only show projects the account has joined unless its team role grants access without a project membership.
     if not can_in_project(team_role, None, ProjectAction.VIEW):
         query = query.where(ProjectMember.role.is_not(None))
 
@@ -216,7 +216,7 @@ def set_member(
     try:
         with database.begin_nested():
             # Try to add a new project member with a new role
-            # If there is already a member that exists with the same account_id and project_id, then keep it and update it's role
+            # If there is already a member that exists with the same account_id and project_id, then keep it and update its role
             database.execute(
                 insert(ProjectMember)
                 .values(
