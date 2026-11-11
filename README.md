@@ -32,6 +32,15 @@ Run the DB with Docker:
 docker compose up -d --wait
 ```
 
+After a migration, apply it and document the database again into [docs/database](docs/database/README.md).
+
+```sh
+cd backend
+uv run alembic upgrade head
+cd ..
+docker compose run --rm tbls
+```
+
 Run the frontend with:
 
 ```sh

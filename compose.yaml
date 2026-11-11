@@ -16,6 +16,18 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
+  # Document the database into docs/database after each migration: docker compose run --rm tbls
+  tbls:
+    image: ghcr.io/k1low/tbls:v1.96.1
+    profiles: [tools]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ".:/work"
+    working_dir: /work
+    user: "${UID:-1000}:${GID:-1000}"
+    command: doc --rm-dist
 
 volumes:
   db:

@@ -1,0 +1,11 @@
+name: Compono
+dsn: postgres://compono:compono@db:5432/compono?sslmode=disable
+docPath: docs/database
+disableOutputSchema: true
+exclude:
+  - alembic_version
+format:
+  hideColumnsWithoutValues: true
+er:
+  format: mermaid
+  hideDef: true
