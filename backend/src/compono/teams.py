@@ -68,7 +68,7 @@ def create_team(database: orm.Session, account: Account, name: str, url: str) ->
     if url in RESERVED_TEAM_NAMES:
         raise UrlTaken
 
-    # Create a Team, and check if it's URL is not taken
+    # Create a Team, and check if its URL is not taken
     team = Team(name=name, url=url)
     try:
         # A savepoint, so that the transaction goes on after a taken URL
@@ -93,7 +93,7 @@ def create_team(database: orm.Session, account: Account, name: str, url: str) ->
 def membership(database: orm.Session, url: str, account: Account) -> Membership | None:
     """The team at this URL with the account's role in it. None if there's no such team, or the account isn't in it."""
     # Select the Team and Member role as one row, matching the supplied arguments.
-    # There must only one account in one Team
+    # There must be only one account in one Team
     row = database.execute(
         select(Team, TeamMember.role)
         .join(TeamMember, TeamMember.team_id == Team.id)
@@ -161,13 +161,13 @@ def _member(
         # If there are two requests A and B:
         #   A: calls `_member()` to promote Alice to Owner.
         #   B: calls `_member()` to delete Alice from the team.
-        # This makes B wait until A commits or rolls back, so there is not race condition.
+        # This makes B wait until A commits or rolls back, so there is no race condition.
         .with_for_update(of=TeamMember)
         # Force SQLAlchemy to update the cache
         .execution_options(populate_existing=True)
     ).one_or_none()
 
-    # If there team doesn't have a member with supplied account
+    # If the team doesn't have a member with supplied account
     if row is None:
         raise NotAMember
 
@@ -215,7 +215,7 @@ def leave(database: orm.Session, team: Team, account: Account) -> None:
     # If the supplied account is an owner
     is_owner = any(owner.account_id == account.id for owner in owners)
 
-    # If the supplied account is an only owner, we disallow leaving
+    # If the supplied account is the only owner, we disallow leaving
     if is_owner and len(owners) == 1:
         raise LastOwner
 
