@@ -37,7 +37,9 @@ Every `id` is a UUIDv7 that PostgreSQL 18 generates with `uuidv7()`.
 - **Invite link**: its token is stored as it is, not hashed, because owners see the link again to copy it. It's at least 22 characters, which is 128 random bits, and works for an hour, as `INVITE_LINK_LIFETIME` sets. The alpha has no way to reset it.
 - **Team roles**, Owner and Member, are stored as text that a constraint limits to those values, rather than as a PostgreSQL enum type. Adding a role is then an ordinary migration, and undoing that migration leaves nothing behind.
 
-A team always has at least one owner, and a project at least one lead. The API keeps these two rules, not the database: a constraint sees one row at a time, while these rules are about all the members of a team or project. The API checks them in the same transaction as the change, with those members' rows locked, so two owners can't both leave at once.
+A team always has at least one owner. The API keeps this rule, not the database: a constraint sees one row at a time, while this rule is about all the owners of a team. The API checks it in the same transaction as the change, with the owners' rows locked, so two owners can't both leave at once.
+
+A project needs no such rule. Its team's owners manage it as its leads do, so even a project whose last lead has left the team still has someone to manage it.
 
 ## Projects
 
