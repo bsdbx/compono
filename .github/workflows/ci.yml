@@ -54,6 +54,13 @@ jobs:
       - name: Migrate the database
         run: uv --directory backend run --frozen alembic upgrade head
 
+      # The same tbls as compose.yaml, with this job's database instead of compose's
+      - name: Check that the database docs match the migrations
+        run: >-
+          docker run --rm --network host --volume "$PWD:/work" --workdir /work
+          ghcr.io/k1low/tbls:v1.96.1
+          diff "postgres://compono:compono@localhost:5433/compono?sslmode=disable" docs/database
+
       # Also runs the migrations, and checks that they match the models
       - name: Run the backend's tests
         run: uv --directory backend run --frozen pytest
