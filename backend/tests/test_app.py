@@ -2,7 +2,7 @@
 
 from fastapi.testclient import TestClient
 
-from compono.app import Health
+from compono.api.health import Health
 
 
 def test_health_reaches_the_database(client: TestClient) -> None:

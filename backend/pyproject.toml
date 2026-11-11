@@ -97,7 +97,7 @@ enable_error_code = [
 
 # FastAPI types its route decorators and dependency overrides with Any
 [[tool.mypy.overrides]]
-module = ["compono.app", "conftest"]
+module = ["compono.app", "compono.api.*", "conftest"]
 disallow_any_expr = false
 
 # Typed __init__ for pydantic models, so a wrong or unknown field is a type error
