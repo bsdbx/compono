@@ -25,7 +25,7 @@ The team role that manages the team: its name and URL, its invite link, and who 
 The team role of everyone in a team who isn't an owner.
 
 **Invite link**:
-A team's shareable link that lets whoever opens it join the team as a member. Resetting it replaces it with a new one.
+A team's shareable link that lets whoever opens it join the team as a member. It works for an hour.
 _Avoid_: Invite code, join link
 
 ### Projects
