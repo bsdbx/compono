@@ -26,6 +26,72 @@ export type Account = {
 };
 
 /**
+ * Component
+ *
+ * A component, with its graph and screen sizes.
+ */
+export type Component = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Graph
+     */
+    graph: {
+        [key: string]: unknown;
+    };
+    /**
+     * Screen Sizes
+     */
+    screen_sizes: Array<ScreenSize>;
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * ComponentContent
+ *
+ * What a save stores, with the version it started from.
+ */
+export type ComponentContent = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Graph
+     */
+    graph: {
+        [key: string]: unknown;
+    };
+    /**
+     * Screen Sizes
+     */
+    screen_sizes: Array<ScreenSize>;
+};
+
+/**
+ * ComponentNotFoundError
+ */
+export type ComponentNotFoundError = {
+    /**
+     * Detail
+     */
+    detail: 'team_not_found' | 'project_not_found' | 'component_not_found';
+};
+
+/**
  * EmailTakenError
  */
 export type EmailTakenError = {
@@ -111,6 +177,26 @@ export type LeadsOnlyError = {
      * Detail
      */
     detail: 'leads_only';
+};
+
+/**
+ * ListedComponent
+ *
+ * A component in its project's list, without its graph.
+ */
+export type ListedComponent = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
 };
 
 /**
@@ -210,6 +296,28 @@ export type NameTakenError = {
      * Detail
      */
     detail: 'name_taken';
+};
+
+/**
+ * NewComponent
+ *
+ * A new component. Named Untitled, Untitled2... when the name is left out.
+ */
+export type NewComponent = {
+    /**
+     * Name
+     */
+    name?: string | null;
+};
+
+/**
+ * NewName
+ */
+export type NewName = {
+    /**
+     * Name
+     */
+    name: string;
 };
 
 /**
@@ -370,6 +478,38 @@ export type ProjectRole = 'LEAD' | 'DEVELOPER';
 export type Reason = 'no_session' | 'signed_out' | 'expired';
 
 /**
+ * Saved
+ *
+ * The component's version after the save, which the next save starts from.
+ */
+export type Saved = {
+    /**
+     * Version
+     */
+    version: number;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * ScreenSize
+ *
+ * A named width that the preview renders at, like Desktop 1280.
+ */
+export type ScreenSize = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Width
+     */
+    width: number;
+};
+
+/**
  * SignIn
  *
  * Sign in model.
@@ -495,6 +635,16 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VersionConflictError
+ */
+export type VersionConflictError = {
+    /**
+     * Detail
+     */
+    detail: 'version_conflict';
 };
 
 /**
@@ -1534,3 +1684,331 @@ export type LeaveProjectResponses = {
 };
 
 export type LeaveProjectResponse = LeaveProjectResponses[keyof LeaveProjectResponses];
+
+export type ProjectComponentsData = {
+    body?: never;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components';
+};
+
+export type ProjectComponentsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ProjectComponentsError = ProjectComponentsErrors[keyof ProjectComponentsErrors];
+
+export type ProjectComponentsResponses = {
+    /**
+     * Response Project Components
+     *
+     * Successful Response
+     */
+    200: Array<ListedComponent>;
+};
+
+export type ProjectComponentsResponse = ProjectComponentsResponses[keyof ProjectComponentsResponses];
+
+export type CreateComponentData = {
+    body: NewComponent;
+    path: {
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components';
+};
+
+export type CreateComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ProjectNotFoundError;
+    /**
+     * Conflict
+     */
+    409: NameTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateComponentError = CreateComponentErrors[keyof CreateComponentErrors];
+
+export type CreateComponentResponses = {
+    /**
+     * Successful Response
+     */
+    201: Component;
+};
+
+export type CreateComponentResponse = CreateComponentResponses[keyof CreateComponentResponses];
+
+export type DeleteComponentData = {
+    body?: never;
+    path: {
+        /**
+         * Component Id
+         */
+        component_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}';
+};
+
+export type DeleteComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ComponentNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteComponentError = DeleteComponentErrors[keyof DeleteComponentErrors];
+
+export type DeleteComponentResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteComponentResponse = DeleteComponentResponses[keyof DeleteComponentResponses];
+
+export type ComponentData = {
+    body?: never;
+    path: {
+        /**
+         * Component Id
+         */
+        component_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}';
+};
+
+export type ComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ComponentNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ComponentError = ComponentErrors[keyof ComponentErrors];
+
+export type ComponentResponses = {
+    /**
+     * Successful Response
+     */
+    200: Component;
+};
+
+export type ComponentResponse = ComponentResponses[keyof ComponentResponses];
+
+export type RenameComponentData = {
+    body: NewName;
+    path: {
+        /**
+         * Component Id
+         */
+        component_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}';
+};
+
+export type RenameComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ComponentNotFoundError;
+    /**
+     * Conflict
+     */
+    409: NameTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenameComponentError = RenameComponentErrors[keyof RenameComponentErrors];
+
+export type RenameComponentResponses = {
+    /**
+     * Successful Response
+     */
+    200: ListedComponent;
+};
+
+export type RenameComponentResponse = RenameComponentResponses[keyof RenameComponentResponses];
+
+export type SaveComponentData = {
+    body: ComponentContent;
+    path: {
+        /**
+         * Component Id
+         */
+        component_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}/content';
+};
+
+export type SaveComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ComponentNotFoundError;
+    /**
+     * Conflict
+     */
+    409: VersionConflictError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveComponentError = SaveComponentErrors[keyof SaveComponentErrors];
+
+export type SaveComponentResponses = {
+    /**
+     * Successful Response
+     */
+    200: Saved;
+};
+
+export type SaveComponentResponse = SaveComponentResponses[keyof SaveComponentResponses];
+
+export type DuplicateComponentData = {
+    body?: never;
+    path: {
+        /**
+         * Component Id
+         */
+        component_id: string;
+        /**
+         * Project Url
+         */
+        project_url: string;
+        /**
+         * Team Url
+         */
+        team_url: string;
+    };
+    query?: never;
+    url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}/copies';
+};
+
+export type DuplicateComponentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Not Found
+     */
+    404: ComponentNotFoundError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DuplicateComponentError = DuplicateComponentErrors[keyof DuplicateComponentErrors];
+
+export type DuplicateComponentResponses = {
+    /**
+     * Successful Response
+     */
+    201: Component;
+};
+
+export type DuplicateComponentResponse = DuplicateComponentResponses[keyof DuplicateComponentResponses];

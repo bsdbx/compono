@@ -4,8 +4,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { createProject, createTeam, currentAccount, deleteProject, deleteTeam, health, invite, inviteLink, joinTeam, leaveProject, leaveTeam, makeOwner, myTeams, type Options, project, projectMembers, removeMember, removeProjectMember, setProjectMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, teamProjects, updateProject, updateTeam } from '../sdk.gen';
-import type { CreateProjectData, CreateProjectError, CreateProjectResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveProjectData, LeaveProjectError, LeaveProjectResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, ProjectData, ProjectError, ProjectMembersData, ProjectMembersError, ProjectMembersResponse, ProjectResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RemoveProjectMemberData, RemoveProjectMemberError, RemoveProjectMemberResponse, SetProjectMemberData, SetProjectMemberError, SetProjectMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamProjectsData, TeamProjectsError, TeamProjectsResponse, TeamResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
+import { component, createComponent, createProject, createTeam, currentAccount, deleteComponent, deleteProject, deleteTeam, duplicateComponent, health, invite, inviteLink, joinTeam, leaveProject, leaveTeam, makeOwner, myTeams, type Options, project, projectComponents, projectMembers, removeMember, removeProjectMember, renameComponent, saveComponent, setProjectMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, teamProjects, updateProject, updateTeam } from '../sdk.gen';
+import type { ComponentData, ComponentError, ComponentResponse, CreateComponentData, CreateComponentError, CreateComponentResponse, CreateProjectData, CreateProjectError, CreateProjectResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteComponentData, DeleteComponentError, DeleteComponentResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, DuplicateComponentData, DuplicateComponentError, DuplicateComponentResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveProjectData, LeaveProjectError, LeaveProjectResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, ProjectComponentsData, ProjectComponentsError, ProjectComponentsResponse, ProjectData, ProjectError, ProjectMembersData, ProjectMembersError, ProjectMembersResponse, ProjectResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RemoveProjectMemberData, RemoveProjectMemberError, RemoveProjectMemberResponse, RenameComponentData, RenameComponentError, RenameComponentResponse, SaveComponentData, SaveComponentError, SaveComponentResponse, SetProjectMemberData, SetProjectMemberError, SetProjectMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamProjectsData, TeamProjectsError, TeamProjectsResponse, TeamResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -553,6 +553,141 @@ export const leaveProjectMutation = (options?: Partial<Options<LeaveProjectData>
     const mutationOptions: UseMutationOptions<LeaveProjectResponse, LeaveProjectError, Options<LeaveProjectData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await leaveProject({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const projectComponentsQueryKey = (options: Options<ProjectComponentsData>) => createQueryKey('projectComponents', options);
+
+/**
+ * Project Components
+ *
+ * A project's components, in the order they were created.
+ */
+export const projectComponentsOptions = (options: Options<ProjectComponentsData>) => queryOptions<ProjectComponentsResponse, ProjectComponentsError, ProjectComponentsResponse, ReturnType<typeof projectComponentsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await projectComponents({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: projectComponentsQueryKey(options)
+});
+
+/**
+ * Create Component
+ *
+ * Creates a component with an empty graph and the default screen sizes.
+ */
+export const createComponentMutation = (options?: Partial<Options<CreateComponentData>>): UseMutationOptions<CreateComponentResponse, CreateComponentError, Options<CreateComponentData>> => {
+    const mutationOptions: UseMutationOptions<CreateComponentResponse, CreateComponentError, Options<CreateComponentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await createComponent({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Delete Component
+ *
+ * Deletes a component.
+ */
+export const deleteComponentMutation = (options?: Partial<Options<DeleteComponentData>>): UseMutationOptions<DeleteComponentResponse, DeleteComponentError, Options<DeleteComponentData>> => {
+    const mutationOptions: UseMutationOptions<DeleteComponentResponse, DeleteComponentError, Options<DeleteComponentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteComponent({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+export const componentQueryKey = (options: Options<ComponentData>) => createQueryKey('component', options);
+
+/**
+ * Component
+ *
+ * A component, with its graph and screen sizes.
+ */
+export const componentOptions = (options: Options<ComponentData>) => queryOptions<ComponentResponse, ComponentError, ComponentResponse, ReturnType<typeof componentQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await component({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: componentQueryKey(options)
+});
+
+/**
+ * Rename Component
+ *
+ * Gives a component a new name.
+ */
+export const renameComponentMutation = (options?: Partial<Options<RenameComponentData>>): UseMutationOptions<RenameComponentResponse, RenameComponentError, Options<RenameComponentData>> => {
+    const mutationOptions: UseMutationOptions<RenameComponentResponse, RenameComponentError, Options<RenameComponentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await renameComponent({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Save Component
+ *
+ * Saves a component's graph and screen sizes. Answers 409 if someone else saved it after the version the save started from.
+ */
+export const saveComponentMutation = (options?: Partial<Options<SaveComponentData>>): UseMutationOptions<SaveComponentResponse, SaveComponentError, Options<SaveComponentData>> => {
+    const mutationOptions: UseMutationOptions<SaveComponentResponse, SaveComponentError, Options<SaveComponentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await saveComponent({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Duplicate Component
+ *
+ * Copies a component, as FeatureGridCopy for FeatureGrid.
+ */
+export const duplicateComponentMutation = (options?: Partial<Options<DuplicateComponentData>>): UseMutationOptions<DuplicateComponentResponse, DuplicateComponentError, Options<DuplicateComponentData>> => {
+    const mutationOptions: UseMutationOptions<DuplicateComponentResponse, DuplicateComponentError, Options<DuplicateComponentData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await duplicateComponent({
                 ...options,
                 ...fnOptions,
                 throwOnError: true

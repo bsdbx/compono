@@ -11,19 +11,12 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from compono import auth, projects, teams
+from compono import auth, components, projects, teams
 from compono.app import app
 
 PASSWORD = "correct horse battery staple"
 NUL = "\x00"
 
-# A value for each path parameter that reaches the endpoint, with the setup below
-VALID_IN_PATH = {
-    "team_url": "acme",
-    "project_url": "marketing-site",
-    "account_id": str(uuid4()),
-    "token": "made-up",
-}
 
 # Passwords are only hashed, never stored or looked up as text
 NOT_STORED = {"password"}
@@ -118,12 +111,20 @@ class Invalid(BaseModel):
     detail: list[InvalidField]
 
 
-def signed_in_to_acme(client: TestClient, session: Session) -> None:
-    """Mira, signed in, owns Acme with its project Marketing site, so that requests get as far as checking their text."""
+def signed_in_to_acme(client: TestClient, session: Session) -> dict[str, str]:
+    """Mira, signed in, owns Acme with its project Marketing site and its component. Returns a value for each path parameter that gets a request as far as checking its text."""
     mira = auth.create_account(session, "Mira Kovalenko", "mira@acme.dev", PASSWORD)
     acme = teams.create_team(session, mira, "Acme", "acme")
-    projects.create_project(session, acme, mira, "Marketing site", "")
+    project = projects.create_project(session, acme, mira, "Marketing site", "")
+    card = components.create_component(session, project, "PricingCard")
     client.cookies["session"] = auth.sign_in(session, mira)
+    return {
+        "team_url": "acme",
+        "project_url": "marketing-site",
+        "account_id": str(uuid4()),
+        "token": "made-up",
+        "component_id": str(card.id),
+    }
 
 
 def test_the_api_has_text_in_paths_and_bodies() -> None:
@@ -136,8 +137,7 @@ def test_the_api_has_text_in_paths_and_bodies() -> None:
 def test_a_nul_in_a_path_is_refused(
     client: TestClient, session: Session, method: str, path: str, parameter: str
 ) -> None:
-    signed_in_to_acme(client, session)
-    values = {**VALID_IN_PATH, parameter: "a%00b"}
+    values = {**signed_in_to_acme(client, session), parameter: "a%00b"}
     body: dict[str, str] = {}
 
     response = client.request(method, path.format(**values), json=body)
@@ -151,10 +151,10 @@ def test_a_nul_in_a_path_is_refused(
 def test_a_nul_in_a_body_is_refused(
     client: TestClient, session: Session, method: str, path: str, field: str
 ) -> None:
-    signed_in_to_acme(client, session)
+    values = signed_in_to_acme(client, session)
     body: dict[str, str] = {field: f"a{NUL}b"}
 
-    response = client.request(method, path.format(**VALID_IN_PATH), json=body)
+    response = client.request(method, path.format(**values), json=body)
 
     assert response.status_code == 422
     invalid = Invalid.model_validate_json(response.text)
