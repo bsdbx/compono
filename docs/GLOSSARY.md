@@ -19,7 +19,7 @@ A team's unique address in Compono, such as `compono.app/acme`.
 _Avoid_: Slug, handle
 
 **Owner**:
-The team role that manages the team: its name and URL, its invite link, and who is in it. Owners create the team's projects and can open any of them.
+The team role that manages the team: its name and URL, its invite link, and who is in it. Owners create the team's projects, and manage any of them as their leads do.
 
 **Member**:
 The team role of everyone in a team who isn't an owner.
@@ -156,7 +156,7 @@ _Avoid_: Generic, wildcard
 
 - An **Account** can be in many **Teams**, and a **Team** has at least one **Owner**
 - A **Team** has many **Projects**, and each **Project** belongs to one **Team**
-- An **Owner** creates a **Project** and is its first **Lead**. A **Project** has one or more **Leads** and any number of **Developers**
+- An **Owner** creates a **Project** and is its first **Lead**. A **Project** has any number of **Leads** and **Developers**, and its team's **Owners** manage it as its **Leads** do
 - A **Project** has many **Components**, and each **Component** has one **Graph** and its own **Screen sizes**
 - A **Graph** has exactly one **Component Input**, which carries the component's **Props**, and exactly one **Component Output**
 - Every **Node** has one **Node type**, and every **Node type** is in one **Category**
