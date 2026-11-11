@@ -73,6 +73,7 @@ def session(engine: Engine) -> Iterator[Session]:
 def client(session: Session) -> Iterator[TestClient]:
     """The API, with its requests using the test's session."""
     app.dependency_overrides[database] = lambda: session
-    with TestClient(app) as client:
+    # Over HTTPS, or it doesn't send back the session cookie, which is only for HTTPS
+    with TestClient(app, base_url="https://testserver") as client:
         yield client
     app.dependency_overrides.clear()

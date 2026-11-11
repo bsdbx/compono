@@ -6,6 +6,46 @@ export type ClientOptions = {
 };
 
 /**
+ * Account
+ *
+ * Account model.
+ */
+export type Account = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Email
+     */
+    email: string;
+};
+
+/**
+ * EmailTakenError
+ */
+export type EmailTakenError = {
+    /**
+     * Detail
+     */
+    detail: 'email_taken';
+};
+
+/**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+    /**
+     * Detail
+     */
+    detail?: Array<ValidationError>;
+};
+
+/**
  * Health
  */
 export type Health = {
@@ -13,6 +53,96 @@ export type Health = {
      * Status
      */
     status: string;
+};
+
+/**
+ * NotSignedInError
+ *
+ * Error wrapper.
+ */
+export type NotSignedInError = {
+    detail: Reason;
+};
+
+/**
+ * Reason
+ *
+ * Why a token signs nobody in.
+ */
+export type Reason = 'no_session' | 'signed_out' | 'expired';
+
+/**
+ * SignIn
+ *
+ * Sign in model.
+ */
+export type SignIn = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
+};
+
+/**
+ * SignUp
+ *
+ * Sign up model.
+ */
+export type SignUp = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
+};
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+    /**
+     * Location
+     */
+    loc: Array<string | number>;
+    /**
+     * Message
+     */
+    msg: string;
+    /**
+     * Error Type
+     */
+    type: string;
+    /**
+     * Input
+     */
+    input?: unknown;
+    /**
+     * Context
+     */
+    ctx?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * WrongEmailOrPasswordError
+ */
+export type WrongEmailOrPasswordError = {
+    /**
+     * Detail
+     */
+    detail: 'wrong_email_or_password';
 };
 
 export type HealthData = {
@@ -30,3 +160,127 @@ export type HealthResponses = {
 };
 
 export type HealthResponse = HealthResponses[keyof HealthResponses];
+
+export type SignUpData = {
+    body: SignUp;
+    path?: never;
+    query?: never;
+    url: '/api/accounts';
+};
+
+export type SignUpErrors = {
+    /**
+     * Conflict
+     */
+    409: EmailTakenError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SignUpError = SignUpErrors[keyof SignUpErrors];
+
+export type SignUpResponses = {
+    /**
+     * Successful Response
+     */
+    201: Account;
+};
+
+export type SignUpResponse = SignUpResponses[keyof SignUpResponses];
+
+export type SignOutEverywhereData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/sessions';
+};
+
+export type SignOutEverywhereErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+};
+
+export type SignOutEverywhereError = SignOutEverywhereErrors[keyof SignOutEverywhereErrors];
+
+export type SignOutEverywhereResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SignOutEverywhereResponse = SignOutEverywhereResponses[keyof SignOutEverywhereResponses];
+
+export type SignInData = {
+    body: SignIn;
+    path?: never;
+    query?: never;
+    url: '/api/sessions';
+};
+
+export type SignInErrors = {
+    /**
+     * Unauthorized
+     */
+    401: WrongEmailOrPasswordError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SignInError = SignInErrors[keyof SignInErrors];
+
+export type SignInResponses = {
+    /**
+     * Successful Response
+     */
+    201: Account;
+};
+
+export type SignInResponse = SignInResponses[keyof SignInResponses];
+
+export type SignOutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/sessions/current';
+};
+
+export type SignOutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
+
+export type CurrentAccountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/account';
+};
+
+export type CurrentAccountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+};
+
+export type CurrentAccountError = CurrentAccountErrors[keyof CurrentAccountErrors];
+
+export type CurrentAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: Account;
+};
+
+export type CurrentAccountResponse = CurrentAccountResponses[keyof CurrentAccountResponses];
