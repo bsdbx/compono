@@ -2,7 +2,10 @@
 
 import json
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 
 from compono.api import accounts, health, projects, teams
@@ -20,6 +23,28 @@ app = FastAPI(
     redoc_url=None,
     generate_unique_id_function=operation_id,
 )
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(
+    request: Request, error: RequestValidationError
+) -> JSONResponse:
+    """Overrides the default failed validation handler."""
+
+    # Same list of dicts, that the handler returns, but we skip "input" key
+    problems = [
+        {key: value for key, value in problem.items() if key != "input"}
+        for problem in error.errors()
+    ]
+
+    # Returning the response, with no input field
+    # Graph can be large, e.g 1MB, and there is no reason to send it
+    # We also return the 422, instead of the default 500
+    return JSONResponse(
+        {"detail": jsonable_encoder(problems)},
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+    )
+
 
 app.include_router(health.router)
 app.include_router(accounts.router)
