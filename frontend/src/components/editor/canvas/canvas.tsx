@@ -173,12 +173,14 @@ function Flow({
   nodeTypes,
   panel,
   show,
+  hidden,
 }: {
   draft: Draft;
   content: Content;
   nodeTypes: ReadonlyMap<string, NodeTypeInfo>;
   panel: HTMLElement | null;
   show: { node: string; at: number } | undefined;
+  hidden: boolean;
 }) {
   const flow = useReactFlow<CanvasNode>();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -300,7 +302,11 @@ function Flow({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (editing(event.target) || !(event.metaKey || event.ctrlKey)) {
+      if (
+        hidden ||
+        editing(event.target) ||
+        !(event.metaKey || event.ctrlKey)
+      ) {
         return;
       }
       const key = event.key.toLowerCase();
@@ -320,7 +326,7 @@ function Flow({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo, selectAll, duplicate, nodes]);
+  }, [undo, redo, selectAll, duplicate, nodes, hidden]);
 
   // A wire is refused when the API refuses it, or when its types plainly don't fit
   const refused = useMemo(() => {
@@ -700,7 +706,8 @@ function Flow({
           panOnDrag={[1]}
           panOnScroll
           multiSelectionKeyCode={["Shift", "Meta", "Control"]}
-          deleteKeyCode={["Delete", "Backspace"]}
+          // While the code shows, its keys aren't the canvas's
+          deleteKeyCode={hidden ? null : ["Delete", "Backspace"]}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -764,12 +771,15 @@ export function Canvas({
   draft,
   panel = null,
   show,
+  hidden = false,
 }: {
   draft: Draft;
   /** Where the properties panel goes */
   panel?: HTMLElement | null;
   /** A node to select and bring into view */
   show?: { node: string; at: number } | undefined;
+  /** Out of sight while the code shows, keeping its history and selection */
+  hidden?: boolean;
 }) {
   const { content } = useSyncExternalStore(
     draft.subscribe,
@@ -788,6 +798,7 @@ export function Canvas({
         nodeTypes={nodeTypes}
         panel={panel}
         show={show}
+        hidden={hidden}
       />
     </ReactFlowProvider>
   );

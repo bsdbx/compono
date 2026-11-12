@@ -4,9 +4,13 @@ from collections.abc import Mapping
 from typing import Final
 
 from compono.graph.node_types import (
+    Code,
+    CodeContext,
     EvaluateContext,
     Group,
     Input,
+    Js,
+    Jsx,
     NodeError,
     NodeType,
     Output,
@@ -14,6 +18,7 @@ from compono.graph.node_types import (
     Sockets,
     SocketsContext,
     boolean,
+    expression,
     number,
     text,
 )
@@ -185,6 +190,99 @@ def _element(context: EvaluateContext) -> Mapping[str, Value]:
     }
 
 
+def _known(code: Code) -> Value:
+    """A value that doesn't depend on the props."""
+    if isinstance(code, Js | Jsx):
+        raise TypeError(f"{code!r} depends on the props")
+
+    return code
+
+
+def _text_code(code: Js) -> str:
+    # Nothing is empty text, so an empty fallback is no fallback
+    return code.code if code.fallback in (None, "") else expression(code)
+
+
+def _optional(code: Code) -> Code:
+    """Text that's left out when it's empty, like an attribute."""
+    if isinstance(code, Js):
+        return Js(f"{_text_code(code)} || undefined")
+
+    return text(_known(code)) or None
+
+
+def _renders(row: Code) -> bool:
+    # A child that is Nothing isn't rendered, which React does by itself for an expression
+    match row:
+        case Element() | Js() | Jsx():
+            return True
+        case _:
+            return False
+
+
+def _child_elements(rows: tuple[Code, ...]) -> tuple[Code, ...]:
+    return tuple(row for row in rows if _renders(row))
+
+
+def _element_code(context: CodeContext) -> Mapping[str, Code]:
+    """The element in JSX, as _element makes it, with the props' expressions where they go."""
+    attributes: list[tuple[str, Code]] = []
+    for name in ("href", "src"):
+        link = context.inputs.get(name)
+        if isinstance(link, Js):
+            attributes.append((name, Js(f"{_text_code(link)}?.trim() || undefined")))
+        else:
+            attributes.append((name, text(_known(link)).strip() or None))
+    attributes.append(("alt", _optional(context.inputs.get("alt"))))
+    attributes += [
+        (name, _optional(context.properties[name]))
+        for name in ("id", "title", "role", "lang")
+    ]
+    tab_index = context.properties["tabindex"]
+    if isinstance(tab_index, Js):
+        attributes.append(("tabindex", Js(expression(tab_index))))
+    else:
+        known = number(_known(tab_index))
+        attributes.append(("tabindex", None if known is None else int(known)))
+    hidden = context.properties["hidden"]
+    if isinstance(hidden, Js):
+        # An attribute that's just there or not: Nothing and false both leave it out
+        attributes.append(
+            (
+                "hidden",
+                Js(
+                    hidden.code
+                    if hidden.fallback in (None, False)
+                    else expression(hidden)
+                ),
+            )
+        )
+    else:
+        attributes.append(("hidden", boolean(_known(hidden))))
+
+    children: list[Code] = []
+    content = context.inputs.get("text")
+    if isinstance(content, Js):
+        children.append(Js(_text_code(content)))
+    elif text(_known(content)):
+        children.append(text(_known(content)))
+    children += _child_elements(context.groups.get("children", ()))
+
+    tag = context.inputs["tag"]
+    class_name = context.inputs["class"]
+    return {
+        "element": Jsx(
+            tag=Js(expression(tag)) if isinstance(tag, Js) else text(_known(tag)),
+            attributes=(
+                ("key", _optional(context.properties["key"])),
+                ("class", _optional(class_name)),
+                *attributes,
+            ),
+            children=tuple(children),
+        )
+    }
+
+
 ELEMENT_NODE: Final = NodeType(
     type="element",
     name="Element",
@@ -200,6 +298,7 @@ ELEMENT_NODE: Final = NodeType(
     ),
     sockets=_element_sockets,
     evaluate=_element,
+    code=_element_code,
 )
 
 
@@ -214,6 +313,16 @@ def _fragment(context: EvaluateContext) -> Mapping[str, Value]:
     }
 
 
+def _fragment_code(context: CodeContext) -> Mapping[str, Code]:
+    return {
+        "element": Jsx(
+            tag="",
+            attributes=(("key", _optional(context.properties["key"])),),
+            children=_child_elements(context.groups["children"]),
+        )
+    }
+
+
 FRAGMENT: Final = NodeType(
     type="fragment",
     name="Fragment",
@@ -224,6 +333,7 @@ FRAGMENT: Final = NodeType(
         outputs=(Output("element", "Element", ELEMENT),),
     ),
     evaluate=_fragment,
+    code=_fragment_code,
 )
 
 NODE_TYPES: Final = (ELEMENT_NODE, FRAGMENT)

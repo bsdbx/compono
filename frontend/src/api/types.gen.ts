@@ -64,6 +64,19 @@ export type ChoiceType = {
 };
 
 /**
+ * CodeRequest
+ *
+ * A component's name, which names the file, and its graph.
+ */
+export type CodeRequest = {
+    /**
+     * Name
+     */
+    name: string;
+    graph: Graph;
+};
+
+/**
  * Component
  *
  * A component, with its graph and screen sizes.
@@ -223,6 +236,26 @@ export type EvaluatedNode = {
      * Skipped
      */
     skipped: boolean;
+};
+
+/**
+ * GeneratedCode
+ *
+ * The component as a JSX file, or why it can't be one yet.
+ */
+export type GeneratedCode = {
+    /**
+     * Filename
+     */
+    filename: string;
+    /**
+     * Code
+     */
+    code: string | null;
+    /**
+     * Errors
+     */
+    errors: Array<string>;
 };
 
 /**
@@ -2562,3 +2595,32 @@ export type EvaluateGraphResponses = {
 };
 
 export type EvaluateGraphResponse = EvaluateGraphResponses[keyof EvaluateGraphResponses];
+
+export type GenerateCodeData = {
+    body: CodeRequest;
+    path?: never;
+    query?: never;
+    url: '/api/code';
+};
+
+export type GenerateCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GenerateCodeError = GenerateCodeErrors[keyof GenerateCodeErrors];
+
+export type GenerateCodeResponses = {
+    /**
+     * Successful Response
+     */
+    200: GeneratedCode;
+};
+
+export type GenerateCodeResponse = GenerateCodeResponses[keyof GenerateCodeResponses];

@@ -8,7 +8,7 @@ from pydantic import BaseModel, JsonValue, TypeAdapter
 from sqlalchemy.orm import Session
 
 from compono import auth
-from compono.api.graphs import Evaluated, NodeTypeInfo
+from compono.api.graphs import Evaluated, GeneratedCode, NodeTypeInfo
 from compono.graph.node_types import (
     EvaluateContext,
     Group,
@@ -290,3 +290,57 @@ def test_evaluating_says_what_the_component_renders(
         "attributes": {},
         "children": ["Pro"],
     }
+
+
+def test_code_needs_a_session(client: TestClient) -> None:
+    body: JsonValue = {"name": "Card", "graph": {}}
+    response = client.post("/api/code", json=body)
+
+    assert response.status_code == 401
+
+
+def test_a_component_as_code(signed_in_with_compono_nodes: TestClient) -> None:
+    rendering: JsonValue = {
+        "nodes": [
+            node("output", "component-output"),
+            node("title", "element", values={"tag": "h3", "text": "Pro"}),
+        ],
+        "wires": [wire("w1", "title.element", "output.render")],
+    }
+
+    body: JsonValue = {"name": "pricing card", "graph": rendering}
+    response = signed_in_with_compono_nodes.post("/api/code", json=body)
+
+    assert response.status_code == 200
+    assert GeneratedCode.model_validate_json(response.text) == GeneratedCode(
+        filename="PricingCard.jsx",
+        code=(
+            "export default function PricingCard() {\n"
+            "  return (\n"
+            "    <h3>Pro</h3>\n"
+            "  );\n"
+            "}\n"
+        ),
+        errors=[],
+    )
+
+
+def test_a_component_in_error_says_why_it_isnt_code(
+    signed_in_with_compono_nodes: TestClient,
+) -> None:
+    broken: JsonValue = {
+        "nodes": [
+            node("output", "component-output"),
+            node("title", "element", values={"tag": "h7"}),
+        ],
+        "wires": [wire("w1", "title.element", "output.render")],
+    }
+
+    body: JsonValue = {"name": "Card", "graph": broken}
+    response = signed_in_with_compono_nodes.post("/api/code", json=body)
+
+    assert GeneratedCode.model_validate_json(response.text) == GeneratedCode(
+        filename="Card.jsx",
+        code=None,
+        errors=["Element: A value typed in isn't a Choice"],
+    )
