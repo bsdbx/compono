@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from compono.graph.node_types import (
+    Choose,
     Code,
     CodeContext,
     EvaluateContext,
@@ -19,6 +20,7 @@ from compono.graph.node_types import (
     SocketsContext,
     boolean,
     expression,
+    known,
     number,
     text,
 )
@@ -190,14 +192,6 @@ def _element(context: EvaluateContext) -> Mapping[str, Value]:
     }
 
 
-def _known(code: Code) -> Value:
-    """A value that doesn't depend on the props."""
-    if isinstance(code, Js | Jsx):
-        raise TypeError(f"{code!r} depends on the props")
-
-    return code
-
-
 def _text_code(code: Js) -> str:
     # Nothing is empty text, so an empty fallback is no fallback
     return code.code if code.fallback in (None, "") else expression(code)
@@ -208,13 +202,13 @@ def _optional(code: Code) -> Code:
     if isinstance(code, Js):
         return Js(f"{_text_code(code)} || undefined")
 
-    return text(_known(code)) or None
+    return text(known(code)) or None
 
 
 def _renders(row: Code) -> bool:
     # A child that is Nothing isn't rendered, which React does by itself for an expression
     match row:
-        case Element() | Js() | Jsx():
+        case Element() | Js() | Jsx() | Choose():
             return True
         case _:
             return False
@@ -232,7 +226,7 @@ def _element_code(context: CodeContext) -> Mapping[str, Code]:
         if isinstance(link, Js):
             attributes.append((name, Js(f"{_text_code(link)}?.trim() || undefined")))
         else:
-            attributes.append((name, text(_known(link)).strip() or None))
+            attributes.append((name, text(known(link)).strip() or None))
     attributes.append(("alt", _optional(context.inputs.get("alt"))))
     attributes += [
         (name, _optional(context.properties[name]))
@@ -242,8 +236,8 @@ def _element_code(context: CodeContext) -> Mapping[str, Code]:
     if isinstance(tab_index, Js):
         attributes.append(("tabindex", Js(expression(tab_index))))
     else:
-        known = number(_known(tab_index))
-        attributes.append(("tabindex", None if known is None else int(known)))
+        index = number(known(tab_index))
+        attributes.append(("tabindex", None if index is None else int(index)))
     hidden = context.properties["hidden"]
     if isinstance(hidden, Js):
         # An attribute that's just there or not: Nothing and false both leave it out
@@ -258,21 +252,21 @@ def _element_code(context: CodeContext) -> Mapping[str, Code]:
             )
         )
     else:
-        attributes.append(("hidden", boolean(_known(hidden))))
+        attributes.append(("hidden", boolean(known(hidden))))
 
     children: list[Code] = []
     content = context.inputs.get("text")
     if isinstance(content, Js):
         children.append(Js(_text_code(content)))
-    elif text(_known(content)):
-        children.append(text(_known(content)))
+    elif text(known(content)):
+        children.append(text(known(content)))
     children += _child_elements(context.groups.get("children", ()))
 
     tag = context.inputs["tag"]
     class_name = context.inputs["class"]
     return {
         "element": Jsx(
-            tag=Js(expression(tag)) if isinstance(tag, Js) else text(_known(tag)),
+            tag=Js(expression(tag)) if isinstance(tag, Js) else text(known(tag)),
             attributes=(
                 ("key", _optional(context.properties["key"])),
                 ("class", _optional(class_name)),

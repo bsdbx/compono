@@ -18,6 +18,7 @@ from compono.graph.sockets import (
     NumberType,
     SlotType,
     TextType,
+    name_of,
 )
 from compono.graph.values import Element, Value
 from compono.nodes import NODE_TYPES
@@ -89,6 +90,9 @@ def test_the_node_types_and_their_categories() -> None:
         ("text", "Values"),
         ("choice", "Values"),
         ("nothing", "Values"),
+        ("switch", "Logic"),
+        ("compare", "Logic"),
+        ("template", "Text"),
     ]
 
 
@@ -428,6 +432,10 @@ def test_values_set_on_a_node_show_there() -> None:
         "text": ["value"],
         "choice": ["value"],
         "nothing": ["value"],
+        # A template is typed in the panel
+        "switch": [],
+        "compare": [],
+        "template": [],
     }
 
 
@@ -557,3 +565,174 @@ def test_an_element_refuses_a_tag_that_isnt_html_from_any_wire() -> None:
 
     with pytest.raises(NodeError, match="^There's no script tag$"):
         ELEMENT_NODE.evaluate(context)
+
+
+def inputs_of(evaluation: Evaluation, node_id: str) -> list[tuple[str, str]]:
+    return [
+        (each.id, name_of(each.type))
+        for each in evaluation.nodes[node_id].sockets.inputs
+    ]
+
+
+def test_a_switch_has_no_type_until_true_or_false_is_wired() -> None:
+    unwired = run([node("switch", "switch")])
+    wired = run(
+        [node("switch", "switch"), node("badge", "element")],
+        [wire("w1", "badge.element", "switch.false")],
+    )
+
+    assert inputs_of(unwired, "switch") == [
+        ("condition", "Boolean"),
+        ("true", "Any"),
+        ("false", "Any"),
+    ]
+    assert inputs_of(wired, "switch")[1:] == [("true", "Element"), ("false", "Element")]
+    assert name_of(wired.nodes["switch"].sockets.outputs[0].type) == "Element"
+
+
+@pytest.mark.parametrize(
+    ("condition", "result"), [({}, "Most popular"), ({"condition": False}, "Plain")]
+)
+def test_a_switch_gives_true_or_false_by_its_condition(
+    condition: dict[str, JsonValue], result: str
+) -> None:
+    evaluation = run(
+        [
+            node("label", "text", properties={"value": "x"}),
+            node(
+                "switch",
+                "switch",
+                values={**condition, "true": "Most popular", "false": "Plain"},
+            ),
+        ],
+        # Wired from Text, so True and False are Text to type in
+        [wire("w1", "label.value", "switch.true")],
+    )
+
+    assert output(evaluation, "switch", "result") == (
+        "x" if result == "Most popular" else result
+    )
+
+
+def test_a_switch_condition_is_on_until_set_and_nothing_leaves_it_so() -> None:
+    evaluation = run(
+        [
+            node("nothing", "nothing"),
+            node("yes", "text", properties={"value": "yes"}),
+            node("no", "text", properties={"value": "no"}),
+            node("switch", "switch"),
+        ],
+        [
+            wire("w1", "yes.value", "switch.true"),
+            wire("w2", "no.value", "switch.false"),
+            # A wire that brings Nothing counts as no wire
+            wire("w3", "nothing.value", "switch.condition"),
+        ],
+    )
+
+    assert output(evaluation, "switch", "result") == "yes"
+
+
+@pytest.mark.parametrize(
+    ("comparison", "a", "b", "result"),
+    [
+        ("Equal", 24, 24, True),
+        ("Not equal", 24, 24, False),
+        ("Less", 9.5, 10, True),
+        ("Less or equal", 10, 10, True),
+        ("Greater", "b", "a", True),
+        ("Greater or equal", "a", "b", False),
+        ("Less", None, 10, False),
+        ("Equal", None, None, True),
+    ],
+)
+def test_compare(comparison: str, a: JsonValue, b: JsonValue, result: bool) -> None:
+    kind: JsonValue = {"kind": "text"} if isinstance(a, str) else {"kind": "number"}
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("compare", "compare", values={"op": comparison, "b": b}),
+        ],
+        [wire("w1", "input.p1", "compare.a")],
+        [prop("p1", "value", kind, default=a)],
+    )
+
+    assert output(evaluation, "compare", "result") is result
+
+
+def test_compare_takes_the_type_wired_into_a_and_orders_only_like_kinds() -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("compare", "compare", values={"op": "Less", "b": True}),
+        ],
+        [wire("w1", "input.p1", "compare.a")],
+        [prop("p1", "on", {"kind": "boolean"}, default=False)],
+    )
+
+    assert inputs_of(evaluation, "compare") == [
+        ("op", "Choice"),
+        ("a", "Boolean"),
+        ("b", "Boolean"),
+    ]
+    assert (
+        evaluation.nodes["compare"].error
+        == "Less needs two numbers, two texts or two dates"
+    )
+
+
+def test_a_template_has_an_input_for_each_name_in_braces() -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node(
+                "template",
+                "template",
+                properties={"template": "${price}/{period} {price} {not a name} {"},
+                values={"period": "mo"},
+            ),
+        ],
+        [wire("w1", "input.p1", "template.price")],
+        [prop("p1", "price", {"kind": "number"}, default=24.0)],
+    )
+
+    # A name once; price is a Number from its wire, period Text to type in
+    assert inputs_of(evaluation, "template") == [
+        ("price", "Number"),
+        ("period", "Text"),
+    ]
+    assert output(evaluation, "template", "text") == "$24/mo 24 {not a name} {"
+
+
+@pytest.mark.parametrize(
+    ("value", "written"),
+    [(True, "true"), (2.5, "2.5"), (3.0, "3"), (None, "")],
+)
+def test_a_template_writes_values_as_javascript_does(
+    value: JsonValue, written: str
+) -> None:
+    kind: JsonValue = (
+        {"kind": "boolean"} if isinstance(value, bool) else {"kind": "number"}
+    )
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("template", "template", properties={"template": "[{v}]"}),
+        ],
+        [wire("w1", "input.p1", "template.v")],
+        [prop("p1", "v", kind, default=value)],
+    )
+
+    assert output(evaluation, "template", "text") == f"[{written}]"
+
+
+def test_an_element_in_a_template_is_an_error() -> None:
+    evaluation = run(
+        [
+            node("badge", "element"),
+            node("template", "template", properties={"template": "{v}"}),
+        ],
+        [wire("w1", "badge.element", "template.v")],
+    )
+
+    assert evaluation.nodes["template"].error == "v can't be an element in a template"
