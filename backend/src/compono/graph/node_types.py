@@ -9,7 +9,7 @@ from pydantic import JsonValue
 
 from compono.graph.model import Prop
 from compono.graph.sockets import SocketType
-from compono.graph.values import Value
+from compono.graph.values import Element, Value
 
 
 @dataclass(frozen=True)
@@ -98,6 +98,12 @@ class Js:
     code: str
     # What it is when the expression is Nothing, like a value typed in on the node
     fallback: Value = None
+    # False for one that's never null or undefined, like a comparison
+    nothing: bool = True
+
+    @property
+    def may_be_nothing(self) -> bool:
+        return self.nothing and self.fallback is None
 
 
 @dataclass(frozen=True)
@@ -110,8 +116,17 @@ class Jsx:
     children: tuple[Code, ...] = ()
 
 
+@dataclass(frozen=True)
+class Choose:
+    """One of two values by a condition the props give, where one is an element, which an expression can't hold."""
+
+    condition: Js
+    then: Code
+    otherwise: Code
+
+
 # What a socket is in code: a value known now, or one the props give
-type Code = Value | Js | Jsx
+type Code = Value | Js | Jsx | Choose
 
 
 @dataclass(frozen=True)
@@ -151,6 +166,63 @@ def expression(code: Js) -> str:
         return code.code
 
     return f"({code.code} ?? {literal(code.fallback)})"
+
+
+def bare(code: str) -> str:
+    """The expression without parentheses around all of it, as it reads inside JSX's braces."""
+    if not (code.startswith("(") and code.endswith(")")):
+        return code
+
+    depth = 0
+    quoted = False
+    escaped = False
+    for at, character in enumerate(code):
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+        elif character == '"':
+            quoted = True
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            # The first parenthesis closes before the end, so they aren't around all of it
+            if depth == 0 and at != len(code) - 1:
+                return code
+    return code[1:-1]
+
+
+def known(code: Code) -> Value:
+    """A value that doesn't depend on the props. Raises TypeError for one that does."""
+    match code:
+        case Js() | Jsx() | Choose():
+            raise TypeError(f"{code!r} depends on the props")
+        case _:
+            return code
+
+
+def markup(code: Code) -> bool:
+    """Whether the code is an element: JSX, a rendered one, or a choice between them."""
+    match code:
+        case Jsx() | Element() | Choose():
+            return True
+        case _:
+            return False
+
+
+def js_of(code: Code) -> str | None:
+    """The code as a JavaScript expression, or None for an element, which is JSX."""
+    if isinstance(code, Js):
+        return expression(code)
+
+    if markup(code):
+        return None
+
+    return literal(known(code))
 
 
 class NodeError(Exception):

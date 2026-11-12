@@ -9,13 +9,19 @@ from typing import Final
 from compono.graph.evaluate import Evaluation, NodeResult, evaluate
 from compono.graph.model import Graph, Node, Wire
 from compono.graph.node_types import (
+    Choose,
     Code,
     CodeContext,
     Js,
     Jsx,
+    NodeError,
     NodeType,
+    bare,
     expression,
+    js_of,
+    known,
     literal,
+    markup,
 )
 from compono.graph.values import Element, Value, from_json
 from compono.nodes.component import COMPONENT_INPUT, COMPONENT_OUTPUT
@@ -102,34 +108,6 @@ def component_name(name: str) -> str:
     return joined
 
 
-def _bare(code: str) -> str:
-    """The expression without parentheses around all of it, as it reads inside JSX's braces."""
-    if not (code.startswith("(") and code.endswith(")")):
-        return code
-
-    depth = 0
-    quoted = False
-    escaped = False
-    for at, character in enumerate(code):
-        if quoted:
-            if escaped:
-                escaped = False
-            elif character == "\\":
-                escaped = True
-            elif character == '"':
-                quoted = False
-        elif character == '"':
-            quoted = True
-        elif character == "(":
-            depth += 1
-        elif character == ")":
-            depth -= 1
-            # The first parenthesis closes before the end, so they aren't around all of it
-            if depth == 0 and at != len(code) - 1:
-                return code
-    return code[1:-1]
-
-
 def _jsx_of(element: Element) -> Jsx:
     """A rendered element as JSX, as the Preview shows it."""
     return Jsx(
@@ -159,7 +137,7 @@ class _Printer:
             while (name := "Tag" if number == 1 else f"Tag{number}") in self.taken:
                 number += 1
             self.taken.add(name)
-            self.tags.append(f"const {name} = {_bare(expression(jsx.tag))};")
+            self.tags.append(f"const {name} = {bare(expression(jsx.tag))};")
             return name
 
         if jsx.tag == "" and any(
@@ -180,21 +158,21 @@ class _Printer:
             return f" {name}"
 
         if isinstance(value, Js):
-            return f" {name}={{{_bare(expression(value))}}}"
+            return f" {name}={{{bare(expression(value))}}}"
 
         if isinstance(value, str) and re.fullmatch(r'[^"&\\{}\n\r]*', value):
             return f' {name}="{value}"'
 
-        if isinstance(value, Jsx | Element):
+        if markup(value):
             raise TypeError(f"{name} can't be an element")
 
-        return f" {name}={{{literal(value)}}}"
+        return f" {name}={{{literal(known(value))}}}"
 
     @staticmethod
     def _text(value: Code) -> str | None:
         """A child that's text, or None for one that's an element."""
         if isinstance(value, Js):
-            return f"{{{_bare(expression(value))}}}"
+            return f"{{{bare(expression(value))}}}"
 
         if isinstance(value, str):
             # JSX trims a line's ends and reads braces, tags and entities in text, so such text is a string
@@ -219,7 +197,7 @@ class _Printer:
         children = [
             child
             for child in jsx.children
-            if isinstance(child, Jsx | Element) or self._text(child) is not None
+            if markup(child) or self._text(child) is not None
         ]
         if not children:
             return [f"{indent}<{tag}{attributes} />" if tag else f"{indent}<></>"]
@@ -236,9 +214,43 @@ class _Printer:
         for child, text in zip(children, texts, strict=True):
             if text is not None:
                 lines.append(f"{inner}{text}")
+            elif isinstance(child, Choose):
+                lines += self.choose(child, inner, "{", "}")
             elif isinstance(child, Jsx | Element):
                 lines += self.lines(child, inner)
         lines.append(f"{indent}</{tag}>")
+        return lines
+
+    def branch(self, code: Code, indent: str) -> list[str] | str:
+        """A branch of a choice: an expression, or the lines of an element."""
+        if isinstance(code, Choose):
+            return self.choose(code, indent, "", "")
+
+        if isinstance(code, Jsx | Element):
+            return self.lines(code, indent)
+
+        written = js_of(code)
+        return "null" if written is None else bare(written)
+
+    def choose(
+        self, choose: Choose, indent: str, opening: str, closing: str
+    ) -> list[str]:
+        """One of two branches by its condition, in braces as a child or bare to return."""
+        test = choose.condition.code
+        then = self.branch(choose.then, f"{indent}  ")
+        otherwise = self.branch(choose.otherwise, f"{indent}  ")
+        if isinstance(then, str) and isinstance(otherwise, str):
+            return [f"{indent}{opening}{test} ? {then} : {otherwise}{closing}"]
+
+        lines = [
+            f"{indent}{opening}{test} ? " + (then if isinstance(then, str) else "(")
+        ]
+        if isinstance(then, list):
+            lines += [*then, f"{indent})"]
+        lines[-1] += " : " + (otherwise if isinstance(otherwise, str) else "(")
+        if isinstance(otherwise, list):
+            lines += [*otherwise, f"{indent})"]
+        lines[-1] += closing
         return lines
 
 
@@ -290,6 +302,9 @@ class _Generator:
 
         brought = self.output(wire.from_.node, wire.from_.socket)
         if isinstance(brought, Js):
+            # A wire that never brings Nothing needs nothing to fall back to
+            if not brought.may_be_nothing:
+                return brought
             return Js(expression(brought), fallback=typed)
 
         # A wire that brings Nothing counts as no wire
@@ -341,9 +356,12 @@ class _Generator:
             )
             for prop in node_type.properties
         }
-        return node_type.code(
-            CodeContext(inputs=inputs, groups=groups, properties=properties)
-        )
+        try:
+            return node_type.code(
+                CodeContext(inputs=inputs, groups=groups, properties=properties)
+            )
+        except NodeError as error:
+            raise CodeError([f"{node_type.name}: {error}"]) from error
 
 
 def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Generated:
@@ -373,6 +391,8 @@ def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Gen
     printer = _Printer({component, *(prop.name for prop in graph.props)})
     if isinstance(render, Jsx | Element):
         body = ["  return (", *printer.lines(render, "    "), "  );"]
+    elif isinstance(render, Choose):
+        body = ["  return (", *printer.choose(render, "    ", "", ""), "  );"]
     elif isinstance(render, Js):
         body = [f"  return {expression(render)};"]
     else:

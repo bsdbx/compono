@@ -312,3 +312,147 @@ def test_a_node_without_code_is_written_as_its_value_unless_it_takes_a_prop() ->
 )
 def test_the_component_is_named_for_react(name: str, component: str) -> None:
     assert component_name(name) == component
+
+
+def pricing_card() -> tuple[list[JsonValue], list[JsonValue], list[JsonValue]]:
+    nodes = [
+        node("input", "component-input"),
+        node("badge", "element", values={"tag": "span", "class": "badge"}),
+        node("switch", "switch"),
+        node("title", "element", values={"tag": "h3"}),
+        node("template", "template", properties={"template": "${price}/{period}"}),
+        node("price", "element", values={"tag": "p"}),
+        node("cta", "element", values={"tag": "a", "text": "Get started"}),
+        node(
+            "card",
+            "element",
+            values={"class": "card"},
+            groups={"children": ["a", "b", "c", "d"]},
+        ),
+        node("output", "component-output"),
+    ]
+    wires = [
+        wire("w1", "input.p1", "badge.text"),
+        wire("w2", "input.p2", "switch.condition"),
+        wire("w3", "badge.element", "switch.true"),
+        wire("w4", "input.p3", "title.text"),
+        wire("w5", "input.p5", "template.price"),
+        wire("w6", "input.p6", "template.period"),
+        wire("w7", "template.text", "price.text"),
+        wire("w8", "input.p4", "cta.href"),
+        wire("w9", "switch.result", "card.children/a"),
+        wire("w10", "title.element", "card.children/b"),
+        wire("w11", "price.element", "card.children/c"),
+        wire("w12", "cta.element", "card.children/d"),
+        wire("w13", "card.element", "output.render"),
+    ]
+    props = [
+        prop("p1", "badge", TEXT, default="Most popular"),
+        prop("p2", "featured", {"kind": "boolean"}, default=True),
+        prop("p3", "title", TEXT, default="Pro"),
+        prop("p4", "ctaHref", {"kind": "text", "link": True}),
+        prop("p5", "price", {"kind": "number", "integer": True}, default=24),
+        prop("p6", "period", {"kind": "choice", "options": ["mo", "yr"]}),
+    ]
+    return nodes, wires, props
+
+
+def test_pricing_card_as_code() -> None:
+    nodes, wires, props = pricing_card()
+
+    assert code(nodes, wires, props) == (
+        "export default function PricingCard({\n"
+        '  badge = "Most popular",\n'
+        "  featured = true,\n"
+        '  title = "Pro",\n'
+        "  ctaHref,\n"
+        "  price = 24,\n"
+        "  period,\n"
+        "}) {\n"
+        "  return (\n"
+        '    <div className="card">\n'
+        # The Switch's Condition is on when featured is Nothing
+        "      {(featured ?? true) ? (\n"
+        '        <span className="badge">{badge}</span>\n'
+        "      ) : null}\n"
+        "      <h3>{title}</h3>\n"
+        '      <p>{`$${price ?? ""}/${period ?? ""}`}</p>\n'
+        "      <a href={ctaHref?.trim() || undefined}>Get started</a>\n"
+        "    </div>\n"
+        "  );\n"
+        "}\n"
+    )
+
+
+def test_a_switch_between_texts_is_an_expression() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("cheap", "compare", values={"op": "Less", "b": 10}),
+            node("label", "switch", values={"true": "Cheap", "false": "Pricey"}),
+            node("same", "compare", values={"op": "Equal", "b": "b"}),
+            node("text", "template", properties={"template": "{a} `{b}` ${ x }"}),
+            node("p", "element", values={"tag": "p"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("w1", "input.p1", "cheap.a"),
+            wire("w2", "cheap.result", "label.condition"),
+            wire("w3", "input.p2", "same.a"),
+            wire("w4", "label.result", "text.a"),
+            wire("w5", "same.result", "text.b"),
+            wire("w6", "text.text", "p.text"),
+            wire("w7", "p.element", "output.render"),
+        ],
+        [prop("p1", "price", {"kind": "number"}), prop("p2", "name", TEXT)],
+    )
+
+    # A comparison is never Nothing, so it takes no fallback, and Less rules out null, which JavaScript orders as 0
+    assert (
+        '{`${(price != null && price < 10) ? "Cheap" : "Pricey"} '
+        '\\`${(name ?? null) === "b"}\\` \\${ x }`}'
+    ) in written
+
+
+@pytest.mark.parametrize(
+    ("node_type", "socket", "result", "into", "error"),
+    [
+        (
+            "compare",
+            "op",
+            "result",
+            "hidden",
+            "Compare: Compare can't take its comparison from a prop in code yet",
+        ),
+        (
+            "template",
+            "template",
+            "text",
+            "text",
+            "Template: Template can't take its text from a prop in code yet",
+        ),
+    ],
+)
+def test_what_code_cant_take_from_a_prop_yet(
+    node_type: str, socket: str, result: str, into: str, error: str
+) -> None:
+    chosen: JsonValue = (
+        {"kind": "choice", "options": ["Equal"]} if node_type == "compare" else TEXT
+    )
+    with pytest.raises(CodeError) as raised:
+        code(
+            [
+                node("input", "component-input"),
+                node("tested", node_type, exposed=[socket]),
+                node("p", "element", values={"tag": "p"}, exposed=["hidden"]),
+                node("output", "component-output"),
+            ],
+            [
+                wire("w1", "input.p1", f"tested.{socket}"),
+                wire("w2", f"tested.{result}", f"p.{into}"),
+                wire("w3", "p.element", "output.render"),
+            ],
+            [prop("p1", "chosen", chosen)],
+        )
+
+    assert raised.value.errors == [error]

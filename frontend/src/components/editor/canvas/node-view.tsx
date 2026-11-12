@@ -61,11 +61,11 @@ function SocketHandle({
       // Inline, over React Flow's own handle style
       style={{
         ...(side === "left" ? { left: offset } : { right: offset }),
-        // A Slot is a ring: the place an element goes
-        ...(kind === "slot"
+        // A Slot is a ring: the place an element goes. So is a socket that has no type until it's wired
+        ...(kind === "slot" || kind === "any"
           ? {
               background: "var(--card)",
-              border: "2px solid var(--socket-element)",
+              border: `2px solid ${kind === "slot" ? "var(--socket-element)" : "var(--subtle-foreground)"}`,
             }
           : { background: `var(--socket-${kind})`, border: 0 }),
       }}
