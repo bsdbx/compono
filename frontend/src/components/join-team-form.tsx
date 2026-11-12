@@ -15,10 +15,13 @@ export const LINK_NOT_VALID =
 /** Joins a team with an invite link that someone shared. */
 export function JoinTeamForm({
   onJoined,
+  inline = false,
   children,
 }: {
   onJoined: (team: Team) => void;
-  /** The join button, which submits the form */
+  /** Whether the buttons sit beside the field, rather than under it */
+  inline?: boolean;
+  /** The buttons, which submit the form */
   children: (submitting: boolean) => ReactNode;
 }) {
   // Ids of this form's own, as a page can keep another form with the same fields
@@ -55,25 +58,38 @@ export function JoinTeamForm({
     }
   }
 
+  const field = (
+    <Input
+      id={`${id}-invite-link`}
+      placeholder={`${window.location.host}/join/…`}
+      autoCapitalize="none"
+      spellCheck={false}
+      value={link}
+      onChange={(event) => {
+        setLink(event.target.value);
+        setError(undefined);
+      }}
+      aria-invalid={error !== undefined}
+    />
+  );
   return (
-    <form method="post" noValidate onSubmit={(event) => void submit(event)}>
+    <form
+      method="post"
+      noValidate
+      onSubmit={(event) => void submit(event)}
+      className="flex flex-col gap-5"
+    >
       <Field label="Invite link" htmlFor={`${id}-invite-link`} error={error}>
-        <div className="flex gap-2">
-          <Input
-            id={`${id}-invite-link`}
-            placeholder={`${window.location.host}/join/…`}
-            autoCapitalize="none"
-            spellCheck={false}
-            value={link}
-            onChange={(event) => {
-              setLink(event.target.value);
-              setError(undefined);
-            }}
-            aria-invalid={error !== undefined}
-          />
-          {children(submitting)}
-        </div>
+        {inline ? (
+          <div className="flex gap-2">
+            {field}
+            {children(submitting)}
+          </div>
+        ) : (
+          field
+        )}
       </Field>
+      {inline ? null : children(submitting)}
     </form>
   );
 }

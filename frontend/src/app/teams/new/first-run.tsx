@@ -33,7 +33,7 @@ export function FirstRun() {
         <span className="h-px flex-1 bg-border" />
       </div>
       {joining ? (
-        <JoinTeamForm onJoined={open}>
+        <JoinTeamForm inline onJoined={open}>
           {(submitting) => (
             <Button
               type="submit"

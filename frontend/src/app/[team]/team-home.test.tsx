@@ -7,7 +7,7 @@ import { TeamHome } from "./team-home";
 vi.mock("next/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
-vi.mock("@/components/account-menu", () => ({ AccountMenu: () => null }));
+vi.mock("@/components/team-sidebar", () => ({ TeamSidebar: () => null }));
 
 beforeEach(() => {
   navigation.params = { team: "acme" };
