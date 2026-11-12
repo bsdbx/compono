@@ -13,14 +13,18 @@ export function TextField({
   value,
   onChange,
   showLabel = true,
+  className,
+  onBlur,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   showLabel?: boolean;
+  className?: string;
+  onBlur?: () => void;
 }) {
   return (
-    <label className={FIELD}>
+    <label className={cn(FIELD, className)}>
       {showLabel ? (
         <span className="shrink-0 text-subtle-foreground">{label}</span>
       ) : null}
@@ -29,6 +33,7 @@ export function TextField({
         value={value}
         spellCheck={false}
         onChange={(event) => onChange(event.target.value)}
+        onBlur={onBlur}
         className={cn(
           "min-w-0 flex-1 bg-transparent text-foreground outline-none",
           showLabel ? "text-right" : "",
@@ -43,16 +48,22 @@ export function NumberField({
   label,
   value,
   onChange,
+  showLabel = true,
+  className,
 }: {
   label: string;
   value: number | null;
   onChange: (value: number | string | undefined) => void;
+  showLabel?: boolean;
+  className?: string;
 }) {
   const shown = value === null ? "" : String(value);
   const [typed, setTyped] = useState<string>();
   return (
-    <label className={FIELD}>
-      <span className="shrink-0 text-subtle-foreground">{label}</span>
+    <label className={cn(FIELD, className)}>
+      {showLabel ? (
+        <span className="shrink-0 text-subtle-foreground">{label}</span>
+      ) : null}
       <input
         aria-label={label}
         inputMode="decimal"
@@ -71,7 +82,10 @@ export function NumberField({
           );
         }}
         onBlur={() => setTyped(undefined)}
-        className="min-w-0 flex-1 bg-transparent text-right text-foreground outline-none"
+        className={cn(
+          "min-w-0 flex-1 bg-transparent text-foreground outline-none",
+          showLabel ? "text-right" : "",
+        )}
       />
     </label>
   );
@@ -83,11 +97,16 @@ export function ChoiceField({
   value,
   options,
   onChange,
+  className,
+  names = {},
 }: {
   label: string;
   value: string;
   options: readonly string[];
   onChange: (value: string) => void;
+  className?: string;
+  /** What an option shows as, when it isn't the option itself */
+  names?: Readonly<Record<string, string>>;
 }) {
   const all =
     options.includes(value) || value === "" ? options : [value, ...options];
@@ -97,11 +116,11 @@ export function ChoiceField({
         aria-label={label}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={cn(FIELD, "appearance-none pr-6 text-foreground")}
+        className={cn(FIELD, "appearance-none pr-6 text-foreground", className)}
       >
         {all.map((option) => (
           <option key={option} value={option}>
-            {option === "" ? "None" : option}
+            {names[option] ?? (option === "" ? "None" : option)}
           </option>
         ))}
       </select>

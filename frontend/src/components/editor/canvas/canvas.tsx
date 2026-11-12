@@ -29,20 +29,19 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { createPortal } from "react-dom";
 import type { NodeTypeInfo } from "@/api/types.gen";
 import type { Content, Draft } from "@/components/editor/draft";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { accepts, WIRE_COLOR } from "./accepts";
 import { AddNodeMenu, type Choice } from "./add-node-menu";
 import {
   CanvasContext,
   type CanvasState,
+  inputsOf,
   type Menu,
   socketsOf,
   useCanvas,
@@ -66,12 +65,10 @@ import {
 } from "./graph";
 import { History } from "./history";
 import { type CanvasNode, NodeView } from "./node-view";
+import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
+import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
 
 const NODE_VIEWS = { graph: NodeView };
-
-// The canvas menus' separators run the width of their items
-const SEPARATOR = "mx-0 bg-input";
-const ITEM = "h-6.5 min-h-6.5 text-sm focus:bg-highlight";
 
 /** Where the Add node menu opens, and the output a wire was dragged from, if it was. */
 type Adding = {
@@ -97,7 +94,7 @@ function inputType(
   const sockets = socketsOf(known, into.id, into.type);
   const group = socket.split("/")[0] ?? "";
   return (
-    sockets.inputs.find((each) => each.id === socket)?.type ??
+    inputsOf(known, into).find((each) => each.id === socket)?.type ??
     (socket.includes("/") &&
     (into.groups[group] ?? []).includes(socket.slice(group.length + 1))
       ? sockets.groups.find((each) => each.id === group)?.type
@@ -174,10 +171,12 @@ function Flow({
   draft,
   content,
   nodeTypes,
+  panel,
 }: {
   draft: Draft;
   content: Content;
   nodeTypes: ReadonlyMap<string, NodeTypeInfo>;
+  panel: HTMLElement | null;
 }) {
   const flow = useReactFlow<CanvasNode>();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -486,18 +485,18 @@ function Flow({
         return (
           <>
             <DropdownMenuItem
-              className={ITEM}
+              className={MENU_ITEM}
               onSelect={() => setAdding(at(open.x, open.y))}
             >
               <span className="flex-1">Add node</span>
               <ChevronRight className="size-3.5 text-subtle-foreground" />
             </DropdownMenuItem>
-            <DropdownMenuSeparator className={SEPARATOR} />
-            <DropdownMenuItem className={ITEM} onSelect={selectAll}>
+            <DropdownMenuSeparator className={MENU_SEPARATOR} />
+            <DropdownMenuItem className={MENU_ITEM} onSelect={selectAll}>
               Select all
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={ITEM}
+              className={MENU_ITEM}
               onSelect={() =>
                 void flow.fitView({ maxZoom: 1, padding: 0.2, duration: 200 })
               }
@@ -511,21 +510,24 @@ function Flow({
         const ids = selected.includes(open.node) ? selected : [open.node];
         return (
           <>
-            <DropdownMenuItem className={ITEM} onSelect={() => duplicate(ids)}>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              onSelect={() => duplicate(ids)}
+            >
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={ITEM}
+              className={MENU_ITEM}
               onSelect={() =>
                 edit((current) => ids.reduce(disconnectNode, current))
               }
             >
               Disconnect all
             </DropdownMenuItem>
-            <DropdownMenuSeparator className={SEPARATOR} />
+            <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
               variant="destructive"
-              className={ITEM}
+              className={MENU_ITEM}
               onSelect={() =>
                 edit((current) => removeNodes(current, new Set(ids)))
               }
@@ -544,7 +546,7 @@ function Flow({
         return (
           <>
             <DropdownMenuItem
-              className={ITEM}
+              className={MENU_ITEM}
               disabled={index <= 0}
               onSelect={() =>
                 edit((current) =>
@@ -555,7 +557,7 @@ function Flow({
               Move up
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={ITEM}
+              className={MENU_ITEM}
               disabled={index === -1 || index >= rows.length - 1}
               onSelect={() =>
                 edit((current) =>
@@ -565,10 +567,10 @@ function Flow({
             >
               Move down
             </DropdownMenuItem>
-            <DropdownMenuSeparator className={SEPARATOR} />
+            <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
               variant="destructive"
-              className={ITEM}
+              className={MENU_ITEM}
               onSelect={() =>
                 edit((current) =>
                   removeRow(current, open.node, open.group, open.row),
@@ -585,6 +587,10 @@ function Flow({
 
   return (
     <CanvasContext value={canvas}>
+      {/* The properties panel is in the right column, beside the canvas */}
+      {panel
+        ? createPortal(<PropertiesPanel selected={selected} />, panel)
+        : null}
       <div ref={wrapper} className="relative h-full w-full">
         <ReactFlow<CanvasNode>
           nodes={nodes}
@@ -713,25 +719,9 @@ function Flow({
           ) : null}
         </ReactFlow>
         {menu ? (
-          <DropdownMenu
-            open
-            modal={false}
-            onOpenChange={(open) => {
-              if (!open) {
-                setMenu(undefined);
-              }
-            }}
-          >
-            <DropdownMenuTrigger asChild>
-              <span
-                className="fixed size-0"
-                style={{ left: menu.x, top: menu.y }}
-              />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" sideOffset={0} className="w-47">
-              {menuItems(menu)}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <PointerMenu x={menu.x} y={menu.y} onClose={() => setMenu(undefined)}>
+            {menuItems(menu)}
+          </PointerMenu>
         ) : null}
         {adding ? (
           <AddNodeMenu
@@ -751,7 +741,14 @@ function Flow({
 }
 
 /** The open component's graph: nodes to add, wire, select, move and delete, with undo and redo. */
-export function Canvas({ draft }: { draft: Draft }) {
+export function Canvas({
+  draft,
+  panel = null,
+}: {
+  draft: Draft;
+  /** Where the properties panel goes */
+  panel?: HTMLElement | null;
+}) {
   const { content } = useSyncExternalStore(
     draft.subscribe,
     draft.getSnapshot,
@@ -759,11 +756,16 @@ export function Canvas({ draft }: { draft: Draft }) {
   );
   const nodeTypes = useNodeTypes();
   if (content === undefined || nodeTypes === undefined) {
-    return null;
+    return panel ? createPortal(<PropertiesPlaceholder />, panel) : null;
   }
   return (
     <ReactFlowProvider>
-      <Flow draft={draft} content={content} nodeTypes={nodeTypes} />
+      <Flow
+        draft={draft}
+        content={content}
+        nodeTypes={nodeTypes}
+        panel={panel}
+      />
     </ReactFlowProvider>
   );
 }

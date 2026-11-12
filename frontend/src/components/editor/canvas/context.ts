@@ -1,6 +1,11 @@
 import { createContext, use } from "react";
-import type { EvaluatedNode, NodeSockets, NodeTypeInfo } from "@/api/types.gen";
-import type { Graph } from "./graph";
+import type {
+  EvaluatedNode,
+  InputSocket,
+  NodeSockets,
+  NodeTypeInfo,
+} from "@/api/types.gen";
+import type { Graph, GraphNode } from "./graph";
 
 /** A menu opened at the pointer, with what it's for. */
 export type Menu =
@@ -51,4 +56,40 @@ export function socketsOf(
       outputs: [],
     }
   );
+}
+
+type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
+
+/** A node's inputs: its own, then its exposed properties, as the graph has them before the API says so. */
+export function inputsOf(canvas: Known, node: GraphNode): InputSocket[] {
+  const properties = canvas.nodeTypes.get(node.type)?.properties ?? [];
+  const own = socketsOf(canvas, node.id, node.type).inputs.filter(
+    (input) => !properties.some((property) => property.id === input.id),
+  );
+  const exposed = properties
+    .filter((property) => node.exposed.includes(property.id))
+    .map((property) => ({
+      id: property.id,
+      label: property.label,
+      type: property.type,
+      default: node.properties[property.id] ?? property.default,
+    }));
+  return [...own, ...exposed];
+}
+
+/** The options a Choice node offers: those of the inputs it's wired into. */
+export function choiceOptions(
+  canvas: Known & Pick<CanvasState, "graph">,
+  node: string,
+): string[] {
+  const options = canvas.graph.wires
+    .filter((wire) => wire.from.node === node)
+    .flatMap((wire) => {
+      const into = canvas.graph.nodes.find((each) => each.id === wire.to.node);
+      const input =
+        into &&
+        inputsOf(canvas, into).find((each) => each.id === wire.to.socket);
+      return input?.type.kind === "choice" ? input.type.options : [];
+    });
+  return [...new Set(options)];
 }
