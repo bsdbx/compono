@@ -275,8 +275,8 @@ export function unexpose(graph: Graph, id: string, property: string): Graph {
   };
 }
 
-/** A prop name for React: letters, digits, _ and $, not starting with a digit. */
-export const PROP_NAME = /^[A-Za-z_$][\w$]*$/;
+/** A prop name, as Component Input takes it: a lowercase letter, then letters and digits, like ctaHref. */
+export const PROP_NAME = /^[a-z][A-Za-z0-9]*$/;
 
 /** The first of name, name2, name3… that no prop has. */
 export function freeName(graph: Graph, name: string): string {

@@ -1,7 +1,9 @@
 """What a node type is: its sockets, properties, and how it turns inputs into outputs."""
 
+import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 
 from pydantic import JsonValue
 
@@ -89,6 +91,68 @@ class EvaluateContext:
     props: Sequence[Prop]
 
 
+@dataclass(frozen=True)
+class Js:
+    """A JavaScript expression: a value that depends on the props, so it's only known when the component renders."""
+
+    code: str
+    # What it is when the expression is Nothing, like a value typed in on the node
+    fallback: Value = None
+
+
+@dataclass(frozen=True)
+class Jsx:
+    """A JSX element. Its tag is an expression when it depends on the props, and empty for a fragment."""
+
+    tag: str | Js
+    # By HTML attribute name, like class and tabindex
+    attributes: tuple[tuple[str, Code], ...] = ()
+    children: tuple[Code, ...] = ()
+
+
+# What a socket is in code: a value known now, or one the props give
+type Code = Value | Js | Jsx
+
+
+@dataclass(frozen=True)
+class CodeContext:
+    """What a node writes its outputs' code from: as EvaluateContext, with expressions for what depends on the props."""
+
+    inputs: Mapping[str, Code]
+    groups: Mapping[str, tuple[Code, ...]]
+    properties: Mapping[str, Code]
+
+
+def literal(value: Value) -> str:
+    """A value as a JavaScript literal."""
+    match value:
+        case None:
+            return "null"
+        case bool():
+            return "true" if value else "false"
+        case int() | float():
+            return repr(value)
+        case str():
+            return json.dumps(value, ensure_ascii=False)
+        case datetime():
+            return json.dumps(value.isoformat())
+        case dict():
+            fields = ", ".join(
+                f"{json.dumps(name)}: {literal(field)}" for name, field in value.items()
+            )
+            return f"{{{fields}}}"
+        case _:
+            raise TypeError(f"{value!r} has no literal")
+
+
+def expression(code: Js) -> str:
+    """The expression, falling back to its fallback when it gives Nothing."""
+    if code.fallback is None:
+        return code.code
+
+    return f"({code.code} ?? {literal(code.fallback)})"
+
+
 class NodeError(Exception):
     """The node can't evaluate, and the message says why, such as "badge.tone no longer exists"."""
 
@@ -107,6 +171,8 @@ class NodeType:
     properties: tuple[Property, ...] = ()
     # A graph has at most one, like Component Input
     single: bool = False
+    # Its outputs as code, when its inputs depend on the props. A node without it can only take values known now
+    code: Callable[[CodeContext], Mapping[str, Code]] | None = None
 
 
 def text(value: Value) -> str:

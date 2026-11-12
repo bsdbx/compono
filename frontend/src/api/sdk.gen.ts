@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ComponentData, ComponentErrors, ComponentResponses, CreateComponentData, CreateComponentErrors, CreateComponentResponses, CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteComponentData, DeleteComponentErrors, DeleteComponentResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DuplicateComponentData, DuplicateComponentErrors, DuplicateComponentResponses, EvaluateGraphData, EvaluateGraphErrors, EvaluateGraphResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, ListNodeTypesData, ListNodeTypesErrors, ListNodeTypesResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectComponentsData, ProjectComponentsErrors, ProjectComponentsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, RenameComponentData, RenameComponentErrors, RenameComponentResponses, SaveComponentData, SaveComponentErrors, SaveComponentResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
+import type { ComponentData, ComponentErrors, ComponentResponses, CreateComponentData, CreateComponentErrors, CreateComponentResponses, CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteComponentData, DeleteComponentErrors, DeleteComponentResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DuplicateComponentData, DuplicateComponentErrors, DuplicateComponentResponses, EvaluateGraphData, EvaluateGraphErrors, EvaluateGraphResponses, GenerateCodeData, GenerateCodeErrors, GenerateCodeResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, ListNodeTypesData, ListNodeTypesErrors, ListNodeTypesResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectComponentsData, ProjectComponentsErrors, ProjectComponentsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, RenameComponentData, RenameComponentErrors, RenameComponentResponses, SaveComponentData, SaveComponentErrors, SaveComponentResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -570,6 +570,25 @@ export const evaluateGraph = <ThrowOnError extends boolean = false>(options: Opt
             type: 'apiKey'
         }],
     url: '/api/evaluate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Generate Code
+ *
+ * The component as a React component in a JSX file, which renders as the Preview does.
+ */
+export const generateCode = <ThrowOnError extends boolean = false>(options: Options<GenerateCodeData, ThrowOnError>): RequestResult<GenerateCodeResponses, GenerateCodeErrors, ThrowOnError> => (options.client ?? client).post<GenerateCodeResponses, GenerateCodeErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/code',
     ...options,
     headers: {
         'Content-Type': 'application/json',

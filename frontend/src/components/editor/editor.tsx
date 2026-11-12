@@ -16,6 +16,7 @@ import {
 import { SignedIn } from "@/components/account";
 import { Canvas } from "@/components/editor/canvas/canvas";
 import { PropertiesPlaceholder } from "@/components/editor/canvas/panel";
+import { CodeView } from "@/components/editor/code-view";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
 import { Preview, PreviewPlaceholder } from "@/components/editor/preview";
@@ -57,6 +58,39 @@ function Inspector({
   );
 }
 
+type View = "graph" | "code";
+
+/** Graph or Code: the open component's canvas, or the file it becomes. */
+function ViewToggle({
+  view,
+  onChange,
+}: {
+  view: View;
+  onChange: (view: View) => void;
+}) {
+  return (
+    <fieldset className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 gap-0.5 rounded-lg border border-border bg-card p-0.75">
+      <legend className="sr-only">View</legend>
+      {(["graph", "code"] as const).map((each) => (
+        <button
+          key={each}
+          type="button"
+          aria-pressed={view === each}
+          onClick={() => onChange(each)}
+          className={cn(
+            "h-6 rounded-md px-3 text-sm",
+            view === each
+              ? "bg-accent text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {each === "graph" ? "Graph" : "Code"}
+        </button>
+      ))}
+    </fieldset>
+  );
+}
+
 function EditorContent() {
   const params = useParams<Params>();
   const router = useRouter();
@@ -83,6 +117,7 @@ function EditorContent() {
   const [panel, setPanel] = useState<HTMLElement | null>(null);
   // A node the Preview asks the canvas to show, each time anew
   const [show, setShow] = useState<{ node: string; at: number }>();
+  const [view, setView] = useState<View>("graph");
   // The newest first, as a new one is the one to work on
   const components = list.data?.toReversed();
   const newest = components?.[0]?.id;
@@ -200,14 +235,33 @@ function EditorContent() {
               </Button>
             </div>
           ) : openId !== undefined ? (
-            <Canvas key={openId} draft={draft} panel={panel} show={show} />
+            <>
+              <ViewToggle view={view} onChange={setView} />
+              <div className={cn("h-full", view === "code" ? "hidden" : "")}>
+                <Canvas
+                  key={openId}
+                  draft={draft}
+                  panel={panel}
+                  show={show}
+                  hidden={view === "code"}
+                />
+              </div>
+              {view === "code" ? (
+                <div className="absolute inset-0 px-6 pt-14 pb-6">
+                  <CodeView draft={draft} name={listed?.name ?? ""} />
+                </div>
+              ) : null}
+            </>
           ) : null}
         </main>
         <Inspector
           open={openId !== undefined}
           draft={draft}
           panel={setPanel}
-          onShowNode={(node) => setShow({ node, at: Date.now() })}
+          onShowNode={(node) => {
+            setView("graph");
+            setShow({ node, at: Date.now() });
+          }}
         />
       </div>
       <StatusBar draft={draft} />

@@ -2507,6 +2507,60 @@
           }
         ]
       }
+    },
+    "/api/code": {
+      "post": {
+        "summary": "Generate Code",
+        "description": "The component as a React component in a JSX file, which renders as the Preview does.",
+        "operationId": "generate_code",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratedCode"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotSignedInError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2583,6 +2637,25 @@
         ],
         "title": "ChoiceType",
         "description": "One of a fixed set of options, such as an HTML tag."
+      },
+      "CodeRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "graph": {
+            "$ref": "#/components/schemas/Graph"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "graph"
+        ],
+        "title": "CodeRequest",
+        "description": "A component's name, which names the file, and its graph."
       },
       "Component": {
         "properties": {
@@ -2807,6 +2880,40 @@
         ],
         "title": "EvaluatedNode",
         "description": "What became of a node."
+      },
+      "GeneratedCode": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "code",
+          "errors"
+        ],
+        "title": "GeneratedCode",
+        "description": "The component as a JSX file, or why it can't be one yet."
       },
       "Graph": {
         "properties": {

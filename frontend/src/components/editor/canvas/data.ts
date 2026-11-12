@@ -1,8 +1,8 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { listNodeTypesOptions } from "@/api/@tanstack/react-query.gen";
-import { evaluateGraph } from "@/api/sdk.gen";
-import type { Evaluated, NodeTypeInfo } from "@/api/types.gen";
+import { evaluateGraph, generateCode } from "@/api/sdk.gen";
+import type { Evaluated, GeneratedCode, NodeTypeInfo } from "@/api/types.gen";
 import type { Graph } from "./graph";
 
 /** Every node type, by type. They don't change while the app runs. */
@@ -60,4 +60,26 @@ export function useEvaluation(graph: Graph | undefined): Evaluated | undefined {
 export function errorsIn(evaluated: Evaluated): number {
   return Object.values(evaluated.nodes).filter((node) => node.error !== null)
     .length;
+}
+
+/** The component as a JSX file, from the API, again whenever its name or what its graph means changes. */
+export function useGeneratedCode(
+  graph: Graph | undefined,
+  name: string,
+): GeneratedCode | undefined {
+  const settled = useSettled(graph && meaning(graph), EVALUATE_DELAY);
+  const { data } = useQuery({
+    queryKey: ["code", name, settled],
+    queryFn: async () => {
+      const { data } = await generateCode({
+        body: { name, graph: settled as unknown as Graph },
+        throwOnError: true,
+      });
+      return data;
+    },
+    enabled: settled !== undefined,
+    placeholderData: keepPreviousData,
+    staleTime: Infinity,
+  });
+  return data;
 }

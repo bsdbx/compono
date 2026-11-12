@@ -5,10 +5,12 @@ from collections.abc import Mapping
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, JsonValue
+from pydantic import BaseModel, JsonValue, StringConstraints
 
 from compono.api.dependencies import SignedIn
 from compono.api.teams import NOT_SIGNED_IN, answers
+from compono.api.text import NO_NUL
+from compono.code import CodeError, component_name, generate
 from compono.graph.evaluate import evaluate
 from compono.graph.model import Graph
 from compono.graph.node_types import NodeError, NodeType, Sockets, SocketsContext
@@ -190,3 +192,32 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
         rendered=to_json(rendered),
         milliseconds=milliseconds,
     )
+
+
+class CodeRequest(BaseModel):
+    """A component's name, which names the file, and its graph."""
+
+    name: Annotated[str, StringConstraints(max_length=200), NO_NUL]
+    graph: Graph
+
+
+class GeneratedCode(BaseModel):
+    """The component as a JSX file, or why it can't be one yet."""
+
+    filename: str
+    # None while a node it renders has an error
+    code: str | None
+    errors: list[str]
+
+
+@router.post("/api/code", responses=answers(NOT_SIGNED_IN))
+def generate_code(body: CodeRequest, _: SignedIn, types: NodeTypes) -> GeneratedCode:
+    """The component as a React component in a JSX file, which renders as the Preview does."""
+    try:
+        generated = generate(body.graph, types, body.name)
+    except CodeError as error:
+        return GeneratedCode(
+            filename=f"{component_name(body.name)}.jsx", code=None, errors=error.errors
+        )
+
+    return GeneratedCode(filename=generated.filename, code=generated.code, errors=[])

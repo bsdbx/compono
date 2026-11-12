@@ -4,8 +4,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { component, createComponent, createProject, createTeam, currentAccount, deleteComponent, deleteProject, deleteTeam, duplicateComponent, evaluateGraph, health, invite, inviteLink, joinTeam, leaveProject, leaveTeam, listNodeTypes, makeOwner, myTeams, type Options, project, projectComponents, projectMembers, removeMember, removeProjectMember, renameComponent, saveComponent, setProjectMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, teamProjects, updateProject, updateTeam } from '../sdk.gen';
-import type { ComponentData, ComponentError, ComponentResponse, CreateComponentData, CreateComponentError, CreateComponentResponse, CreateProjectData, CreateProjectError, CreateProjectResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteComponentData, DeleteComponentError, DeleteComponentResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, DuplicateComponentData, DuplicateComponentError, DuplicateComponentResponse, EvaluateGraphData, EvaluateGraphError, EvaluateGraphResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveProjectData, LeaveProjectError, LeaveProjectResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, ListNodeTypesData, ListNodeTypesError, ListNodeTypesResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, ProjectComponentsData, ProjectComponentsError, ProjectComponentsResponse, ProjectData, ProjectError, ProjectMembersData, ProjectMembersError, ProjectMembersResponse, ProjectResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RemoveProjectMemberData, RemoveProjectMemberError, RemoveProjectMemberResponse, RenameComponentData, RenameComponentError, RenameComponentResponse, SaveComponentData, SaveComponentError, SaveComponentResponse, SetProjectMemberData, SetProjectMemberError, SetProjectMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamProjectsData, TeamProjectsError, TeamProjectsResponse, TeamResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
+import { component, createComponent, createProject, createTeam, currentAccount, deleteComponent, deleteProject, deleteTeam, duplicateComponent, evaluateGraph, generateCode, health, invite, inviteLink, joinTeam, leaveProject, leaveTeam, listNodeTypes, makeOwner, myTeams, type Options, project, projectComponents, projectMembers, removeMember, removeProjectMember, renameComponent, saveComponent, setProjectMember, signIn, signOut, signOutEverywhere, signUp, team, teamMembers, teamProjects, updateProject, updateTeam } from '../sdk.gen';
+import type { ComponentData, ComponentError, ComponentResponse, CreateComponentData, CreateComponentError, CreateComponentResponse, CreateProjectData, CreateProjectError, CreateProjectResponse, CreateTeamData, CreateTeamError, CreateTeamResponse, CurrentAccountData, CurrentAccountError, CurrentAccountResponse, DeleteComponentData, DeleteComponentError, DeleteComponentResponse, DeleteProjectData, DeleteProjectError, DeleteProjectResponse, DeleteTeamData, DeleteTeamError, DeleteTeamResponse, DuplicateComponentData, DuplicateComponentError, DuplicateComponentResponse, EvaluateGraphData, EvaluateGraphError, EvaluateGraphResponse, GenerateCodeData, GenerateCodeError, GenerateCodeResponse, HealthData, HealthResponse, InviteData, InviteError, InviteLinkData, InviteLinkError, InviteLinkResponse, InviteResponse, JoinTeamData, JoinTeamError, JoinTeamResponse, LeaveProjectData, LeaveProjectError, LeaveProjectResponse, LeaveTeamData, LeaveTeamError, LeaveTeamResponse, ListNodeTypesData, ListNodeTypesError, ListNodeTypesResponse, MakeOwnerData, MakeOwnerError, MakeOwnerResponse, MyTeamsData, MyTeamsError, MyTeamsResponse, ProjectComponentsData, ProjectComponentsError, ProjectComponentsResponse, ProjectData, ProjectError, ProjectMembersData, ProjectMembersError, ProjectMembersResponse, ProjectResponse, RemoveMemberData, RemoveMemberError, RemoveMemberResponse, RemoveProjectMemberData, RemoveProjectMemberError, RemoveProjectMemberResponse, RenameComponentData, RenameComponentError, RenameComponentResponse, SaveComponentData, SaveComponentError, SaveComponentResponse, SetProjectMemberData, SetProjectMemberError, SetProjectMemberResponse, SignInData, SignInError, SignInResponse, SignOutData, SignOutEverywhereData, SignOutEverywhereError, SignOutEverywhereResponse, SignOutResponse, SignUpData, SignUpError, SignUpResponse, TeamData, TeamError, TeamMembersData, TeamMembersError, TeamMembersResponse, TeamProjectsData, TeamProjectsError, TeamProjectsResponse, TeamResponse, UpdateProjectData, UpdateProjectError, UpdateProjectResponse, UpdateTeamData, UpdateTeamError, UpdateTeamResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -727,6 +727,25 @@ export const evaluateGraphMutation = (options?: Partial<Options<EvaluateGraphDat
     const mutationOptions: UseMutationOptions<EvaluateGraphResponse, EvaluateGraphError, Options<EvaluateGraphData>> = {
         mutationFn: async (fnOptions) => {
             const { data } = await evaluateGraph({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Generate Code
+ *
+ * The component as a React component in a JSX file, which renders as the Preview does.
+ */
+export const generateCodeMutation = (options?: Partial<Options<GenerateCodeData>>): UseMutationOptions<GenerateCodeResponse, GenerateCodeError, Options<GenerateCodeData>> => {
+    const mutationOptions: UseMutationOptions<GenerateCodeResponse, GenerateCodeError, Options<GenerateCodeData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await generateCode({
                 ...options,
                 ...fnOptions,
                 throwOnError: true
