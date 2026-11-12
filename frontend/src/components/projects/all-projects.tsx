@@ -1,12 +1,20 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpDown, Check, ChevronDown, Plus, Search } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  ChevronDown,
+  Plus,
+  Search,
+  Settings,
+} from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { teamProjectsOptions } from "@/api/@tanstack/react-query.gen";
 import type { ListedProject, Team } from "@/api/types.gen";
 import { NewProjectDialog } from "@/components/projects/new-project-dialog";
 import { ProjectCard } from "@/components/projects/project-card";
+import { ProjectSettings } from "@/components/projects/project-settings";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,20 +42,14 @@ function Message({ title, children }: { title: string; children: ReactNode }) {
 }
 
 /** The team's projects that the account can see, as cards, with search and sorting. */
-export function AllProjects({
-  team,
-  cardActions,
-}: {
-  team: Team;
-  /** What a card shows when hovered */
-  cardActions?: (project: ListedProject) => ReactNode;
-}) {
+export function AllProjects({ team }: { team: Team }) {
   const projects = useQuery(
     teamProjectsOptions({ path: { team_url: team.url } }),
   );
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<Sort>("Last edited");
   const [creating, setCreating] = useState(false);
+  const [editing, setEditing] = useState<ListedProject>();
   // Owners create projects; leads and developers are added to them
   const owner = team.role === "OWNER";
   const now = new Date();
@@ -108,7 +110,16 @@ export function AllProjects({
             teamUrl={team.url}
             project={project}
             now={now}
-            actions={cardActions?.(project)}
+            actions={
+              <Button
+                variant="secondary"
+                size="icon-sm"
+                aria-label={`Settings of ${project.name}`}
+                onClick={() => setEditing(project)}
+              >
+                <Settings className="size-4" />
+              </Button>
+            }
           />
         ))}
       </div>
@@ -181,6 +192,11 @@ export function AllProjects({
           onOpenChange={setCreating}
         />
       ) : null}
+      <ProjectSettings
+        team={team}
+        project={editing}
+        onClose={() => setEditing(undefined)}
+      />
     </main>
   );
 }
