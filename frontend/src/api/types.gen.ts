@@ -196,6 +196,10 @@ export type Evaluated = {
         [key: string]: string;
     };
     rendered: JsonValue;
+    /**
+     * Milliseconds
+     */
+    milliseconds: number;
 };
 
 /**

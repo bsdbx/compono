@@ -1,5 +1,6 @@
 """The graph engine: the node types there are, and evaluating a component's graph."""
 
+import time
 from collections.abc import Mapping
 from typing import Annotated
 
@@ -157,12 +158,16 @@ class Evaluated(BaseModel):
     wires: dict[str, str]
     # What the component renders: the value wired into Component Output's Render, if any
     rendered: JsonValue
+    # How long evaluating took, without the request around it
+    milliseconds: float
 
 
 @router.post("/api/evaluate", responses=answers(NOT_SIGNED_IN))
 def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
     """Evaluates a graph: every node's sockets and values, and the wires it refuses."""
+    started = time.perf_counter()
     evaluation = evaluate(graph, types)
+    milliseconds = (time.perf_counter() - started) * 1000
     outputs = [node.id for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
     rendered = (
         evaluation.nodes[outputs[0]].inputs.get("render")
@@ -183,4 +188,5 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
         },
         wires=dict(evaluation.wires),
         rendered=to_json(rendered),
+        milliseconds=milliseconds,
     )

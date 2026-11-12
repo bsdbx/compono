@@ -1,7 +1,15 @@
 "use client";
 
-import { CircleAlert, CloudCheck, LoaderCircle, Workflow } from "lucide-react";
+import {
+  CircleAlert,
+  CloudCheck,
+  LoaderCircle,
+  Timer,
+  Workflow,
+} from "lucide-react";
 import { useSyncExternalStore } from "react";
+import { errorsIn, useEvaluation } from "@/components/editor/canvas/data";
+import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { VERSION } from "@/lib/version";
 
@@ -14,6 +22,9 @@ export function StatusBar({ draft }: { draft: Draft }) {
   );
   const nodes = content?.graph.nodes;
   const count = Array.isArray(nodes) ? nodes.length : 0;
+  // The canvas asks for the same evaluation, so this one comes from the cache
+  const evaluation = useEvaluation(content && readGraph(content.graph));
+  const errors = evaluation ? errorsIn(evaluation) : 0;
 
   return (
     <footer className="flex h-7 shrink-0 items-center gap-4.5 border-border border-t bg-sidebar px-3 text-2xs text-muted-foreground [&_svg]:size-3 [&_svg]:shrink-0">
@@ -21,6 +32,18 @@ export function StatusBar({ draft }: { draft: Draft }) {
         <Workflow />
         {count} {count === 1 ? "node" : "nodes"}
       </span>
+      {evaluation ? (
+        <span className="flex items-center gap-1.5">
+          <Timer />
+          Eval {evaluation.milliseconds.toFixed(1)} ms
+        </span>
+      ) : null}
+      {errors > 0 ? (
+        <span className="flex items-center gap-1.5 text-error">
+          <span className="size-1.5 rounded-full bg-error" />
+          {errors} {errors === 1 ? "error" : "errors"}
+        </span>
+      ) : null}
       <span role="status" className="flex items-center gap-1.5">
         {status === "saved" ? (
           <>

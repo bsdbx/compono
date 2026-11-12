@@ -163,9 +163,9 @@ def test_a_new_components_graph_evaluates_to_nothing(signed_in: TestClient) -> N
     response = signed_in.post("/api/evaluate", json=empty)
 
     assert response.status_code == 200
-    assert Evaluated.model_validate_json(response.text) == Evaluated(
-        nodes={}, wires={}, rendered=None
-    )
+    evaluated = Evaluated.model_validate_json(response.text)
+    assert (evaluated.nodes, evaluated.wires, evaluated.rendered) == ({}, {}, None)
+    assert 0 <= evaluated.milliseconds < 1000
 
 
 def test_evaluating_a_graph(signed_in: TestClient) -> None:

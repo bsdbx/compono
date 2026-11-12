@@ -2754,13 +2754,18 @@
           },
           "rendered": {
             "$ref": "#/components/schemas/JsonValue"
+          },
+          "milliseconds": {
+            "type": "number",
+            "title": "Milliseconds"
           }
         },
         "type": "object",
         "required": [
           "nodes",
           "wires",
-          "rendered"
+          "rendered",
+          "milliseconds"
         ],
         "title": "Evaluated",
         "description": "Every node of the graph, by node, and why each refused wire is refused, by wire."
