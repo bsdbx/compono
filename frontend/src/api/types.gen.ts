@@ -26,6 +26,44 @@ export type Account = {
 };
 
 /**
+ * AnyType
+ *
+ * An input that takes whatever type is wired into it.
+ */
+export type AnyType = {
+    /**
+     * Kind
+     */
+    kind?: 'any';
+};
+
+/**
+ * BooleanType
+ */
+export type BooleanType = {
+    /**
+     * Kind
+     */
+    kind?: 'boolean';
+};
+
+/**
+ * ChoiceType
+ *
+ * One of a fixed set of options, such as an HTML tag.
+ */
+export type ChoiceType = {
+    /**
+     * Kind
+     */
+    kind?: 'choice';
+    /**
+     * Options
+     */
+    options: Array<string>;
+};
+
+/**
  * Component
  *
  * A component, with its graph and screen sizes.
@@ -92,6 +130,28 @@ export type ComponentNotFoundError = {
 };
 
 /**
+ * DateType
+ */
+export type DateType = {
+    /**
+     * Kind
+     */
+    kind?: 'date';
+};
+
+/**
+ * ElementType
+ *
+ * Rendered markup, such as an HTML element with its children.
+ */
+export type ElementType = {
+    /**
+     * Kind
+     */
+    kind?: 'element';
+};
+
+/**
  * EmailTakenError
  */
 export type EmailTakenError = {
@@ -99,6 +159,102 @@ export type EmailTakenError = {
      * Detail
      */
     detail: 'email_taken';
+};
+
+/**
+ * End
+ *
+ * A socket of a node: where a wire starts or ends.
+ */
+export type End = {
+    /**
+     * Node
+     */
+    node: string;
+    /**
+     * Socket
+     */
+    socket: string;
+};
+
+/**
+ * Evaluated
+ *
+ * Every node of the graph, by node, and why each refused wire is refused, by wire.
+ */
+export type Evaluated = {
+    /**
+     * Nodes
+     */
+    nodes: {
+        [key: string]: EvaluatedNode;
+    };
+    /**
+     * Wires
+     */
+    wires: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * EvaluatedNode
+ *
+ * What became of a node.
+ */
+export type EvaluatedNode = {
+    sockets: NodeSockets;
+    /**
+     * Outputs
+     */
+    outputs: {
+        [key: string]: JsonValue;
+    };
+    /**
+     * Error
+     */
+    error: string | null;
+    /**
+     * Skipped
+     */
+    skipped: boolean;
+};
+
+/**
+ * Graph
+ *
+ * Nodes and wires. A new component's graph is `{}`, which is a graph of neither.
+ */
+export type Graph = {
+    /**
+     * Format
+     */
+    format?: 1;
+    /**
+     * Nodes
+     */
+    nodes?: Array<Node>;
+    /**
+     * Wires
+     */
+    wires?: Array<Wire>;
+};
+
+/**
+ * GroupSocket
+ *
+ * A socket group. Its rows are named like `children/<row id>`.
+ */
+export type GroupSocket = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    type: SocketType;
 };
 
 /**
@@ -119,6 +275,22 @@ export type Health = {
      * Status
      */
     status: string;
+};
+
+/**
+ * InputSocket
+ */
+export type InputSocket = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    type: SocketType;
+    default: JsonValue;
 };
 
 /**
@@ -158,6 +330,8 @@ export type InviteLinkNotValidError = {
      */
     detail: 'invite_link_not_valid';
 };
+
+export type JsonValue = unknown;
 
 /**
  * LastLeadError
@@ -359,12 +533,179 @@ export type NewTeam = {
 };
 
 /**
+ * Node
+ *
+ * One node. A socket of a group is named like `children/<row id>`.
+ */
+export type Node = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Type
+     */
+    type: string;
+    position?: Position;
+    /**
+     * Values
+     */
+    values?: {
+        [key: string]: JsonValue;
+    };
+    /**
+     * Properties
+     */
+    properties?: {
+        [key: string]: JsonValue;
+    };
+    /**
+     * Exposed
+     */
+    exposed?: Array<string>;
+    /**
+     * Groups
+     */
+    groups?: {
+        [key: string]: Array<string>;
+    };
+};
+
+/**
+ * NodeProperty
+ */
+export type NodeProperty = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    type: SocketType;
+    default: JsonValue;
+};
+
+/**
+ * NodeSockets
+ */
+export type NodeSockets = {
+    /**
+     * Inputs
+     */
+    inputs: Array<InputSocket>;
+    /**
+     * Groups
+     */
+    groups: Array<GroupSocket>;
+    /**
+     * Outputs
+     */
+    outputs: Array<OutputSocket>;
+};
+
+/**
+ * NodeTypeInfo
+ *
+ * A node type, for the Add node menu, the canvas and the properties panel.
+ */
+export type NodeTypeInfo = {
+    /**
+     * Type
+     */
+    type: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Category
+     */
+    category: string;
+    /**
+     * Properties
+     */
+    properties: Array<NodeProperty>;
+    sockets: NodeSockets;
+};
+
+/**
  * NotSignedInError
  *
  * Error wrapper.
  */
 export type NotSignedInError = {
     detail: Reason;
+};
+
+/**
+ * NothingType
+ *
+ * No value. A wire that brings Nothing counts as no wire.
+ */
+export type NothingType = {
+    /**
+     * Kind
+     */
+    kind?: 'nothing';
+};
+
+/**
+ * NumberType
+ *
+ * A number. Its subtype Integer is a whole number.
+ */
+export type NumberType = {
+    /**
+     * Kind
+     */
+    kind?: 'number';
+    /**
+     * Integer
+     */
+    integer?: boolean;
+    /**
+     * Minimum
+     */
+    minimum?: number | null;
+    /**
+     * Maximum
+     */
+    maximum?: number | null;
+};
+
+/**
+ * ObjectType
+ *
+ * Named fields, each with a socket type of its own.
+ */
+export type ObjectType = {
+    /**
+     * Kind
+     */
+    kind?: 'object';
+    /**
+     * Fields
+     */
+    fields: {
+        [key: string]: SocketType;
+    };
+};
+
+/**
+ * OutputSocket
+ */
+export type OutputSocket = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    type: SocketType;
 };
 
 /**
@@ -385,6 +726,22 @@ export type OwnersOnlyError = {
      * Detail
      */
     detail: 'owners_only';
+};
+
+/**
+ * Position
+ *
+ * Where a node sits on the canvas.
+ */
+export type Position = {
+    /**
+     * X
+     */
+    x?: number;
+    /**
+     * Y
+     */
+    y?: number;
 };
 
 /**
@@ -556,6 +913,20 @@ export type SignUp = {
 };
 
 /**
+ * SlotType
+ *
+ * Where a component renders. It takes an Element.
+ */
+export type SlotType = {
+    /**
+     * Kind
+     */
+    kind?: 'slot';
+};
+
+export type SocketType = BooleanType | NumberType | TextType | ChoiceType | ObjectType | DateType | ElementType | SlotType | NothingType | AnyType;
+
+/**
  * Team
  *
  * Team response model.
@@ -610,6 +981,22 @@ export type TeamNotFoundError = {
 export type TeamRole = 'OWNER' | 'MEMBER';
 
 /**
+ * TextType
+ *
+ * Text. Its subtype Link is an address to go to.
+ */
+export type TextType = {
+    /**
+     * Kind
+     */
+    kind?: 'text';
+    /**
+     * Link
+     */
+    link?: boolean;
+};
+
+/**
  * UrlTakenError
  */
 export type UrlTakenError = {
@@ -655,6 +1042,20 @@ export type VersionConflictError = {
      * Detail
      */
     detail: 'version_conflict';
+};
+
+/**
+ * Wire
+ *
+ * From an output to an input.
+ */
+export type Wire = {
+    /**
+     * Id
+     */
+    id: string;
+    from: End;
+    to: End;
 };
 
 /**
@@ -2034,3 +2435,59 @@ export type DuplicateComponentResponses = {
 };
 
 export type DuplicateComponentResponse = DuplicateComponentResponses[keyof DuplicateComponentResponses];
+
+export type ListNodeTypesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/node-types';
+};
+
+export type ListNodeTypesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+};
+
+export type ListNodeTypesError = ListNodeTypesErrors[keyof ListNodeTypesErrors];
+
+export type ListNodeTypesResponses = {
+    /**
+     * Response List Node Types
+     *
+     * Successful Response
+     */
+    200: Array<NodeTypeInfo>;
+};
+
+export type ListNodeTypesResponse = ListNodeTypesResponses[keyof ListNodeTypesResponses];
+
+export type EvaluateGraphData = {
+    body: Graph;
+    path?: never;
+    query?: never;
+    url: '/api/evaluate';
+};
+
+export type EvaluateGraphErrors = {
+    /**
+     * Unauthorized
+     */
+    401: NotSignedInError;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EvaluateGraphError = EvaluateGraphErrors[keyof EvaluateGraphErrors];
+
+export type EvaluateGraphResponses = {
+    /**
+     * Successful Response
+     */
+    200: Evaluated;
+};
+
+export type EvaluateGraphResponse = EvaluateGraphResponses[keyof EvaluateGraphResponses];
