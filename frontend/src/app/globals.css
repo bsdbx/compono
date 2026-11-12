@@ -25,6 +25,7 @@
   --color-destructive: var(--destructive);
   --color-error: var(--error);
   --color-error-border: var(--error-border);
+  --color-success: var(--success);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-subtle-foreground: var(--subtle-foreground);
@@ -93,6 +94,8 @@
   /* An error message, and the border of a field with an error */
   --error: #f87171;
   --error-border: #fca5a5;
+  /* A toast that says something worked */
+  --success: #4ade80;
   --border: #1f1f23;
   --input: #27272a;
   /* The inside of a text field */
