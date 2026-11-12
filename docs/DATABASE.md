@@ -62,7 +62,7 @@ So `project_members` stores `team_id` even though the project already knows it. 
 
 - **Name**: a capital letter, then letters and digits, such as `PricingCard`, at most 64 characters. It becomes the component's name in the exported code, where React treats a lowercase name as an HTML tag.
 - **Unique within the project, ignoring case**: `Button` and `button` would export to `Button.jsx` and `button.jsx`, which are the same file on Windows and macOS.
-- **Graph**: one JSONB document, which must be an object. Vercel limits a request to 4.5 MB, so the API limits a graph to 1 MB. It also refuses what JSONB can't store: a NUL character, NaN and Infinity. The graph's structure belongs to the core, and the API will check it with Pydantic once the core defines it, as [ADR 0002](adr/0002-stack.md) decides.
+- **Graph**: one JSONB document, which must be an object. Vercel limits a request to 4.5 MB, so the API limits a graph to 1 MB. It also refuses what JSONB can't store: a NUL character, NaN and Infinity. [ADR 0003](adr/0003-nodes-and-preview.md) sets the graph's structure, and the API will check it with Pydantic, as [ADR 0002](adr/0002-stack.md) decides.
 - **Screen sizes**: a JSONB list that is never empty. A new component starts with Desktop 1280, Tablet 768 and Mobile 390. The API allows up to 10, each with its own name and a width from 200 to 3840 pixels.
 - **Version**: starts at 1 and goes up by one with every save, so that saving never overwrites someone else's work. A save sends the version it started from and only succeeds if that's still the current one. Otherwise someone else saved first, and the API answers with a conflict.
 
