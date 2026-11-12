@@ -78,6 +78,13 @@ test("the open component shows where it is, its nodes, and that it's saved", asy
   answer([listed("c1", "NavBar"), listed("c2", "PricingCard")], {
     [`GET ${PROJECT}/components/c2`]: () =>
       Response.json(component("c2", "PricingCard", 9)),
+    "POST /api/evaluate": () =>
+      Response.json({
+        nodes: {},
+        wires: {},
+        rendered: null,
+        milliseconds: 0.1,
+      }),
   });
   renderWithClient(<Editor />);
 
@@ -95,7 +102,8 @@ test("the open component shows where it is, its nodes, and that it's saved", asy
   ).toHaveAttribute("href", "/acme/marketing-site");
   expect(await screen.findByText("9 nodes")).toBeInTheDocument();
   expect(screen.getByRole("status")).toHaveTextContent("Saved");
-  expect(screen.getByText("Nothing to render yet")).toBeInTheDocument();
+  // Once the graph is evaluated
+  expect(await screen.findByText("Nothing to render yet")).toBeInTheDocument();
   expect(
     screen.getByText("Select a node to edit its properties."),
   ).toBeInTheDocument();

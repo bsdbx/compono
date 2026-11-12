@@ -172,11 +172,13 @@ function Flow({
   content,
   nodeTypes,
   panel,
+  show,
 }: {
   draft: Draft;
   content: Content;
   nodeTypes: ReadonlyMap<string, NodeTypeInfo>;
   panel: HTMLElement | null;
+  show: { node: string; at: number } | undefined;
 }) {
   const flow = useReactFlow<CanvasNode>();
   const wrapper = useRef<HTMLDivElement>(null);
@@ -216,6 +218,23 @@ function Flow({
       });
     });
   }, [graph.nodes]);
+
+  // The Preview's Show node selects a node and brings it into view
+  useEffect(() => {
+    if (show === undefined) {
+      return;
+    }
+
+    setNodes((current) =>
+      current.map((node) => ({ ...node, selected: node.id === show.node })),
+    );
+    void flow.fitView({
+      nodes: [{ id: show.node }],
+      maxZoom: 1,
+      padding: 0.5,
+      duration: 200,
+    });
+  }, [show, flow]);
 
   /** The graph as it is now, even before React has drawn the last change. */
   const latest = useCallback((): Graph => {
@@ -744,10 +763,13 @@ function Flow({
 export function Canvas({
   draft,
   panel = null,
+  show,
 }: {
   draft: Draft;
   /** Where the properties panel goes */
   panel?: HTMLElement | null;
+  /** A node to select and bring into view */
+  show?: { node: string; at: number } | undefined;
 }) {
   const { content } = useSyncExternalStore(
     draft.subscribe,
@@ -765,6 +787,7 @@ export function Canvas({
         content={content}
         nodeTypes={nodeTypes}
         panel={panel}
+        show={show}
       />
     </ReactFlowProvider>
   );
