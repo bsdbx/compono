@@ -11,7 +11,13 @@ import { Plus } from "lucide-react";
 import { memo, type ReactNode } from "react";
 import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types.gen";
 import { cn } from "@/lib/utils";
-import { type CanvasState, socketsOf, useCanvas } from "./context";
+import {
+  type CanvasState,
+  choiceOptions,
+  inputsOf,
+  socketsOf,
+  useCanvas,
+} from "./context";
 import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addRow,
@@ -26,7 +32,7 @@ export type CanvasNode = Node<Record<string, never>, "graph">;
 const HANDLE = "size-2.5! min-h-0! min-w-0! rounded-full!";
 
 /** The kinds of input that are typed in a field on the node, when nothing is wired in. */
-const TYPED: ReadonlySet<string> = new Set([
+export const TYPED: ReadonlySet<string> = new Set([
   "boolean",
   "number",
   "text",
@@ -261,25 +267,13 @@ function OnNodeValue({
     );
   // A Choice node offers the options of the inputs it's wired into
   if (node.type === "choice") {
-    const options = canvas.graph.wires
-      .filter((wire) => wire.from.node === node.id)
-      .flatMap((wire) => {
-        const into = canvas.graph.nodes.find(
-          (each) => each.id === wire.to.node,
-        );
-        const input =
-          into &&
-          socketsOf(canvas, into.id, into.type).inputs.find(
-            (each) => each.id === wire.to.socket,
-          );
-        return input?.type.kind === "choice" ? input.type.options : [];
-      });
+    const options = choiceOptions(canvas, node.id);
     if (options.length > 0) {
       return (
         <ChoiceField
           label={property.label}
           value={typeof value === "string" ? value : ""}
-          options={[...new Set(options)]}
+          options={options}
           onChange={change}
         />
       );
@@ -308,6 +302,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const nodeType = canvas.nodeTypes.get(node.type);
   const evaluated = canvas.evaluated.get(id);
   const sockets = socketsOf(canvas, id, node.type);
+  const inputs = inputsOf(canvas, node);
   const onNode =
     nodeType?.properties.filter((property) => property.on_node) ?? [];
   // A refused wire leaves the input's field, which the node still uses
@@ -320,11 +315,11 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const fields =
     onNode.length > 0 ||
     sockets.groups.length > 0 ||
-    sockets.inputs.some((input) => TYPED.has(input.type.kind ?? "any"));
+    inputs.some((input) => TYPED.has(input.type.kind ?? "any"));
   const error = evaluated?.error;
   // Groups sit before the input they name, the rest after the inputs
   const rows: ReactNode[] = [];
-  for (const input of sockets.inputs) {
+  for (const input of inputs) {
     for (const group of sockets.groups.filter(
       (each) => each.before === input.id,
     )) {
@@ -342,7 +337,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
     );
   }
   for (const group of sockets.groups.filter(
-    (each) => !sockets.inputs.some((input) => input.id === each.before),
+    (each) => !inputs.some((input) => input.id === each.before),
   )) {
     rows.push(
       <GroupRows key={`group:${group.id}`} node={node} group={group} />,

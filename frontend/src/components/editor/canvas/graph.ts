@@ -251,3 +251,111 @@ export function removeRow(
     ),
   };
 }
+
+/** Makes a node's property an input it can take a wire into, keeping its value. */
+export function expose(graph: Graph, id: string, property: string): Graph {
+  return replace(graph, id, (node) =>
+    node.exposed.includes(property)
+      ? node
+      : { ...node, exposed: [...node.exposed, property] },
+  );
+}
+
+/** Makes an exposed property a plain property again, taking its wire away. */
+export function unexpose(graph: Graph, id: string, property: string): Graph {
+  const next = replace(graph, id, (node) => ({
+    ...node,
+    exposed: node.exposed.filter((each) => each !== property),
+  }));
+  return {
+    ...next,
+    wires: next.wires.filter(
+      (wire) => !(wire.to.node === id && wire.to.socket === property),
+    ),
+  };
+}
+
+/** A prop name for React: letters, digits, _ and $, not starting with a digit. */
+export const PROP_NAME = /^[A-Za-z_$][\w$]*$/;
+
+/** The first of name, name2, name3… that no prop has. */
+export function freeName(graph: Graph, name: string): string {
+  const taken = new Set(graph.props.map((prop) => prop.name));
+  if (!taken.has(name)) {
+    return name;
+  }
+
+  const base = name.replace(/\d+$/, "");
+  let number = 2;
+  while (taken.has(`${base}${number}`)) {
+    number += 1;
+  }
+  return `${base}${number}`;
+}
+
+/** Adds a Text prop with a free name, after the others. */
+export function addProp(graph: Graph, id: string = crypto.randomUUID()): Graph {
+  return {
+    ...graph,
+    props: [
+      ...graph.props,
+      { id, name: freeName(graph, "prop"), type: { kind: "text" } },
+    ],
+  };
+}
+
+export function changeProp(
+  graph: Graph,
+  id: string,
+  change: Partial<Omit<Prop, "id">>,
+): Graph {
+  return {
+    ...graph,
+    props: graph.props.map((prop) =>
+      prop.id === id ? { ...prop, ...change } : prop,
+    ),
+  };
+}
+
+/** Takes a prop away, with the wires out of Component Input that brought it. */
+export function removeProp(graph: Graph, id: string): Graph {
+  const inputs = new Set(
+    graph.nodes
+      .filter((node) => node.type === "component-input")
+      .map((node) => node.id),
+  );
+  return {
+    ...graph,
+    props: graph.props.filter((prop) => prop.id !== id),
+    wires: graph.wires.filter(
+      (wire) => !(inputs.has(wire.from.node) && wire.from.socket === id),
+    ),
+  };
+}
+
+/** A copy of the prop with a free name, right after it. */
+export function duplicateProp(
+  graph: Graph,
+  id: string,
+  newId: string = crypto.randomUUID(),
+): Graph {
+  const at = graph.props.findIndex((prop) => prop.id === id);
+  const prop = graph.props[at];
+  if (prop === undefined) {
+    return graph;
+  }
+
+  const copy = {
+    ...structuredClone(prop),
+    id: newId,
+    name: freeName(graph, prop.name),
+  };
+  return {
+    ...graph,
+    props: [
+      ...graph.props.slice(0, at + 1),
+      copy,
+      ...graph.props.slice(at + 1),
+    ],
+  };
+}

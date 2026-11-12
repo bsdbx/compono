@@ -1,19 +1,26 @@
 import { expect, test } from "vitest";
 import {
   addNode,
+  addProp,
+  changeProp,
   connect,
   disconnect,
   disconnectNode,
   duplicateNodes,
+  duplicateProp,
+  expose,
+  freeName,
   type Graph,
   moveNodes,
   moveRow,
   newNode,
   readGraph,
   removeNodes,
+  removeProp,
   removeRow,
   setProperty,
   setValue,
+  unexpose,
 } from "./graph";
 
 const at = (node: string, socket: string) => ({ node, socket });
@@ -175,4 +182,84 @@ test("rows move up and down, and go with their wire", () => {
   const removed = removeRow(two, "card", "children", "r1");
   expect(removed.nodes[1]?.groups.children).toEqual([second]);
   expect(removed.wires.map((wire) => wire.id)).toEqual(["w1", "w3"]);
+});
+
+test("exposing a property makes it an input, once; unexposing takes its wire away too", () => {
+  const exposed = expose(
+    expose(setProperty(graph(), "card", "title", "Pricing"), "card", "title"),
+    "card",
+    "title",
+  );
+  const card = exposed.nodes.find((node) => node.id === "card");
+  expect(card?.exposed).toEqual(["title"]);
+  expect(card?.properties).toEqual({ title: "Pricing" });
+
+  const wired = connect(
+    exposed,
+    at("title", "value"),
+    at("card", "title"),
+    "w3",
+  );
+  const back = unexpose(wired, "card", "title");
+  expect(back.nodes.find((node) => node.id === "card")?.exposed).toEqual([]);
+  // Its value stays, and only its own wire goes
+  expect(back.nodes.find((node) => node.id === "card")?.properties).toEqual({
+    title: "Pricing",
+  });
+  expect(back.wires.map((wire) => wire.id)).toEqual(["w1", "w2"]);
+});
+
+test("a new prop is Text, with a name no prop has", () => {
+  const one = addProp(graph(), "p1");
+  const two = addProp(one, "p2");
+  expect(two.props).toEqual([
+    { id: "p1", name: "prop", type: { kind: "text" } },
+    { id: "p2", name: "prop2", type: { kind: "text" } },
+  ]);
+  expect(freeName(two, "prop2")).toBe("prop3");
+  expect(freeName(two, "price")).toBe("price");
+});
+
+test("changing a prop changes only it", () => {
+  const props = addProp(addProp(graph(), "p1"), "p2");
+  const changed = changeProp(props, "p2", {
+    name: "price",
+    type: { kind: "number", integer: true },
+  });
+  expect(changed.props.map((prop) => [prop.name, prop.type.kind])).toEqual([
+    ["prop", "text"],
+    ["price", "number"],
+  ]);
+});
+
+test("removing a prop takes the wires that brought it away", () => {
+  const withInput = addNode(
+    addProp(graph(), "p1"),
+    newNode("component-input", { x: -300, y: 0 }, "input"),
+  );
+  const wired = connect(
+    withInput,
+    at("input", "p1"),
+    at("card", "class"),
+    "w3",
+  );
+  const removed = removeProp(wired, "p1");
+  expect(removed.props).toEqual([]);
+  expect(removed.wires.map((wire) => wire.id)).toEqual(["w1", "w2"]);
+});
+
+test("a duplicate prop comes right after the original, with a free name", () => {
+  const props = changeProp(addProp(addProp(graph(), "p1"), "p2"), "p1", {
+    name: "price",
+    description: "Per month",
+  });
+  const copied = duplicateProp(props, "p1", "p3");
+  expect(
+    copied.props.map((prop) => [prop.id, prop.name, prop.description]),
+  ).toEqual([
+    ["p1", "price", "Per month"],
+    ["p3", "price2", "Per month"],
+    ["p2", "prop2", undefined],
+  ]);
+  expect(duplicateProp(props, "gone")).toBe(props);
 });

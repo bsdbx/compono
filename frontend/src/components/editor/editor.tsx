@@ -15,6 +15,7 @@ import {
 } from "@/api/@tanstack/react-query.gen";
 import { SignedIn } from "@/components/account";
 import { Canvas } from "@/components/editor/canvas/canvas";
+import { PropertiesPlaceholder } from "@/components/editor/canvas/panel";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
 import { StatusBar } from "@/components/editor/status-bar";
@@ -25,8 +26,14 @@ import { cn } from "@/lib/utils";
 
 type Params = { team: string; project: string; component?: string };
 
-/** The right column, which the Preview and the properties panel fill in later. */
-function Inspector() {
+/** The right column: the Preview, and the properties panel, which the canvas fills in when a component is open. */
+function Inspector({
+  open,
+  panel,
+}: {
+  open: boolean;
+  panel: (element: HTMLElement | null) => void;
+}) {
   return (
     <aside className="flex w-78.5 shrink-0 flex-col border-border border-l bg-sidebar">
       <section aria-label="Preview" className="px-3 pb-3">
@@ -37,13 +44,12 @@ function Inspector() {
           Nothing to render yet
         </div>
       </section>
-      <section aria-label="Properties" className="border-border border-t">
-        <h2 className="flex h-10.5 items-center border-border border-b px-3.5 font-semibold text-sm">
-          Properties
-        </h2>
-        <p className="mt-10.25 text-center text-muted-foreground text-xs">
-          Select a node to edit its properties.
-        </p>
+      <section
+        ref={panel}
+        aria-label="Properties panel"
+        className="flex min-h-0 flex-1 flex-col border-border border-t"
+      >
+        {open ? null : <PropertiesPlaceholder />}
       </section>
     </aside>
   );
@@ -71,6 +77,8 @@ function EditorContent() {
   const [draft] = useState(() => new Draft(queryClient));
   // A new component, whose name is selected to type over
   const [named, setNamed] = useState<string>();
+  // Where the canvas puts the properties panel
+  const [panel, setPanel] = useState<HTMLElement | null>(null);
   // The newest first, as a new one is the one to work on
   const components = list.data?.toReversed();
   const newest = components?.[0]?.id;
@@ -188,10 +196,10 @@ function EditorContent() {
               </Button>
             </div>
           ) : openId !== undefined ? (
-            <Canvas key={openId} draft={draft} />
+            <Canvas key={openId} draft={draft} panel={panel} />
           ) : null}
         </main>
-        <Inspector />
+        <Inspector open={openId !== undefined} panel={setPanel} />
       </div>
       <StatusBar draft={draft} />
     </div>
