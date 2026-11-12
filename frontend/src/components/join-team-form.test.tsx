@@ -18,7 +18,7 @@ const NORTHWIND = {
 function join(link: string) {
   const onJoined = vi.fn();
   renderWithClient(
-    <JoinTeamForm onJoined={onJoined}>
+    <JoinTeamForm inline onJoined={onJoined}>
       {() => <Button type="submit">Join</Button>}
     </JoinTeamForm>,
   );
