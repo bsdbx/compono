@@ -145,7 +145,7 @@ _Avoid_: JSX, DOM node
 The socket type of the place where a component renders: Component Output's Render input, which takes an Element.
 
 **Nothing**:
-The value that means there is no value.
+The value that means there is no value. A wire that brings Nothing counts as no wire.
 _Avoid_: Null, undefined, empty
 
 **Any**:
