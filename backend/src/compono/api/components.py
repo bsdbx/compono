@@ -48,7 +48,7 @@ def _refuse_unstorable(value: object) -> None:
     elif isinstance(value, float) and not math.isfinite(value):
         # Not finite, NaN, or Infinity
         raise ValueError("can't have NaN or Infinity")
-    # For iterables, recursively check
+    # For dicts and lists, recursively check
     elif isinstance(value, dict):
         # For dict, check both key and value
         for key, item in value.items():
@@ -64,7 +64,7 @@ def storable(graph: dict[str, object]) -> dict[str, object]:
     # First refuse what JSONB can't store
     _refuse_unstorable(graph)
 
-    # We minimize the size of the JSONB, so there is no unnecessary spaces after either ',', or ':'
+    # Measure the graph as compact JSON, without spaces after ',' or ':'
     size = len(json.dumps(graph, separators=(",", ":"), ensure_ascii=False).encode())
 
     if size > MAX_GRAPH_BYTES:

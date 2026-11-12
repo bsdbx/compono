@@ -39,7 +39,7 @@ async def invalid_request(
 
     # Returning the response, with no input field
     # Graph can be large, e.g 1MB, and there is no reason to send it
-    # We also return the 422, instead of the default 500
+    # And NaN, which Python reads as JSON but can't write back, no longer turns the 422 into a 500
     return JSONResponse(
         {"detail": jsonable_encoder(problems)},
         status.HTTP_422_UNPROCESSABLE_CONTENT,

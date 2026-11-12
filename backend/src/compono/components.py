@@ -127,10 +127,10 @@ def _add_with_free_name(
         )
     }
 
-    # NOTE: This piece of code is UGLY, but does the job. Refactor later, so `while True` is not used here.
+    # `while True`, as mypy knows that it never ends, so the function always returns
     number = 1
     while True:
-        # If the number is 1 - we just got a copy.
+        # The first name has no number: FeatureGridCopy, then FeatureGridCopy2
         digits = "" if number == 1 else str(number)
         name = (
             # Strip the stem, so we can fit into the `COMPONENT_NAME_MAX_LENGTH`
@@ -158,7 +158,7 @@ def create_component(
 ) -> Component:
     """A new component with an empty graph and the default screen sizes. Named Untitled if no name is given. Raises NameTaken."""
     # If the name is not supplied - create a component with the `NEW_NAME` as the name.
-    # If there is already such component, increment the counter: `NEW_NAME1`, `NEW_NAME2`, ...
+    # If that name is taken, add a number from 2: `Untitled2`, `Untitled3`, ...
     if name is None:
         return _add_with_free_name(
             database, project, NEW_NAME, "", {}, default_screen_sizes()
@@ -173,7 +173,7 @@ def duplicate(
 ) -> Component:
     """A copy of the component, named like FeatureGridCopy, with the same graph and screen sizes."""
     # Return a new component, with the "Copy" as the suffix.
-    # FeatureGridCopy, FeatureGridCopy1, FeatureGridCopy2, ... also works here
+    # FeatureGridCopy, then FeatureGridCopy2, FeatureGridCopy3, ...
     return _add_with_free_name(
         database,
         project,
@@ -210,8 +210,9 @@ def save(
     screen_sizes: list[dict[str, object]],
 ) -> Saved:
     """Saves the component's graph and screen sizes, if it's still at the version the save started from. Raises ComponentNotFound and VersionConflict."""
-    # Update the component, by incrementing it's version
-    # Store the new version, and when it got updated
+    # Update the component only if it's still at the version the save started from, and increment its version.
+    # One statement, so that of two saves from the same version only one succeeds
+    # Return the new version, and when it got updated
     row = database.execute(
         update(Component)
         .where(
@@ -225,9 +226,8 @@ def save(
 
     if row is None:
         # The component is gone, or someone else saved first
-        component(
-            database, project, component_id
-        )  # Will raise if the component is not found
+        # Raises ComponentNotFound if it's gone
+        component(database, project, component_id)
         raise VersionConflict
 
     # Update the project edited_at
