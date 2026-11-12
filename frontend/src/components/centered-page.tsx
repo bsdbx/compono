@@ -6,10 +6,13 @@ export function CenteredPage({
   title,
   description,
   children,
+  footer,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  /** At the bottom of the page, like who is signed in */
+  footer?: ReactNode;
 }) {
   return (
     <div className="relative flex flex-1 items-center justify-center px-6 py-12">
@@ -21,6 +24,11 @@ export function CenteredPage({
         <p className="mt-2 text-base text-muted-foreground">{description}</p>
         <div className="mt-6 flex flex-col gap-2">{children}</div>
       </main>
+      {footer ? (
+        <p className="absolute right-0 bottom-6 left-0 text-center text-sm text-subtle-foreground">
+          {footer}
+        </p>
+      ) : null}
     </div>
   );
 }
