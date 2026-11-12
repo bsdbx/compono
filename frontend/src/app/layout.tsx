@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { SmallScreen } from "@/components/small-screen";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -29,8 +30,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         jetBrainsMono.variable,
       )}
     >
-      <body className="min-h-full flex flex-col">
-        <Providers>{children}</Providers>
+      <body className="flex min-h-full flex-col">
+        {/* Compono needs at least a large tablet's width */}
+        <div className="hidden flex-1 flex-col lg:flex">
+          <Providers>{children}</Providers>
+        </div>
+        <div className="flex flex-1 flex-col lg:hidden">
+          <SmallScreen />
+        </div>
       </body>
     </html>
   );
