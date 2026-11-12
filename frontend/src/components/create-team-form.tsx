@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { myTeamsQueryKey } from "@/api/@tanstack/react-query.gen";
@@ -46,6 +46,8 @@ export function CreateTeamForm({
   /** The buttons, which submit the form */
   children: (submitting: boolean) => ReactNode;
 }) {
+  // Ids of this form's own, as a page can keep another form with the same fields
+  const id = useId();
   const queryClient = useQueryClient();
   const [urlEdited, setUrlEdited] = useState(false);
   const {
@@ -96,18 +98,26 @@ export function CreateTeamForm({
       onSubmit={handleSubmit(submit)}
       className="flex flex-col gap-4"
     >
-      <Field label="Team name" htmlFor="team-name" error={errors.name?.message}>
+      <Field
+        label="Team name"
+        htmlFor={`${id}-team-name`}
+        error={errors.name?.message}
+      >
         <Input
-          id="team-name"
+          id={`${id}-team-name`}
           placeholder="Acme"
           autoComplete="organization"
           aria-invalid={errors.name !== undefined}
           {...name}
         />
       </Field>
-      <Field label="Team URL" htmlFor="team-url" error={errors.url?.message}>
+      <Field
+        label="Team URL"
+        htmlFor={`${id}-team-url`}
+        error={errors.url?.message}
+      >
         <TeamUrlInput
-          id="team-url"
+          id={`${id}-team-url`}
           placeholder="acme"
           aria-invalid={errors.url !== undefined}
           {...url}

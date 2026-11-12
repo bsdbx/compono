@@ -85,3 +85,16 @@ test("a URL the API would refuse is refused before any request", async () => {
   ).toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
 });
+
+test("two forms on a page each label their own fields", () => {
+  stubApi(() => undefined);
+  renderForm();
+  renderForm();
+
+  // A label belongs to the first field with its id in the whole page, as browsers decide
+  const labels = [...document.querySelectorAll("label")];
+  expect(labels).toHaveLength(4);
+  for (const label of labels) {
+    expect(label.control?.closest("form")).toBe(label.closest("form"));
+  }
+});

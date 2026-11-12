@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useState } from "react";
 import { myTeamsQueryKey } from "@/api/@tanstack/react-query.gen";
 import { joinTeam } from "@/api/sdk.gen";
 import type { Team } from "@/api/types.gen";
@@ -21,6 +21,8 @@ export function JoinTeamForm({
   /** The join button, which submits the form */
   children: (submitting: boolean) => ReactNode;
 }) {
+  // Ids of this form's own, as a page can keep another form with the same fields
+  const id = useId();
   const queryClient = useQueryClient();
   const [link, setLink] = useState("");
   const [error, setError] = useState<string>();
@@ -55,10 +57,10 @@ export function JoinTeamForm({
 
   return (
     <form method="post" noValidate onSubmit={(event) => void submit(event)}>
-      <Field label="Invite link" htmlFor="invite-link" error={error}>
+      <Field label="Invite link" htmlFor={`${id}-invite-link`} error={error}>
         <div className="flex gap-2">
           <Input
-            id="invite-link"
+            id={`${id}-invite-link`}
             placeholder={`${window.location.host}/join/…`}
             autoCapitalize="none"
             spellCheck={false}
