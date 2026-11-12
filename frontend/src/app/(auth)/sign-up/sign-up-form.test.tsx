@@ -1,14 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignUpForm } from "./sign-up-form";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-beforeEach(() => {
-  router.replace.mockClear();
-});
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -31,7 +29,9 @@ test("creating an account goes to the projects", async () => {
 
   fill("Mira Kovalenko", "mira@acme.dev", "correct horse battery staple");
 
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/"),
+  );
   const request = fetch.mock.calls[0]?.[0];
   expect(request?.url).toBe("http://localhost/api/accounts");
   expect(await request?.json()).toEqual({

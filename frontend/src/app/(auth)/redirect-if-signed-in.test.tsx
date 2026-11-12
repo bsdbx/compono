@@ -1,14 +1,12 @@
 import { waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
+import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { RedirectIfSignedIn } from "./redirect-if-signed-in";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-beforeEach(() => {
-  router.replace.mockClear();
-});
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -18,7 +16,9 @@ test("an account that is signed in goes to its projects", async () => {
   stubApi(() => Response.json(MIRA));
   renderWithClient(<RedirectIfSignedIn />);
 
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/"),
+  );
 });
 
 test("a browser that isn't signed in stays to sign in", async () => {
@@ -28,5 +28,15 @@ test("a browser that isn't signed in stays to sign in", async () => {
   renderWithClient(<RedirectIfSignedIn />);
 
   await waitFor(() => expect(fetch).toHaveBeenCalled());
-  expect(router.replace).not.toHaveBeenCalled();
+  expect(navigation.router.replace).not.toHaveBeenCalled();
+});
+
+test("an account that is signed in goes where it was going", async () => {
+  stubApi(() => Response.json(MIRA));
+  navigation.search = new URLSearchParams({ next: "/join/abc123" });
+  renderWithClient(<RedirectIfSignedIn />);
+
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/join/abc123"),
+  );
 });

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { Logo } from "@/components/logo";
 import { LayersArt } from "./layers-art";
 import { RedirectIfSignedIn } from "./redirect-if-signed-in";
@@ -6,7 +6,9 @@ import { RedirectIfSignedIn } from "./redirect-if-signed-in";
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex flex-1">
-      <RedirectIfSignedIn />
+      <Suspense>
+        <RedirectIfSignedIn />
+      </Suspense>
       <div className="relative flex basis-[44%] items-center justify-center px-6 py-16">
         <div className="absolute top-7 left-8">
           <Logo />

@@ -1,20 +1,33 @@
-import { SignedIn } from "@/components/account";
-import { AccountMenu } from "@/components/account-menu";
-import { ApiStatus } from "@/components/api-status";
+"use client";
 
-// Until the projects page takes its place, the start page shows who is signed in
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { myTeamsOptions } from "@/api/@tanstack/react-query.gen";
+import { SignedIn } from "@/components/account";
+
+/** Opens the account's first team, or sets one up when it has none. */
+function OpenTeam() {
+  const router = useRouter();
+  const { data: teams, error } = useQuery(myTeamsOptions());
+
+  useEffect(() => {
+    if (teams !== undefined) {
+      const [first] = teams;
+      router.replace(first === undefined ? "/teams/new" : `/${first.url}`);
+    }
+  }, [teams, router]);
+
+  if (error !== null) {
+    throw error;
+  }
+  return null;
+}
+
 export default function Home() {
   return (
     <SignedIn>
-      <div className="flex flex-1">
-        <aside className="flex w-59 flex-col justify-end border-sidebar-border border-r bg-sidebar p-2">
-          <AccountMenu />
-        </aside>
-        <main className="flex flex-1 flex-col items-center justify-center gap-2">
-          <h1 className="font-semibold text-2xl">Compono</h1>
-          <ApiStatus />
-        </main>
-      </div>
+      <OpenTeam />
     </SignedIn>
   );
 }

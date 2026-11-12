@@ -3,8 +3,9 @@ import { afterEach, expect, test, vi } from "vitest";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import ErrorPage from "./error";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
