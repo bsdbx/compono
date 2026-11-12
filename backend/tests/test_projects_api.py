@@ -553,15 +553,39 @@ def test_leaving_a_project(client: TestClient, session: Session) -> None:
     assert response.status_code == 204
     assert error(project_at(client, "marketing-site")) == "project_not_found"
 
-    # Also its last lead
-    sign_in_as(client, session, acme.sofia)
-    assert client.delete(leave).status_code == 204
-    # The owner still manages it, and leaving it changes nothing
+    # An owner who isn't in it still manages it, and leaving it changes nothing
     sign_in_as(client, session, acme.mira)
     assert client.delete(leave).status_code == 204
-    assert members(client) == []
-    assert set_member(client, acme.daniel.id, "LEAD").status_code == 200
-    assert members(client) == [("Daniel Novak", ProjectRole.LEAD)]
+    assert members(client) == [("Sofia Reyes", ProjectRole.LEAD)]
+
+
+def test_the_only_lead_stays_until_someone_else_is_a_lead(
+    client: TestClient, session: Session
+) -> None:
+    acme = acme_with_marketing(client, session)
+    sofia = f"/api/teams/acme/projects/marketing-site/members/{acme.sofia.id}"
+    leave = "/api/teams/acme/projects/marketing-site/membership"
+
+    # Not even an owner takes the lead away
+    for response in [
+        set_member(client, acme.sofia.id, "DEVELOPER"),
+        client.delete(sofia),
+    ]:
+        assert response.status_code == 409
+        assert error(response) == "last_lead"
+    sign_in_as(client, session, acme.sofia)
+    response = client.delete(leave)
+    assert response.status_code == 409
+    assert error(response) == "last_lead"
+    assert members(client) == [
+        ("Sofia Reyes", ProjectRole.LEAD),
+        ("Jonas Lind", ProjectRole.DEVELOPER),
+    ]
+
+    assert set_member(client, acme.jonas.id, "LEAD").status_code == 200
+    assert client.delete(leave).status_code == 204
+    sign_in_as(client, session, acme.jonas)
+    assert members(client) == [("Jonas Lind", ProjectRole.LEAD)]
 
 
 def test_leaving_the_team_takes_me_out_of_its_projects(

@@ -160,6 +160,16 @@ export type InviteLinkNotValidError = {
 };
 
 /**
+ * LastLeadError
+ */
+export type LastLeadError = {
+    /**
+     * Detail
+     */
+    detail: 'last_lead';
+};
+
+/**
  * LastOwnerError
  */
 export type LastOwnerError = {
@@ -1577,6 +1587,10 @@ export type RemoveProjectMemberErrors = {
      */
     404: ProjectMemberNotFoundError;
     /**
+     * Conflict
+     */
+    409: LastLeadError;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -1627,6 +1641,10 @@ export type SetProjectMemberErrors = {
      */
     404: ProjectMemberNotFoundError;
     /**
+     * Conflict
+     */
+    409: LastLeadError;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -1668,6 +1686,10 @@ export type LeaveProjectErrors = {
      * Not Found
      */
     404: ProjectNotFoundError;
+    /**
+     * Conflict
+     */
+    409: LastLeadError;
     /**
      * Validation Error
      */

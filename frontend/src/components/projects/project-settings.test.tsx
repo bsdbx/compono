@@ -137,13 +137,139 @@ test("a lead adds a team member as a developer, and changes roles", async () => 
   fireEvent.click(await screen.findByRole("menuitem", { name: "Make lead" }));
   await waitFor(() => expect(requests(fetch, "PUT")).toHaveLength(2));
   expect(await requests(fetch, "PUT")[1]?.json()).toEqual({ role: "LEAD" });
-  // A lead can change their own role too, as the design has it
+  // Nobody changes their own role
   expect(
-    screen.getByRole("button", { name: "Change Mira Kovalenko" }),
-  ).toBeInTheDocument();
-  // Leads delete the project, and don't leave it from here
+    screen.queryByRole("button", { name: "Change Mira Kovalenko" }),
+  ).toBeNull();
+  // Leads leave and delete the project from the danger zone
+  expect(screen.getByRole("button", { name: "Leave" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
+});
+
+const TWO_LEADS = [MIRA_IN, { ...JONAS, role: "LEAD" as const }];
+
+test("the only lead makes someone else a lead before leaving", async () => {
+  const fetch = answer({ teamRole: "MEMBER", role: "LEAD" });
+  renderPanel("MEMBER");
+  const scrolled = vi.fn();
+  Element.prototype.scrollIntoView = scrolled;
+
+  fireEvent.click(await screen.findByRole("button", { name: "Leave" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Hand over Marketing site first",
+  });
+  expect(dialog).toHaveTextContent(
+    "You’re the only lead of Marketing site. Make another member a lead, then you can leave.",
+  );
+  expect(
+    within(dialog).queryByRole("button", { name: "Leave project" }),
+  ).toBeNull();
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Go to members" }),
+  );
+
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("dialog", { name: "Hand over Marketing site first" }),
+    ).toBeNull(),
+  );
+  expect(scrolled.mock.contexts[0]).toHaveTextContent(/^Members/);
+  expect(requests(fetch, "DELETE")).toHaveLength(0);
+});
+
+test("a lead leaves once another member is a lead", async () => {
+  const fetch = answer(
+    { teamRole: "MEMBER", role: "LEAD" },
+    {
+      [`GET ${BASE}/members`]: () => Response.json(TWO_LEADS),
+      [`DELETE ${BASE}/membership`]: () => new Response(null, { status: 204 }),
+    },
+  );
+  const onClose = renderPanel("MEMBER");
+
+  // The other lead can be made a developer, as Mira stays a lead, but not Mira herself
+  expect(
+    await screen.findByRole("button", { name: "Change Jonas Lind" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Change Mira Kovalenko" }),
+  ).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Leave Marketing site?",
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Leave project" }),
+  );
+
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(requests(fetch, "DELETE")[0]?.url).toBe(
+    `http://localhost${BASE}/membership`,
+  );
+});
+
+test("when the other lead left first, leaving says to hand over", async () => {
+  let left = false;
+  answer(
+    { teamRole: "MEMBER", role: "LEAD" },
+    {
+      // Jonas left in another browser, which the panel finds out on leaving
+      [`GET ${BASE}/members`]: () =>
+        Response.json(left ? [MIRA_IN] : TWO_LEADS),
+      [`DELETE ${BASE}/membership`]: () => {
+        left = true;
+        return Response.json({ detail: "last_lead" }, { status: 409 });
+      },
+    },
+  );
+  const onClose = renderPanel("MEMBER");
+
+  await screen.findByRole("button", { name: "Change Jonas Lind" });
+  fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Leave Marketing site?",
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Leave project" }),
+  );
+
+  const handOver = await screen.findByRole("dialog", {
+    name: "Hand over Marketing site first",
+  });
+  expect(onClose).not.toHaveBeenCalled();
+  // The members caught up, so leaving again says so at once
+  await waitFor(() => expect(screen.queryByText("Jonas Lind")).toBeNull());
+  fireEvent.click(within(handOver).getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+  expect(
+    await screen.findByRole("dialog", {
+      name: "Hand over Marketing site first",
+    }),
+  ).toBeInTheDocument();
+});
+
+test("a refused role change says why", async () => {
+  answer(
+    { teamRole: "MEMBER", role: "LEAD" },
+    {
+      [`GET ${BASE}/members`]: () => Response.json(TWO_LEADS),
+      [`PUT ${BASE}/members/j2`]: () =>
+        Response.json({ detail: "last_lead" }, { status: 409 }),
+    },
+  );
+  renderPanel("MEMBER");
+
+  fireEvent.keyDown(
+    await screen.findByRole("button", { name: "Change Jonas Lind" }),
+    { key: "Enter" },
+  );
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Make developer" }),
+  );
+
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "A project needs a lead. Make someone else a lead first.",
+  );
 });
 
 test("a lead removes a member", async () => {
@@ -231,4 +357,74 @@ test("an owner outside the project manages it, without leaving", async () => {
   expect(await screen.findByLabelText("Name")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
+});
+
+test("an owner doesn't take the lead away from the only lead", async () => {
+  answer(
+    { teamRole: "OWNER", role: null },
+    {
+      [`GET ${BASE}/members`]: () =>
+        Response.json([
+          { ...JONAS, role: "LEAD" },
+          { ...SOFIA, role: "DEVELOPER" },
+        ]),
+    },
+  );
+  renderPanel("OWNER");
+
+  expect(
+    await screen.findByRole("button", { name: "Change Sofia Reyes" }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Change Jonas Lind" }),
+  ).toBeNull();
+});
+
+test("an owner who leads the project still manages it after leaving", async () => {
+  answer(
+    { teamRole: "OWNER", role: "LEAD" },
+    { [`GET ${BASE}/members`]: () => Response.json(TWO_LEADS) },
+  );
+  renderPanel("OWNER");
+
+  expect(
+    await screen.findByText("You’ll still manage it as an owner of Acme."),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+  expect(
+    await screen.findByRole("dialog", { name: "Leave Marketing site?" }),
+  ).toHaveTextContent("You’ll still manage it as an owner of Acme.");
+});
+
+test("an owner who adds themselves can then leave", async () => {
+  let role: "DEVELOPER" | null = null;
+  const member = () => ({ ...MIRA, role: "DEVELOPER" as const });
+  answer(
+    { teamRole: "OWNER", role: null },
+    {
+      [`GET ${BASE}`]: () => Response.json({ ...LISTED, role }),
+      [`GET ${BASE}/members`]: () =>
+        Response.json(role === null ? [JONAS] : [JONAS, member()]),
+      [`PUT ${BASE}/members/${MIRA.id}`]: () => {
+        role = "DEVELOPER";
+        return Response.json(member());
+      },
+    },
+  );
+  renderPanel("OWNER");
+
+  const picker = await screen.findByRole("button", {
+    name: "Team member to add",
+  });
+  await waitFor(() => expect(picker).toBeEnabled());
+  expect(screen.queryByRole("button", { name: "Leave" })).toBeNull();
+  fireEvent.keyDown(picker, { key: "Enter" });
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: /Mira Kovalenko/ }),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+  expect(
+    await screen.findByRole("button", { name: "Leave" }),
+  ).toBeInTheDocument();
 });

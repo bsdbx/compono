@@ -35,7 +35,7 @@ A set of components that some of a team's members build together.
 _Avoid_: Workspace, library, repository
 
 **Lead**:
-A project role that manages the project: its name and description, who is in it and with which role, and deleting it. A project can have several.
+A project role that manages the project: its name and description, who is in it and with which role, and deleting it. A project can have several. A lead doesn't change their own role, and the only lead makes someone else a lead before they leave.
 
 **Developer**:
 The project role of those who build a project's components.
@@ -156,7 +156,7 @@ _Avoid_: Generic, wildcard
 
 - An **Account** can be in many **Teams**, and a **Team** has at least one **Owner**
 - A **Team** has many **Projects**, and each **Project** belongs to one **Team**
-- An **Owner** creates a **Project** and is its first **Lead**. A **Project** has any number of **Leads** and **Developers**, and its team's **Owners** manage it as its **Leads** do
+- An **Owner** creates a **Project** and is its first **Lead**. A **Project** has any number of **Leads** and **Developers**, keeps its only **Lead** until another is made, and its team's **Owners** manage it as its **Leads** do
 - A **Project** has many **Components**, and each **Component** has one **Graph** and its own **Screen sizes**
 - A **Graph** has exactly one **Component Input**, which carries the component's **Props**, and exactly one **Component Output**
 - Every **Node** has one **Node type**, and every **Node type** is in one **Category**

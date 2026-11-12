@@ -547,7 +547,7 @@ export const setProjectMemberMutation = (options?: Partial<Options<SetProjectMem
 /**
  * Leave Project
  *
- * Takes the signed-in account out of a project.
+ * Takes the signed-in account out of a project. Its only lead makes someone else a lead first.
  */
 export const leaveProjectMutation = (options?: Partial<Options<LeaveProjectData>>): UseMutationOptions<LeaveProjectResponse, LeaveProjectError, Options<LeaveProjectData>> => {
     const mutationOptions: UseMutationOptions<LeaveProjectResponse, LeaveProjectError, Options<LeaveProjectData>> = {

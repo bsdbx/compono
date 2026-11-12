@@ -39,7 +39,7 @@ Every `id` is a UUIDv7 that PostgreSQL 18 generates with `uuidv7()`.
 
 A team always has at least one owner. The API keeps this rule, not the database: a constraint sees one row at a time, while this rule is about all the owners of a team. The API checks it in the same transaction as the change, with the owners' rows locked, so two owners can't both leave at once.
 
-A project needs no such rule. Its team's owners manage it as its leads do, so even a project whose last lead has left the team still has someone to manage it.
+A project keeps its only lead the same way: the API doesn't let them leave the project, be taken out of it or be made a developer until someone else is a lead, and checks it with the leads' rows locked. Leaving the team still takes a lead out of the team's projects, even the last one, since the team's owners manage every project as its leads do.
 
 ## Projects
 

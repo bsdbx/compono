@@ -8,13 +8,14 @@ import {
   UserMinus,
   X,
 } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import {
   deleteProjectMutation,
   leaveProjectMutation,
   projectMembersOptions,
   projectMembersQueryKey,
   projectOptions,
+  projectQueryKey,
   removeProjectMemberMutation,
   setProjectMemberMutation,
   teamMembersOptions,
@@ -62,9 +63,17 @@ const ROLE: Record<ProjectRole, string> = {
   DEVELOPER: "Developer",
 };
 
-function Section({ title, children }: { title?: string; children: ReactNode }) {
+function Section({
+  title,
+  children,
+  ref,
+}: {
+  title?: string;
+  children: ReactNode;
+  ref?: Ref<HTMLElement>;
+}) {
   return (
-    <section className="px-5 py-5">
+    <section ref={ref} className="px-5 py-5">
       {title ? <h3 className="mb-3.5 font-medium text-base">{title}</h3> : null}
       {children}
     </section>
@@ -188,12 +197,15 @@ function MemberRow({
   member,
   you,
   canManage,
+  changeable,
   onRole,
   onRemove,
 }: {
   member: ProjectMember;
   you: boolean;
   canManage: boolean;
+  /** Whether the menu shows: not for yourself, nor for the only lead */
+  changeable: boolean;
   onRole: (role: ProjectRole) => void;
   onRemove: () => void;
 }) {
@@ -212,35 +224,39 @@ function MemberRow({
       </div>
       <span className="text-base text-foreground/85">{ROLE[member.role]}</span>
       {canManage ? (
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="size-7"
-              aria-label={`Change ${member.name}`}
-            >
-              <MoreHorizontal className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem
-              className="h-9 text-base"
-              onSelect={() => onRole(other)}
-            >
-              <UserCog className="size-4" />
-              Make {ROLE[other].toLowerCase()}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              className="h-9 text-base text-error"
-              onSelect={onRemove}
-            >
-              <UserMinus className="size-4" />
-              Remove from project
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex w-7 justify-end">
+          {changeable ? (
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-7"
+                  aria-label={`Change ${member.name}`}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem
+                  className="h-9 text-base"
+                  onSelect={() => onRole(other)}
+                >
+                  <UserCog className="size-4" />
+                  Make {ROLE[other].toLowerCase()}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  className="h-9 text-base text-error"
+                  onSelect={onRemove}
+                >
+                  <UserMinus className="size-4" />
+                  Remove from project
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       ) : null}
     </li>
   );
@@ -261,13 +277,16 @@ function Members({
   const account = useSignedInAccount();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState("");
+  const [problem, setProblem] = useState<string>();
   const path = { team_url: team.url, project_url: project.url };
   const { data: teamMembers = [] } = useQuery({
     ...teamMembersOptions({ path: { team_url: team.url } }),
     enabled: canManage,
   });
+  // An owner who adds themselves gets a role in the project too
   const refresh = () =>
     Promise.all([
+      queryClient.invalidateQueries({ queryKey: projectQueryKey({ path }) }),
       queryClient.invalidateQueries({
         queryKey: projectMembersQueryKey({ path }),
       }),
@@ -275,14 +294,28 @@ function Members({
         queryKey: teamProjectsQueryKey({ path: { team_url: team.url } }),
       }),
     ]);
-  const setRole = useMutation({
-    ...setProjectMemberMutation(),
-    onSuccess: refresh,
-  });
+  const changed = {
+    onSuccess: () => {
+      setProblem(undefined);
+      return refresh();
+    },
+    onError: (error: { detail?: unknown }) => {
+      // Someone else may have changed the leads since the list loaded
+      setProblem(
+        error.detail === "last_lead"
+          ? "A project needs a lead. Make someone else a lead first."
+          : "That didn’t work. Try again.",
+      );
+      return refresh();
+    },
+  };
+  const setRole = useMutation({ ...setProjectMemberMutation(), ...changed });
   const remove = useMutation({
     ...removeProjectMemberMutation(),
-    onSuccess: refresh,
+    ...changed,
   });
+  const leads = members.filter((member) => member.role === "LEAD");
+  const onlyLead = leads.length === 1 ? leads[0]?.id : undefined;
   const inProject = new Set(members.map((member) => member.id));
   const addable = teamMembers.filter((member) => !inProject.has(member.id));
   const chosen = addable.find((member) => member.id === adding);
@@ -362,6 +395,7 @@ function Members({
             member={member}
             you={member.id === account.id}
             canManage={canManage}
+            changeable={member.id !== account.id && member.id !== onlyLead}
             onRole={(role) =>
               setRole.mutate({
                 path: { ...path, account_id: member.id },
@@ -374,6 +408,11 @@ function Members({
           />
         ))}
       </ul>
+      {problem ? (
+        <p role="alert" className="text-error text-sm">
+          {problem}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -456,6 +495,11 @@ function DeleteProjectDialog({
             onChange={(event) => setTyped(event.target.value)}
           />
         </div>
+        {remove.isError ? (
+          <p role="alert" className="text-error text-sm">
+            That didn’t work. Try again.
+          </p>
+        ) : null}
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="secondary">Cancel</Button>
@@ -477,44 +521,83 @@ function DeleteProjectDialog({
   );
 }
 
+/** Leaves the project, or, for its only lead, says to make someone else a lead first. */
 function LeaveProjectDialog({
   team,
   project,
+  onlyLead,
   open,
   onOpenChange,
   onLeft,
+  onGoToMembers,
 }: {
   team: Team;
   project: Project;
+  onlyLead: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLeft: () => void;
+  onGoToMembers: () => void;
 }) {
-  const leave = useMutation({ ...leaveProjectMutation(), onSuccess: onLeft });
+  const queryClient = useQueryClient();
+  const [lastLead, setLastLead] = useState(false);
+  const path = { team_url: team.url, project_url: project.url };
+  const leave = useMutation({
+    ...leaveProjectMutation(),
+    onSuccess: onLeft,
+    onError: (error) => {
+      // Another lead may have left since the panel opened, so the members catch up
+      setLastLead(error.detail === "last_lead");
+      void queryClient.invalidateQueries({
+        queryKey: projectMembersQueryKey({ path }),
+      });
+    },
+  });
+  const handOver = onlyLead || lastLead;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setLastLead(false);
+        leave.reset();
+        onOpenChange(next);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Leave {project.name}?</DialogTitle>
+          <DialogTitle>
+            {handOver
+              ? `Hand over ${project.name} first`
+              : `Leave ${project.name}?`}
+          </DialogTitle>
           <DialogDescription>
-            You’ll lose access to its components until someone adds you again.
+            {handOver
+              ? `You’re the only lead of ${project.name}. Make another member a lead, then you can leave.`
+              : team.role === "OWNER"
+                ? `You’ll still manage it as an owner of ${team.name}.`
+                : "You’ll lose access to its components until someone adds you again."}
           </DialogDescription>
         </DialogHeader>
+        {leave.isError && !handOver ? (
+          <p role="alert" className="text-error text-sm">
+            That didn’t work. Try again.
+          </p>
+        ) : null}
         <DialogFooter>
           <DialogClose asChild>
             <Button variant="secondary">Cancel</Button>
           </DialogClose>
-          <Button
-            variant="destructive"
-            disabled={leave.isPending}
-            onClick={() =>
-              leave.mutate({
-                path: { team_url: team.url, project_url: project.url },
-              })
-            }
-          >
-            Leave project
-          </Button>
+          {handOver ? (
+            <Button onClick={onGoToMembers}>Go to members</Button>
+          ) : (
+            <Button
+              variant="destructive"
+              disabled={leave.isPending}
+              onClick={() => leave.mutate({ path })}
+            >
+              Leave project
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -534,11 +617,13 @@ function Settings({
   // The URL changes with the name, so the panel follows the latest one
   const [url, setUrl] = useState(listed.url);
   const [dialog, setDialog] = useState<"delete" | "leave">();
+  const membersSection = useRef<HTMLElement>(null);
   const path = { team_url: team.url, project_url: url };
   const { data: project } = useQuery(projectOptions({ path }));
   const { data: members = [] } = useQuery(projectMembersOptions({ path }));
   // Owners and leads manage a project; developers build in it
   const canManage = team.role === "OWNER" || project?.role === "LEAD";
+  const leads = members.filter((member) => member.role === "LEAD");
   const refreshList = () =>
     queryClient.invalidateQueries({
       queryKey: teamProjectsQueryKey({ path: { team_url: team.url } }),
@@ -551,6 +636,20 @@ function Settings({
   if (project === undefined) {
     return null;
   }
+  // Everyone in the project can leave it; an owner who isn't in it has nothing to leave
+  const leaveRow =
+    project.role === null ? null : (
+      <DangerRow
+        title="Leave project"
+        description={
+          team.role === "OWNER"
+            ? `You’ll still manage it as an owner of ${team.name}.`
+            : "You’ll need a lead to add you again."
+        }
+        action="Leave"
+        onClick={() => setDialog("leave")}
+      />
+    );
   return (
     <>
       <SheetHeader className="flex-row items-center justify-between gap-3 border-border border-b px-5 py-3">
@@ -576,7 +675,7 @@ function Settings({
             team={team}
             project={project}
             canEdit={canManage}
-            leads={members.filter((member) => member.role === "LEAD")}
+            leads={leads}
             onSaved={(saved) => {
               queryClient.setQueryData(
                 projectOptions({
@@ -589,7 +688,7 @@ function Settings({
             }}
           />
         </Section>
-        <Section title="Members">
+        <Section title="Members" ref={membersSection}>
           <Members
             team={team}
             project={project}
@@ -598,24 +697,19 @@ function Settings({
           />
         </Section>
         {canManage ? (
-          // Leads and owners delete; a lead leaves by removing themselves, as the design has it
           <Section title="Danger zone">
-            <DangerRow
-              title="Delete project"
-              description="Removes the project and all its components."
-              action="Delete"
-              onClick={() => setDialog("delete")}
-            />
+            <div className="flex flex-col gap-5">
+              {leaveRow}
+              <DangerRow
+                title="Delete project"
+                description="Removes the project and all its components."
+                action="Delete"
+                onClick={() => setDialog("delete")}
+              />
+            </div>
           </Section>
-        ) : project.role !== null ? (
-          <Section>
-            <DangerRow
-              title="Leave project"
-              description="You’ll need a lead to add you again."
-              action="Leave"
-              onClick={() => setDialog("leave")}
-            />
-          </Section>
+        ) : leaveRow ? (
+          <Section>{leaveRow}</Section>
         ) : null}
       </div>
       <DeleteProjectDialog
@@ -628,9 +722,14 @@ function Settings({
       <LeaveProjectDialog
         team={team}
         project={project}
+        onlyLead={project.role === "LEAD" && leads.length === 1}
         open={dialog === "leave"}
         onOpenChange={(open) => setDialog(open ? "leave" : undefined)}
         onLeft={() => void gone()}
+        onGoToMembers={() => {
+          setDialog(undefined);
+          membersSection.current?.scrollIntoView({ block: "start" });
+        }}
       />
     </>
   );

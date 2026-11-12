@@ -53,6 +53,16 @@ def role_in(session: Session, project: Project, account: Account) -> ProjectRole
     return found.role
 
 
+def take_out(session: Session, project: Project, account: Account) -> None:
+    """Takes the account out of the project even if it's the only lead, as leaving the team does."""
+    session.execute(
+        delete(ProjectMember).where(
+            ProjectMember.project_id == project.id,
+            ProjectMember.account_id == account.id,
+        )
+    )
+
+
 def members(session: Session, project: Project) -> list[tuple[str, ProjectRole]]:
     return [
         (account.name, role) for account, role in projects.members_of(session, project)
@@ -104,7 +114,7 @@ def test_owners_see_every_project_and_members_see_their_own(session: Session) ->
     projects.set_member(session, marketing, jonas.id, ProjectRole.DEVELOPER)
     checkout = create_project(session, team, mira, "Checkout flow")
     docs = create_project(session, team, mira, "Docs portal")
-    projects.leave(session, docs, mira)
+    take_out(session, docs, mira)
     # Another team's project, which nobody in Acme sees
     northwind = teams.create_team(session, jonas, "Northwind", "northwind")
     create_project(session, northwind, jonas, "Marketing site")
@@ -134,7 +144,7 @@ def test_listed_projects_have_their_members_in_the_order_they_were_added(
     marketing = create_project(session, team, mira, "Marketing site")
     projects.set_member(session, marketing, jonas.id, ProjectRole.DEVELOPER)
     docs = create_project(session, team, mira, "Docs portal")
-    projects.leave(session, docs, mira)
+    take_out(session, docs, mira)
     # Mira was added before Jonas, although he comes first by name
     for member in session.scalars(select(ProjectMember)):
         if member.account_id == mira.id:
@@ -301,11 +311,35 @@ def test_leaving_a_project(session: Session) -> None:
 
     projects.leave(session, project, jonas)
     assert members(session, project) == [("Mira Kovalenko", ProjectRole.LEAD)]
-    # Also its last lead, since the team's owners manage it anyway
-    projects.leave(session, project, mira)
-    assert members(session, project) == []
     # Leaving again changes nothing
+    projects.leave(session, project, jonas)
+    assert members(session, project) == [("Mira Kovalenko", ProjectRole.LEAD)]
+
+
+def test_the_only_lead_stays_until_someone_else_is_a_lead(session: Session) -> None:
+    team, mira, jonas = acme(session)
+    project = create_project(session, team, mira, "Marketing site")
+    projects.set_member(session, project, jonas.id, ProjectRole.DEVELOPER)
+
+    with pytest.raises(projects.LastLead):
+        projects.leave(session, project, mira)
+    with pytest.raises(projects.LastLead):
+        projects.remove_member(session, project, mira.id)
+    with pytest.raises(projects.LastLead):
+        projects.set_member(session, project, mira.id, ProjectRole.DEVELOPER)
+    assert set(members(session, project)) == {
+        ("Mira Kovalenko", ProjectRole.LEAD),
+        ("Jonas Lind", ProjectRole.DEVELOPER),
+    }
+
+    # A developer can still go, and a lead can be given the lead role again
+    projects.set_member(session, project, mira.id, ProjectRole.LEAD)
+    projects.remove_member(session, project, jonas.id)
+    assert members(session, project) == [("Mira Kovalenko", ProjectRole.LEAD)]
+
+    projects.set_member(session, project, jonas.id, ProjectRole.LEAD)
     projects.leave(session, project, mira)
+    assert members(session, project) == [("Jonas Lind", ProjectRole.LEAD)]
 
 
 def test_leaving_a_team_takes_the_account_out_of_its_projects(
@@ -359,6 +393,44 @@ def committed_project(engine: Engine) -> Iterator[tuple[UUID, UUID, UUID, UUID]]
             for account_id in [mira_id, jonas_id]:
                 cleanup.execute(delete(Account).where(Account.id == account_id))
             cleanup.commit()
+
+
+def test_two_leads_leaving_at_once_cannot_both_leave(engine: Engine) -> None:
+    with committed_project(engine) as (_, project_id, mira_id, jonas_id):
+        with Session(engine) as setup:
+            project = setup.get_one(Project, project_id)
+            projects.set_member(setup, project, jonas_id, ProjectRole.LEAD)
+            setup.commit()
+        outcome: list[str] = []
+
+        def jonas_leaves() -> None:
+            with Session(engine) as second:
+                try:
+                    projects.leave(
+                        second,
+                        second.get_one(Project, project_id),
+                        second.get_one(Account, jonas_id),
+                    )
+                    second.commit()
+                    outcome.append("left")
+                except projects.LastLead:
+                    outcome.append("last lead")
+
+        with Session(engine) as first:
+            projects.leave(
+                first,
+                first.get_one(Project, project_id),
+                first.get_one(Account, mira_id),
+            )
+            jonas = threading.Thread(target=jonas_leaves)
+            jonas.start()
+            jonas.join(timeout=0.5)
+            # Waits for Mira's transaction, which has the leads locked
+            assert jonas.is_alive()
+            first.commit()
+        jonas.join(timeout=5)
+
+        assert outcome == ["last lead"]
 
 
 def test_adding_someone_who_is_leaving_the_team_at_once_does_not_add_them(
