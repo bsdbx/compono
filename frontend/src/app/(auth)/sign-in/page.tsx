@@ -19,7 +19,9 @@ export default function SignInPage() {
         <SignedOutNotice />
       </Suspense>
       <div className="mt-8">
-        <SignInForm />
+        <Suspense>
+          <SignInForm />
+        </Suspense>
       </div>
       <p className="mt-6 text-center text-base text-muted-foreground">
         New here?{" "}

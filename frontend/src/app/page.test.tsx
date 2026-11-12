@@ -1,18 +1,47 @@
-import { render, screen } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { expect, test, vi } from "vitest";
+import { waitFor } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import { navigation } from "@/test-navigation";
+import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import Home from "./page";
 
-// Signing in, the account menu and the API's status have their own tests
-vi.mock("@/components/account", () => ({
-  SignedIn: ({ children }: { children: ReactNode }) => children,
-}));
-vi.mock("@/components/account-menu", () => ({ AccountMenu: () => null }));
-vi.mock("@/components/api-status", () => ({ ApiStatus: () => null }));
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
-test("the home page shows the app's name", () => {
-  render(<Home />);
-  expect(
-    screen.getByRole("heading", { level: 1, name: "Compono" }),
-  ).toBeInTheDocument();
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function answer(teams: object[]) {
+  stubApi((request) => {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/api/account") {
+      return Response.json(MIRA);
+    }
+    if (pathname === "/api/teams") {
+      return Response.json(teams);
+    }
+    return undefined;
+  });
+}
+
+test("the start page opens the account's first team", async () => {
+  answer([
+    { id: "1", name: "Acme", url: "acme", role: "OWNER" },
+    { id: "2", name: "Northwind", url: "northwind", role: "MEMBER" },
+  ]);
+  renderWithClient(<Home />);
+
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/acme"),
+  );
+});
+
+test("an account without a team sets one up", async () => {
+  answer([]);
+  renderWithClient(<Home />);
+
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/teams/new"),
+  );
 });

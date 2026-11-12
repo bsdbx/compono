@@ -1,12 +1,14 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
+import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignedIn } from "./account";
 import { AccountMenu } from "./account-menu";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -36,7 +38,9 @@ test("the account menu shows who is signed in, and signs them out", async () => 
   fireEvent.keyDown(trigger, { key: "Enter" });
   fireEvent.click(await screen.findByRole("menuitem", { name: "Sign out" }));
 
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/sign-in"));
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/sign-in"),
+  );
   // Otherwise sign in would still see the account, and send it back
   expect(queryClient.getQueryData(currentAccountQueryKey())).toBeUndefined();
   const signOut = fetch.mock.calls

@@ -1,15 +1,13 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
+import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignInForm } from "./sign-in-form";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-beforeEach(() => {
-  router.replace.mockClear();
-});
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -31,7 +29,9 @@ test("signing in goes to the projects, with the account known", async () => {
 
   fill("mira@acme.dev", "correct horse battery staple");
 
-  await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/"),
+  );
   expect(queryClient.getQueryData(currentAccountQueryKey())).toEqual(MIRA);
   const request = fetch.mock.calls[0]?.[0];
   expect(request?.url).toBe("http://localhost/api/sessions");
@@ -60,7 +60,7 @@ test("a wrong email or password marks both fields, with one message", async () =
     "aria-invalid",
     "true",
   );
-  expect(router.replace).not.toHaveBeenCalled();
+  expect(navigation.router.replace).not.toHaveBeenCalled();
 });
 
 test("empty fields are refused before any request", async () => {
@@ -97,4 +97,19 @@ test("the password can be shown", () => {
   expect(
     screen.getByRole("button", { name: "Hide password" }),
   ).toBeInTheDocument();
+});
+
+test.each([
+  ["/join/abc123", "/join/abc123"],
+  ["https://evil.example", "/"],
+])("after signing in with next=%s, it opens %s", async (next, opened) => {
+  stubApi(() => Response.json(MIRA, { status: 201 }));
+  navigation.search = new URLSearchParams({ next });
+  renderWithClient(<SignInForm />);
+
+  fill("mira@acme.dev", "correct horse battery staple");
+
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith(opened),
+  );
 });

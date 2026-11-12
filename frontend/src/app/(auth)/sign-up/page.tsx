@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { SignUpForm } from "./sign-up-form";
 
 export const metadata: Metadata = { title: "Create an account · Compono" };
@@ -14,7 +15,9 @@ export default function SignUpPage() {
         Start building components in minutes.
       </p>
       <div className="mt-8">
-        <SignUpForm />
+        <Suspense>
+          <SignUpForm />
+        </Suspense>
       </div>
       <p className="mt-6 text-center text-base text-muted-foreground">
         Already have an account?{" "}

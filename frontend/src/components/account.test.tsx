@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
-import { Component, type ReactNode } from "react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { MIRA, renderWithClient, stubApi } from "@/test-utils";
+import { afterEach, expect, test, vi } from "vitest";
+import { navigation } from "@/test-navigation";
+import { Boundary, MIRA, renderWithClient, stubApi } from "@/test-utils";
 import {
   notSignedIn,
   SignedIn,
@@ -9,12 +9,9 @@ import {
   useSignedInAccount,
 } from "./account";
 
-const router = vi.hoisted(() => ({ replace: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
-
-beforeEach(() => {
-  router.replace.mockClear();
-});
+vi.mock("next/navigation", () =>
+  import("@/test-navigation").then((m) => m.navigationMock),
+);
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -22,16 +19,6 @@ afterEach(() => {
 
 function Name() {
   return <p>{useSignedInAccount().name}</p>;
-}
-
-class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? <p>The error page</p> : this.props.children;
-  }
 }
 
 test("the API's reasons for signing nobody in are told apart from other errors", () => {
@@ -56,7 +43,7 @@ test("a signed-in account sees the page", async () => {
   );
 
   expect(await screen.findByText("Mira Kovalenko")).toBeInTheDocument();
-  expect(router.replace).not.toHaveBeenCalled();
+  expect(navigation.router.replace).not.toHaveBeenCalled();
 });
 
 test("a browser signed out from another device goes to sign in, saying so", async () => {
@@ -68,7 +55,9 @@ test("a browser signed out from another device goes to sign in, saying so", asyn
   );
 
   await waitFor(() =>
-    expect(router.replace).toHaveBeenCalledWith("/sign-in?reason=signed_out"),
+    expect(navigation.router.replace).toHaveBeenCalledWith(
+      "/sign-in?reason=signed_out",
+    ),
   );
   expect(screen.queryByText("Mira Kovalenko")).toBeNull();
 });
@@ -85,6 +74,6 @@ test("any other error goes to the error page", async () => {
   );
 
   expect(await screen.findByText("The error page")).toBeInTheDocument();
-  expect(router.replace).not.toHaveBeenCalled();
+  expect(navigation.router.replace).not.toHaveBeenCalled();
   vi.mocked(console.error).mockRestore();
 });

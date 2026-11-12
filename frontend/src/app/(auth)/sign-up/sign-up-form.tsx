@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
@@ -12,6 +12,7 @@ import { Field } from "@/components/field";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { safeNext } from "@/lib/team-url";
 
 // The same limits as the API's
 const schema = z.object({
@@ -31,6 +32,7 @@ type Values = z.infer<typeof schema>;
 
 export function SignUpForm() {
   const router = useRouter();
+  const next = useSearchParams().get("next");
   const queryClient = useQueryClient();
   const {
     register,
@@ -47,7 +49,7 @@ export function SignUpForm() {
       const { data, error } = await signUp({ body: values });
       if (data !== undefined) {
         queryClient.setQueryData(currentAccountQueryKey(), data);
-        router.replace("/");
+        router.replace(safeNext(next));
         return;
       }
       if (error?.detail === "email_taken") {

@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 import { vi } from "vitest";
 import { client } from "@/api/client.gen";
 
@@ -30,3 +30,17 @@ export const MIRA = {
   name: "Mira Kovalenko",
   email: "mira@acme.dev",
 };
+
+/** Catches what its children throw, as the error and not-found pages do. */
+export class Boundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? <p>The error page</p> : this.props.children;
+  }
+}
