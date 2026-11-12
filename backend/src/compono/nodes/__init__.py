@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from typing import Final
 
 from compono.graph.node_types import NodeType
+from compono.nodes import component, elements, values
 
 
 def by_type(*node_types: NodeType) -> Mapping[str, NodeType]:
@@ -11,5 +12,10 @@ def by_type(*node_types: NodeType) -> Mapping[str, NodeType]:
     return {node_type.type: node_type for node_type in node_types}
 
 
-# Every node type. A test fails when a module's node type isn't here
-NODE_TYPES: Final[Mapping[str, NodeType]] = by_type()
+# Every module of node types. A test fails when one isn't here
+MODULES: Final = (component, elements, values)
+
+# Every node type, in the order the Add node menu lists them
+NODE_TYPES: Final[Mapping[str, NodeType]] = by_type(
+    *component.NODE_TYPES, *elements.NODE_TYPES, *values.NODE_TYPES
+)

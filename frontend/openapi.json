@@ -2751,12 +2751,16 @@
             },
             "type": "object",
             "title": "Wires"
+          },
+          "rendered": {
+            "$ref": "#/components/schemas/JsonValue"
           }
         },
         "type": "object",
         "required": [
           "nodes",
-          "wires"
+          "wires",
+          "rendered"
         ],
         "title": "Evaluated",
         "description": "Every node of the graph, by node, and why each refused wire is refused, by wire."
@@ -2807,6 +2811,14 @@
             "title": "Format",
             "default": 1
           },
+          "props": {
+            "items": {
+              "$ref": "#/components/schemas/Prop"
+            },
+            "type": "array",
+            "title": "Props",
+            "default": []
+          },
           "nodes": {
             "items": {
               "$ref": "#/components/schemas/Node"
@@ -2839,14 +2851,26 @@
             "title": "Label"
           },
           "type": {
-            "$ref": "#/components/schemas/SocketType"
+            "$ref": "#/components/schemas/SocketType-Output"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
           }
         },
         "type": "object",
         "required": [
           "id",
           "label",
-          "type"
+          "type",
+          "before"
         ],
         "title": "GroupSocket",
         "description": "A socket group. Its rows are named like `children/<row id>`."
@@ -2888,7 +2912,7 @@
             "title": "Label"
           },
           "type": {
-            "$ref": "#/components/schemas/SocketType"
+            "$ref": "#/components/schemas/SocketType-Output"
           },
           "default": {
             "$ref": "#/components/schemas/JsonValue"
@@ -3321,10 +3345,14 @@
             "title": "Label"
           },
           "type": {
-            "$ref": "#/components/schemas/SocketType"
+            "$ref": "#/components/schemas/SocketType-Output"
           },
           "default": {
             "$ref": "#/components/schemas/JsonValue"
+          },
+          "on_node": {
+            "type": "boolean",
+            "title": "On Node"
           }
         },
         "type": "object",
@@ -3332,7 +3360,8 @@
           "id",
           "label",
           "type",
-          "default"
+          "default",
+          "on_node"
         ],
         "title": "NodeProperty"
       },
@@ -3382,6 +3411,10 @@
             "type": "string",
             "title": "Category"
           },
+          "single": {
+            "type": "boolean",
+            "title": "Single"
+          },
           "properties": {
             "items": {
               "$ref": "#/components/schemas/NodeProperty"
@@ -3398,6 +3431,7 @@
           "type",
           "name",
           "category",
+          "single",
           "properties",
           "sockets"
         ],
@@ -3464,13 +3498,24 @@
               }
             ],
             "title": "Maximum"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
           }
         },
         "type": "object",
         "title": "NumberType",
         "description": "A number. Its subtype Integer is a whole number."
       },
-      "ObjectType": {
+      "ObjectType-Input": {
         "properties": {
           "kind": {
             "type": "string",
@@ -3480,7 +3525,30 @@
           },
           "fields": {
             "additionalProperties": {
-              "$ref": "#/components/schemas/SocketType"
+              "$ref": "#/components/schemas/SocketType-Input"
+            },
+            "type": "object",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "title": "ObjectType",
+        "description": "Named fields, each with a socket type of its own."
+      },
+      "ObjectType-Output": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "object",
+            "title": "Kind",
+            "default": "object"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SocketType-Output"
             },
             "type": "object",
             "title": "Fields"
@@ -3504,7 +3572,7 @@
             "title": "Label"
           },
           "type": {
-            "$ref": "#/components/schemas/SocketType"
+            "$ref": "#/components/schemas/SocketType-Output"
           }
         },
         "type": "object",
@@ -3712,6 +3780,42 @@
         "title": "ProjectRole",
         "description": "What an account can do in a project."
       },
+      "Prop": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SocketType-Input"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "default": {
+            "$ref": "#/components/schemas/JsonValue"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "type"
+        ],
+        "title": "Prop",
+        "description": "A value the component takes from whoever uses it. Component Input gives each prop as an output."
+      },
       "Reason": {
         "type": "string",
         "enum": [
@@ -3828,7 +3932,7 @@
         "title": "SlotType",
         "description": "Where a component renders. It takes an Element."
       },
-      "SocketType": {
+      "SocketType-Input": {
         "anyOf": [
           {
             "$ref": "#/components/schemas/BooleanType"
@@ -3843,7 +3947,41 @@
             "$ref": "#/components/schemas/ChoiceType"
           },
           {
-            "$ref": "#/components/schemas/ObjectType"
+            "$ref": "#/components/schemas/ObjectType-Input"
+          },
+          {
+            "$ref": "#/components/schemas/DateType"
+          },
+          {
+            "$ref": "#/components/schemas/ElementType"
+          },
+          {
+            "$ref": "#/components/schemas/SlotType"
+          },
+          {
+            "$ref": "#/components/schemas/NothingType"
+          },
+          {
+            "$ref": "#/components/schemas/AnyType"
+          }
+        ]
+      },
+      "SocketType-Output": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/BooleanType"
+          },
+          {
+            "$ref": "#/components/schemas/NumberType"
+          },
+          {
+            "$ref": "#/components/schemas/TextType"
+          },
+          {
+            "$ref": "#/components/schemas/ChoiceType"
+          },
+          {
+            "$ref": "#/components/schemas/ObjectType-Output"
           },
           {
             "$ref": "#/components/schemas/DateType"

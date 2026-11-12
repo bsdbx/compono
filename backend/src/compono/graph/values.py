@@ -26,10 +26,14 @@ from compono.graph.sockets import (
 class Element:
     """Rendered markup: a tag, its class name, attributes and children."""
 
+    # Empty for a fragment: the children without an element around them
     tag: str
     class_name: str = ""
-    attributes: tuple[tuple[str, str], ...] = ()
+    # By HTML attribute name. True is an attribute that's just there, like hidden
+    attributes: tuple[tuple[str, str | int | bool], ...] = ()
     children: tuple[Element | str, ...] = ()
+    # React's key, which tells siblings apart
+    key: str = ""
 
 
 # None is Nothing. A Choice is its option, a Date is a datetime in UTC, an Object is a dict of its fields
@@ -117,6 +121,7 @@ def to_json(value: Value) -> JsonValue:
         case Element():
             return {
                 "tag": value.tag,
+                "key": value.key,
                 "className": value.class_name,
                 "attributes": dict(value.attributes),
                 "children": [

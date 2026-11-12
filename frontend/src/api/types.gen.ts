@@ -195,6 +195,7 @@ export type Evaluated = {
     wires: {
         [key: string]: string;
     };
+    rendered: JsonValue;
 };
 
 /**
@@ -231,6 +232,10 @@ export type Graph = {
      */
     format?: 1;
     /**
+     * Props
+     */
+    props?: Array<Prop>;
+    /**
      * Nodes
      */
     nodes?: Array<Node>;
@@ -254,7 +259,11 @@ export type GroupSocket = {
      * Label
      */
     label: string;
-    type: SocketType;
+    type: SocketTypeOutput;
+    /**
+     * Before
+     */
+    before: string | null;
 };
 
 /**
@@ -289,7 +298,7 @@ export type InputSocket = {
      * Label
      */
     label: string;
-    type: SocketType;
+    type: SocketTypeOutput;
     default: JsonValue;
 };
 
@@ -583,8 +592,12 @@ export type NodeProperty = {
      * Label
      */
     label: string;
-    type: SocketType;
+    type: SocketTypeOutput;
     default: JsonValue;
+    /**
+     * On Node
+     */
+    on_node: boolean;
 };
 
 /**
@@ -623,6 +636,10 @@ export type NodeTypeInfo = {
      * Category
      */
     category: string;
+    /**
+     * Single
+     */
+    single: boolean;
     /**
      * Properties
      */
@@ -673,6 +690,10 @@ export type NumberType = {
      * Maximum
      */
     maximum?: number | null;
+    /**
+     * Step
+     */
+    step?: number | null;
 };
 
 /**
@@ -680,7 +701,7 @@ export type NumberType = {
  *
  * Named fields, each with a socket type of its own.
  */
-export type ObjectType = {
+export type ObjectTypeInput = {
     /**
      * Kind
      */
@@ -689,7 +710,25 @@ export type ObjectType = {
      * Fields
      */
     fields: {
-        [key: string]: SocketType;
+        [key: string]: SocketTypeInput;
+    };
+};
+
+/**
+ * ObjectType
+ *
+ * Named fields, each with a socket type of its own.
+ */
+export type ObjectTypeOutput = {
+    /**
+     * Kind
+     */
+    kind?: 'object';
+    /**
+     * Fields
+     */
+    fields: {
+        [key: string]: SocketTypeOutput;
     };
 };
 
@@ -705,7 +744,7 @@ export type OutputSocket = {
      * Label
      */
     label: string;
-    type: SocketType;
+    type: SocketTypeOutput;
 };
 
 /**
@@ -838,6 +877,32 @@ export type ProjectNotFoundError = {
 export type ProjectRole = 'LEAD' | 'DEVELOPER';
 
 /**
+ * Prop
+ *
+ * A value the component takes from whoever uses it. Component Input gives each prop as an output.
+ */
+export type Prop = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    type: SocketTypeInput;
+    /**
+     * Required
+     */
+    required?: boolean;
+    default?: JsonValue;
+    /**
+     * Description
+     */
+    description?: string;
+};
+
+/**
  * Reason
  *
  * Why a token signs nobody in.
@@ -924,7 +989,9 @@ export type SlotType = {
     kind?: 'slot';
 };
 
-export type SocketType = BooleanType | NumberType | TextType | ChoiceType | ObjectType | DateType | ElementType | SlotType | NothingType | AnyType;
+export type SocketTypeInput = BooleanType | NumberType | TextType | ChoiceType | ObjectTypeInput | DateType | ElementType | SlotType | NothingType | AnyType;
+
+export type SocketTypeOutput = BooleanType | NumberType | TextType | ChoiceType | ObjectTypeOutput | DateType | ElementType | SlotType | NothingType | AnyType;
 
 /**
  * Team

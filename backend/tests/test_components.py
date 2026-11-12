@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from compono import auth, components, projects, teams
 from compono.models import Account, Component, Project, Team, default_screen_sizes
+from compono.nodes.component import new_graph
 
 PASSWORD = "correct horse battery staple"
 GRAPH: dict[str, object] = {"nodes": [{"id": "output", "type": "component-output"}]}
@@ -35,7 +36,7 @@ def names(session: Session, project: Project) -> list[str]:
     return [listed.name for listed in components.components_of(session, project)]
 
 
-def test_a_new_component_is_untitled_with_an_empty_graph_and_the_default_sizes(
+def test_a_new_component_is_untitled_with_its_input_and_output_and_the_default_sizes(
     session: Session,
 ) -> None:
     project = marketing_site(session)
@@ -44,7 +45,7 @@ def test_a_new_component_is_untitled_with_an_empty_graph_and_the_default_sizes(
 
     assert (new.name, new.graph, new.screen_sizes, new.version) == (
         "Untitled",
-        {},
+        new_graph(),
         default_screen_sizes(),
         1,
     )

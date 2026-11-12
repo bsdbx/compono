@@ -20,6 +20,8 @@ class NumberType(_Type):
     integer: bool = False
     minimum: float | None = None
     maximum: float | None = None
+    # How much a number field steps by. Only the field uses it
+    step: float | None = None
 
 
 class TextType(_Type):
