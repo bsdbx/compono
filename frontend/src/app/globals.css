@@ -26,6 +26,21 @@
   --color-error: var(--error);
   --color-error-border: var(--error-border);
   --color-success: var(--success);
+  --color-socket-boolean: var(--socket-boolean);
+  --color-socket-number: var(--socket-number);
+  --color-socket-text: var(--socket-text);
+  --color-socket-choice: var(--socket-choice);
+  --color-socket-object: var(--socket-object);
+  --color-socket-date: var(--socket-date);
+  --color-socket-element: var(--socket-element);
+  --color-socket-nothing: var(--socket-nothing);
+  --color-socket-any: var(--socket-any);
+  --color-node-field: var(--node-field);
+  --color-node-group: var(--node-group);
+  --color-node-group-border: var(--node-group-border);
+  --color-node-group-line: var(--node-group-line);
+  --color-selection: var(--selection);
+  --color-highlight: var(--highlight);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-subtle-foreground: var(--subtle-foreground);
@@ -96,6 +111,25 @@
   --error-border: #fca5a5;
   /* A toast that says something worked */
   --success: #4ade80;
+  /* Sockets and their wires, by socket type */
+  --socket-boolean: #f2a5c8;
+  --socket-number: #a1a1aa;
+  --socket-text: #7cb7f7;
+  --socket-choice: #b4a7f5;
+  --socket-object: #f6ad74;
+  --socket-date: #7dd3a8;
+  --socket-element: #8b8ef4;
+  --socket-nothing: #52525b;
+  --socket-any: #d4d4d8;
+  /* On a node: a field, and a group of rows with lines between them */
+  --node-field: #18181b;
+  --node-group: #0d0d10;
+  --node-group-border: #222227;
+  --node-group-line: #1a1a1e;
+  /* What's selected on the canvas */
+  --selection: #8b8ef4;
+  /* The row under the pointer in a canvas menu */
+  --highlight: #26262c;
   --border: #1f1f23;
   --input: #27272a;
   /* The inside of a text field */
@@ -137,4 +171,37 @@
   html {
     @apply font-sans;
   }
+}
+
+/* The canvas: React Flow in the design's colors */
+.react-flow {
+  --xy-background-color: transparent;
+  --xy-node-boxshadow-selected: none;
+}
+.react-flow__node-graph {
+  cursor: default;
+}
+/* Box selection, and the box around what it selected, which stands off the nodes */
+.react-flow__selection,
+.react-flow__nodesselection-rect::before {
+  background: color-mix(in srgb, var(--selection) 5%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--selection) 70%, transparent);
+  border-radius: 6px;
+}
+.react-flow__nodesselection-rect {
+  background: transparent;
+  border: 0;
+}
+.react-flow__nodesselection-rect::before {
+  content: "";
+  position: absolute;
+  inset: -18px;
+}
+/* React Flow's credit, quiet in a corner */
+.react-flow__attribution {
+  background: transparent;
+  color: var(--subtle-foreground);
+}
+.react-flow__attribution a {
+  color: inherit;
 }

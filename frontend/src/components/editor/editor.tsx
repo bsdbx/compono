@@ -14,12 +14,14 @@ import {
   teamOptions,
 } from "@/api/@tanstack/react-query.gen";
 import { SignedIn } from "@/components/account";
+import { Canvas } from "@/components/editor/canvas/canvas";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
 import { StatusBar } from "@/components/editor/status-bar";
 import { TopBar } from "@/components/editor/top-bar";
 import { Button } from "@/components/ui/button";
 import { Toasts, useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
 type Params = { team: string; project: string; component?: string };
 
@@ -160,7 +162,15 @@ function EditorContent() {
           onCreate={() => create.mutate({ path, body: {} })}
           creating={create.isPending}
         />
-        <main className="relative min-w-0 flex-1 bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] bg-size-[18px_18px]">
+        <main
+          className={cn(
+            "relative min-w-0 flex-1",
+            // The canvas draws its own dots, which move with it
+            openId === undefined
+              ? "bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] bg-size-[18px_18px]"
+              : "",
+          )}
+        >
           {empty ? (
             <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
               <p className="font-medium text-lg">No component open</p>
@@ -177,6 +187,8 @@ function EditorContent() {
                 New component
               </Button>
             </div>
+          ) : openId !== undefined ? (
+            <Canvas key={openId} draft={draft} />
           ) : null}
         </main>
         <Inspector />
