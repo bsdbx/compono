@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useId } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
@@ -21,6 +22,8 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 export function SignInForm() {
+  // Ids of this form's own, as a page can keep another form with the same fields
+  const id = useId();
   const router = useRouter();
   const next = useSearchParams().get("next");
   const queryClient = useQueryClient();
@@ -65,9 +68,13 @@ export function SignInForm() {
       onSubmit={handleSubmit(submit)}
       className="flex flex-col gap-4"
     >
-      <Field label="Email" htmlFor="email" error={errors.email?.message}>
+      <Field
+        label="Email"
+        htmlFor={`${id}-email`}
+        error={errors.email?.message}
+      >
         <Input
-          id="email"
+          id={`${id}-email`}
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
@@ -77,11 +84,11 @@ export function SignInForm() {
       </Field>
       <Field
         label="Password"
-        htmlFor="password"
+        htmlFor={`${id}-password`}
         error={errors.password?.message}
       >
         <PasswordInput
-          id="password"
+          id={`${id}-password`}
           autoComplete="current-password"
           placeholder="Your password"
           aria-invalid={errors.password !== undefined}
