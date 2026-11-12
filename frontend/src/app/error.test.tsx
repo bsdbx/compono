@@ -1,10 +1,19 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { expect, test, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { afterEach, expect, test, vi } from "vitest";
+import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import ErrorPage from "./error";
 
+const router = vi.hoisted(() => ({ replace: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => router }));
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 test("the error page tries again, or goes back to the projects", () => {
+  stubApi(() => Response.json({ detail: "no_session" }, { status: 401 }));
   const retry = vi.fn();
-  render(<ErrorPage retry={retry} />);
+  renderWithClient(<ErrorPage retry={retry} />);
 
   expect(
     screen.getByRole("heading", { name: "Something went wrong" }),
@@ -18,4 +27,14 @@ test("the error page tries again, or goes back to the projects", () => {
     "href",
     "/",
   );
+});
+
+test("the error page says who is signed in", async () => {
+  stubApi(() => Response.json(MIRA));
+  renderWithClient(<ErrorPage retry={vi.fn()} />);
+
+  expect(
+    await screen.findByText(/Signed in as mira@acme.dev/),
+  ).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
 });
