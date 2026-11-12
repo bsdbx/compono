@@ -8,6 +8,9 @@ vi.mock("next/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 vi.mock("@/components/team-sidebar", () => ({ TeamSidebar: () => null }));
+vi.mock("@/components/projects/all-projects", () => ({
+  AllProjects: ({ team }: { team: { name: string } }) => <h1>{team.name}</h1>,
+}));
 
 beforeEach(() => {
   navigation.params = { team: "acme" };
