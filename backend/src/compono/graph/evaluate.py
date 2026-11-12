@@ -13,7 +13,7 @@ from compono.graph.node_types import (
     Sockets,
     SocketsContext,
 )
-from compono.graph.sockets import SocketType, accepts, name_of
+from compono.graph.sockets import ChoiceType, SocketType, accepts, name_of
 from compono.graph.values import Value, from_json
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,8 @@ class NodeResult:
     sockets: Sockets
     # Its outputs' values, by output. Empty if it didn't evaluate
     outputs: Mapping[str, Value]
+    # The values it evaluated with, by input. Empty if it didn't evaluate
+    inputs: Mapping[str, Value] = field(default_factory=dict)
     # Why it can't evaluate
     error: str | None = None
     # Not evaluated, because a node it takes values from has an error
@@ -64,18 +66,22 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
 
     # 1. Every node's sockets, and whether its wires fit them
     for node_id in order:
-        _sockets(nodes[node_id], nodes, wires.get(node_id, []), refused)
+        _sockets(nodes[node_id], nodes, wires.get(node_id, []), refused, graph)
 
     # 2. Every node's values, after the nodes it takes them from
     outputs: dict[str, Mapping[str, Value]] = {}
+    inputs: dict[str, Mapping[str, Value]] = {}
     for node_id in order:
-        outputs[node_id] = _values(nodes[node_id], nodes, outputs)
+        outputs[node_id], inputs[node_id] = _values(
+            nodes[node_id], nodes, outputs, graph
+        )
 
     return Evaluation(
         nodes={
             node_id: NodeResult(
                 sockets=nodes[node_id].sockets,
                 outputs=outputs[node_id],
+                inputs=inputs[node_id],
                 error=nodes[node_id].error,
                 skipped=nodes[node_id].skipped,
             )
@@ -87,6 +93,7 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
 
 def _nodes(graph: Graph, node_types: Mapping[str, NodeType]) -> dict[str, _Node]:
     nodes: dict[str, _Node] = {}
+    singles: set[str] = set()
     for node in graph.nodes:
         # The first of two nodes with one id wins
         if node.id in nodes:
@@ -95,7 +102,10 @@ def _nodes(graph: Graph, node_types: Mapping[str, NodeType]) -> dict[str, _Node]
         evaluated = _Node(node=node, node_type=node_type, properties={})
         if node_type is None:
             evaluated.error = f"There's no {node.type} node"
+        elif node_type.single and node_type.type in singles:
+            evaluated.error = f"A component has one {node_type.name}"
         else:
+            singles.add(node_type.type)
             try:
                 evaluated.properties = _properties(node, node_type)
             except NodeError as error:
@@ -177,6 +187,7 @@ def _sockets(
     nodes: Mapping[str, _Node],
     wires: list[Wire],
     refused: dict[str, str],
+    graph: Graph,
 ) -> None:
     """Works out the node's sockets from its properties and the types wired into it, then refuses the wires that don't fit."""
     # What each wire brings, from the sockets of the nodes before
@@ -189,7 +200,12 @@ def _sockets(
     if node.node_type is not None and node.error is None:
         try:
             sockets = node.node_type.sockets(
-                SocketsContext(properties=node.properties, wired=wired)
+                SocketsContext(
+                    properties=node.properties,
+                    wired=wired,
+                    typed=node.node.values,
+                    props=graph.props,
+                )
             )
             node.sockets = _with_exposed(node, sockets)
         except NodeError as error:
@@ -255,8 +271,19 @@ def _refusal(wire: Wire, nodes: Mapping[str, _Node], node: _Node) -> str | None:
     if into is None:
         return f"{_name(node)} has no input {wire.to.socket}"
     if not accepts(into, output):
-        return f"{name_of(output)} can't go into {name_of(into)}"
+        return _mismatch(node, wire.to.socket, into, output)
     return None
+
+
+def _mismatch(node: _Node, socket: str, into: SocketType, output: SocketType) -> str:
+    """Why an output's type doesn't fit an input's."""
+    # Both Choices: an option the input doesn't have
+    if isinstance(into, ChoiceType) and isinstance(output, ChoiceType):
+        option = next(each for each in output.options if each not in into.options)
+        label = next(each.label for each in node.sockets.inputs if each.id == socket)
+        return f"{label} can't be {option}"
+
+    return f"{name_of(output)} can't go into {name_of(into)}"
 
 
 def _name(node: _Node) -> str:
@@ -267,17 +294,18 @@ def _values(
     node: _Node,
     nodes: Mapping[str, _Node],
     outputs: Mapping[str, Mapping[str, Value]],
-) -> Mapping[str, Value]:
-    """The node's outputs, or nothing if it, or a node before it, has an error."""
+    graph: Graph,
+) -> tuple[Mapping[str, Value], Mapping[str, Value]]:
+    """The node's outputs and the inputs they came from, or neither if it, or a node before it, has an error."""
     wires = node.wires or {}
     if node.error is not None or node.node_type is None:
-        return {}
+        return {}, {}
     if any(
         nodes[wire.from_.node].error is not None or nodes[wire.from_.node].skipped
         for wire in wires.values()
     ):
         node.skipped = True
-        return {}
+        return {}, {}
 
     def value(socket: str, typed_type: SocketType, default: Value) -> Value:
         wire = wires.get(socket)
@@ -304,7 +332,7 @@ def _values(
         }
     except ValueError as error:
         node.error = f"A value typed in {error}"
-        return {}
+        return {}, {}
 
     properties = {
         name: inputs[name] if name in node.node.exposed else prop
@@ -312,13 +340,16 @@ def _values(
     }
     try:
         computed = node.node_type.evaluate(
-            EvaluateContext(inputs=inputs, groups=groups, properties=properties)
+            EvaluateContext(
+                inputs=inputs, groups=groups, properties=properties, props=graph.props
+            )
         )
     except NodeError as error:
         node.error = str(error)
-        return {}
+        return {}, {}
     except Exception:
         logger.exception("The %s node %s failed", node.node.type, node.node.id)
         node.error = "Something went wrong in this node"
-        return {}
-    return {output.id: computed.get(output.id) for output in node.sockets.outputs}
+        return {}, {}
+    given = {output.id: computed.get(output.id) for output in node.sockets.outputs}
+    return given, inputs

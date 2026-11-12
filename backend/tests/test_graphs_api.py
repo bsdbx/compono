@@ -21,6 +21,7 @@ from compono.graph.node_types import (
 )
 from compono.graph.sockets import ChoiceType, ElementType, NumberType, TextType
 from compono.graph.values import Element, Value
+from compono.nodes.component import new_graph
 
 NUMBER = NumberType()
 TEXT = TextType()
@@ -162,7 +163,9 @@ def test_a_new_components_graph_evaluates_to_nothing(signed_in: TestClient) -> N
     response = signed_in.post("/api/evaluate", json=empty)
 
     assert response.status_code == 200
-    assert Evaluated.model_validate_json(response.text) == Evaluated(nodes={}, wires={})
+    assert Evaluated.model_validate_json(response.text) == Evaluated(
+        nodes={}, wires={}, rendered=None
+    )
 
 
 def test_evaluating_a_graph(signed_in: TestClient) -> None:
@@ -193,10 +196,17 @@ def test_evaluating_a_graph(signed_in: TestClient) -> None:
     assert evaluated.nodes["card"].outputs == {
         "element": {
             "tag": "div",
+            "key": "",
             "className": "",
             "attributes": {},
             "children": [
-                {"tag": "span", "className": "", "attributes": {}, "children": ["New"]}
+                {
+                    "tag": "span",
+                    "key": "",
+                    "className": "",
+                    "attributes": {},
+                    "children": ["New"],
+                }
             ],
         }
     }
@@ -218,3 +228,65 @@ def test_a_graph_in_another_format_is_refused(signed_in: TestClient) -> None:
     ]
     for graph in refused:
         assert signed_in.post("/api/evaluate", json=graph).status_code == 422
+
+
+@pytest.fixture()
+def signed_in_with_compono_nodes(client: TestClient, session: Session) -> TestClient:
+    """The client, signed in, with Compono's own node types."""
+    account = auth.create_account(
+        session, "Mira Kovalenko", "mira@acme.dev", "correct horse battery staple"
+    )
+    client.cookies["session"] = auth.sign_in(session, account)
+    return client
+
+
+def test_compono_node_types_say_where_they_belong(
+    signed_in_with_compono_nodes: TestClient,
+) -> None:
+    response = signed_in_with_compono_nodes.get("/api/node-types")
+
+    listed = {info.type: info for info in nodes_listed.validate_json(response.text)}
+    assert [(info.type, info.category, info.single) for info in listed.values()] == [
+        ("component-input", "Component", True),
+        ("component-output", "Component", True),
+        ("element", "Elements", False),
+        ("fragment", "Component", False),
+        ("boolean", "Values", False),
+        ("number", "Values", False),
+        ("text", "Values", False),
+        ("choice", "Values", False),
+        ("nothing", "Values", False),
+    ]
+    assert [(each.id, each.on_node) for each in listed["number"].properties] == [
+        ("subtype", False),
+        ("constant", False),
+        ("value", True),
+    ]
+    assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
+        ("children", "class")
+    ]
+
+
+def test_evaluating_says_what_the_component_renders(
+    signed_in_with_compono_nodes: TestClient,
+) -> None:
+    empty = signed_in_with_compono_nodes.post("/api/evaluate", json=new_graph())
+    rendering: JsonValue = {
+        "format": 1,
+        "nodes": [
+            node("output", "component-output"),
+            node("title", "element", values={"tag": "h3", "text": "Pro"}),
+        ],
+        "wires": [wire("w1", "title.element", "output.render")],
+    }
+
+    response = signed_in_with_compono_nodes.post("/api/evaluate", json=rendering)
+
+    assert Evaluated.model_validate_json(empty.text).rendered is None
+    assert Evaluated.model_validate_json(response.text).rendered == {
+        "tag": "h3",
+        "key": "",
+        "className": "",
+        "attributes": {},
+        "children": ["Pro"],
+    }

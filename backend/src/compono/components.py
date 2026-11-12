@@ -13,6 +13,7 @@ from compono.models import (
     Project,
     default_screen_sizes,
 )
+from compono.nodes.component import new_graph
 
 # What a new component is called, then Untitled2, Untitled3...
 NEW_NAME: Final[str] = "Untitled"
@@ -156,16 +157,16 @@ def _add_with_free_name(
 def create_component(
     database: orm.Session, project: Project, name: str | None
 ) -> Component:
-    """A new component with an empty graph and the default screen sizes. Named Untitled if no name is given. Raises NameTaken."""
+    """A new component with its Component Input and Output, and the default screen sizes. Named Untitled if no name is given. Raises NameTaken."""
     # If the name is not supplied - create a component with the `NEW_NAME` as the name.
     # If that name is taken, add a number from 2: `Untitled2`, `Untitled3`, ...
     if name is None:
         return _add_with_free_name(
-            database, project, NEW_NAME, "", {}, default_screen_sizes()
+            database, project, NEW_NAME, "", new_graph(), default_screen_sizes()
         )
 
     # Otherwise, do a normal add
-    return _add(database, project, name, {}, default_screen_sizes())
+    return _add(database, project, name, new_graph(), default_screen_sizes())
 
 
 def duplicate(

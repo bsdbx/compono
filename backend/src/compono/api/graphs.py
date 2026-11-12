@@ -14,6 +14,7 @@ from compono.graph.node_types import NodeError, NodeType, Sockets, SocketsContex
 from compono.graph.sockets import SocketType
 from compono.graph.values import to_json
 from compono.nodes import NODE_TYPES
+from compono.nodes.component import COMPONENT_OUTPUT
 
 router = APIRouter()
 
@@ -40,6 +41,8 @@ class GroupSocket(BaseModel):
     id: str
     label: str
     type: SocketType
+    # The input it shows before on the node. None puts it after them all
+    before: str | None
 
 
 class OutputSocket(BaseModel):
@@ -66,7 +69,9 @@ def sockets_of(sockets: Sockets) -> NodeSockets:
             for each in sockets.inputs
         ],
         groups=[
-            GroupSocket(id=group.id, label=group.label, type=group.type)
+            GroupSocket(
+                id=group.id, label=group.label, type=group.type, before=group.before
+            )
             for group in sockets.groups
         ],
         outputs=[
@@ -81,6 +86,8 @@ class NodeProperty(BaseModel):
     label: str
     type: SocketType
     default: JsonValue
+    # Set on the node next to its output, like a Number's value, not only in the properties panel
+    on_node: bool
 
 
 class NodeTypeInfo(BaseModel):
@@ -89,6 +96,8 @@ class NodeTypeInfo(BaseModel):
     type: str
     name: str
     category: str
+    # A graph has at most one, like Component Input
+    single: bool
     properties: list[NodeProperty]
     # Its sockets as a new node has them: properties as they start, nothing wired
     sockets: NodeSockets
@@ -101,7 +110,9 @@ def list_node_types(_: SignedIn, types: NodeTypes) -> list[NodeTypeInfo]:
     for node_type in types.values():
         starting = {prop.id: prop.default for prop in node_type.properties}
         try:
-            sockets = node_type.sockets(SocketsContext(properties=starting, wired={}))
+            sockets = node_type.sockets(
+                SocketsContext(properties=starting, wired={}, typed={}, props=[])
+            )
         except NodeError:
             sockets = Sockets()
         listed.append(
@@ -109,12 +120,14 @@ def list_node_types(_: SignedIn, types: NodeTypes) -> list[NodeTypeInfo]:
                 type=node_type.type,
                 name=node_type.name,
                 category=node_type.category,
+                single=node_type.single,
                 properties=[
                     NodeProperty(
                         id=prop.id,
                         label=prop.label,
                         type=prop.type,
                         default=to_json(prop.default),
+                        on_node=prop.on_node,
                     )
                     for prop in node_type.properties
                 ],
@@ -142,12 +155,20 @@ class Evaluated(BaseModel):
 
     nodes: dict[str, EvaluatedNode]
     wires: dict[str, str]
+    # What the component renders: the value wired into Component Output's Render, if any
+    rendered: JsonValue
 
 
 @router.post("/api/evaluate", responses=answers(NOT_SIGNED_IN))
 def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
     """Evaluates a graph: every node's sockets and values, and the wires it refuses."""
     evaluation = evaluate(graph, types)
+    outputs = [node.id for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
+    rendered = (
+        evaluation.nodes[outputs[0]].inputs.get("render")
+        if outputs and outputs[0] in evaluation.nodes
+        else None
+    )
     return Evaluated(
         nodes={
             node_id: EvaluatedNode(
@@ -161,4 +182,5 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
             for node_id, result in evaluation.nodes.items()
         },
         wires=dict(evaluation.wires),
+        rendered=to_json(rendered),
     )

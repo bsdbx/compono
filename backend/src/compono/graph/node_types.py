@@ -1,8 +1,11 @@
 """What a node type is: its sockets, properties, and how it turns inputs into outputs."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
+from pydantic import JsonValue
+
+from compono.graph.model import Prop
 from compono.graph.sockets import SocketType
 from compono.graph.values import Value
 
@@ -24,6 +27,8 @@ class Group:
     id: str
     label: str
     type: SocketType
+    # The input it shows before on the node. None puts it after them all
+    before: str | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +48,8 @@ class Property:
     label: str
     type: SocketType
     default: Value = None
+    # Set on the node next to its output, like a Number's value, not only in the properties panel
+    on_node: bool = False
 
 
 @dataclass(frozen=True)
@@ -62,6 +69,10 @@ class SocketsContext:
     properties: Mapping[str, Value]
     # The socket type of each wired input's output, by input
     wired: Mapping[str, SocketType]
+    # The values typed in on the node, by input, as stored
+    typed: Mapping[str, JsonValue]
+    # The component's props
+    props: Sequence[Prop]
 
 
 @dataclass(frozen=True)
@@ -74,6 +85,8 @@ class EvaluateContext:
     groups: Mapping[str, tuple[Value, ...]]
     # By property, an exposed one with its wired value
     properties: Mapping[str, Value]
+    # The component's props
+    props: Sequence[Prop]
 
 
 class NodeError(Exception):
@@ -92,3 +105,37 @@ class NodeType:
     # The outputs' values, by output. Pure: the same inputs always give the same outputs
     evaluate: Callable[[EvaluateContext], Mapping[str, Value]]
     properties: tuple[Property, ...] = ()
+    # A graph has at most one, like Component Input
+    single: bool = False
+
+
+def text(value: Value) -> str:
+    """A Text or Choice value. Nothing is empty text."""
+    if value is None:
+        return ""
+
+    if isinstance(value, str):
+        return value
+
+    raise TypeError(f"{value!r} isn't text")
+
+
+def boolean(value: Value) -> bool:
+    """A Boolean value. Nothing is false."""
+    if value is None:
+        return False
+
+    if isinstance(value, bool):
+        return value
+
+    raise TypeError(f"{value!r} isn't a Boolean")
+
+
+def number(value: Value) -> int | float | None:
+    """A Number value, or None for Nothing."""
+    if value is None or (
+        isinstance(value, int | float) and not isinstance(value, bool)
+    ):
+        return value
+
+    raise TypeError(f"{value!r} isn't a Number")

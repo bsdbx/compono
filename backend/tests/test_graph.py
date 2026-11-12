@@ -289,7 +289,7 @@ def test_the_stored_format_keeps_from_and_its_version() -> None:
 
     assert graph.wires[0].from_.node == "a"
     assert graph.model_dump_json() == (
-        '{"format":1,"nodes":[],"wires":[{"id":"w1",'
+        '{"format":1,"props":[],"nodes":[],"wires":[{"id":"w1",'
         '"from":{"node":"a","socket":"value"},"to":{"node":"b","socket":"a"}}]}'
     )
     later: dict[str, JsonValue] = {"format": 2}
@@ -591,10 +591,17 @@ def test_elements_render_into_a_slot() -> None:
     )
     assert to_json(shown) == {
         "tag": "div",
+        "key": "",
         "className": "card",
         "attributes": {},
         "children": [
-            {"tag": "span", "className": "", "attributes": {}, "children": ["New"]}
+            {
+                "tag": "span",
+                "key": "",
+                "className": "",
+                "attributes": {},
+                "children": ["New"],
+            }
         ],
     }
     assert evaluation.wires == {"w4": "Text can't go into Slot"}

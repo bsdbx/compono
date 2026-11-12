@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
+from compono.graph.sockets import SocketType
+
 
 class Position(BaseModel):
     """Where a node sits on the canvas."""
@@ -46,9 +48,23 @@ class Wire(BaseModel):
     to: End
 
 
+class Prop(BaseModel):
+    """A value the component takes from whoever uses it. Component Input gives each prop as an output."""
+
+    # The output's id, which stays when the prop is renamed, so its wires stay too
+    id: str
+    # Its name in React, like ctaHref
+    name: str
+    type: SocketType
+    required: bool = False
+    default: JsonValue = None
+    description: str = ""
+
+
 class Graph(BaseModel):
     """Nodes and wires. A new component's graph is `{}`, which is a graph of neither."""
 
     format: Literal[1] = 1
+    props: list[Prop] = []
     nodes: list[Node] = []
     wires: list[Wire] = []

@@ -15,6 +15,7 @@ from compono import auth, components, models, projects, teams
 from compono.api.components import MAX_GRAPH_BYTES, Component, ListedComponent, Saved
 from compono.api.projects import Project
 from compono.models import ProjectRole, TeamRole
+from compono.nodes.component import new_graph
 
 PASSWORD = "correct horse battery staple"
 COMPONENTS = "/api/teams/acme/projects/marketing-site/components"
@@ -195,7 +196,11 @@ def test_a_new_component_is_untitled(client: TestClient, session: Session) -> No
 
     assert first.status_code == 201
     created = Component.model_validate_json(first.text)
-    assert (created.name, created.graph, created.version) == ("Untitled", {}, 1)
+    assert (created.name, created.graph, created.version) == (
+        "Untitled",
+        new_graph(),
+        1,
+    )
     assert [(size.name, size.width) for size in created.screen_sizes] == [
         ("Desktop", 1280),
         ("Tablet", 768),
