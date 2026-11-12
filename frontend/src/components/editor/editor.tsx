@@ -18,6 +18,7 @@ import { Canvas } from "@/components/editor/canvas/canvas";
 import { PropertiesPlaceholder } from "@/components/editor/canvas/panel";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
+import { Preview, PreviewPlaceholder } from "@/components/editor/preview";
 import { StatusBar } from "@/components/editor/status-bar";
 import { TopBar } from "@/components/editor/top-bar";
 import { Button } from "@/components/ui/button";
@@ -29,21 +30,22 @@ type Params = { team: string; project: string; component?: string };
 /** The right column: the Preview, and the properties panel, which the canvas fills in when a component is open. */
 function Inspector({
   open,
+  draft,
   panel,
+  onShowNode,
 }: {
   open: boolean;
+  draft: Draft;
   panel: (element: HTMLElement | null) => void;
+  onShowNode: (node: string) => void;
 }) {
   return (
     <aside className="flex w-78.5 shrink-0 flex-col border-border border-l bg-sidebar">
-      <section aria-label="Preview" className="px-3 pb-3">
-        <h2 className="flex h-10 items-center px-0.5 font-semibold text-sm">
-          Preview
-        </h2>
-        <div className="mt-0.5 flex h-43 items-center justify-center rounded-lg border border-border bg-card font-medium text-2xs">
-          Nothing to render yet
-        </div>
-      </section>
+      {open ? (
+        <Preview draft={draft} onShowNode={onShowNode} />
+      ) : (
+        <PreviewPlaceholder />
+      )}
       <section
         ref={panel}
         aria-label="Properties panel"
@@ -79,6 +81,8 @@ function EditorContent() {
   const [named, setNamed] = useState<string>();
   // Where the canvas puts the properties panel
   const [panel, setPanel] = useState<HTMLElement | null>(null);
+  // A node the Preview asks the canvas to show, each time anew
+  const [show, setShow] = useState<{ node: string; at: number }>();
   // The newest first, as a new one is the one to work on
   const components = list.data?.toReversed();
   const newest = components?.[0]?.id;
@@ -196,10 +200,15 @@ function EditorContent() {
               </Button>
             </div>
           ) : openId !== undefined ? (
-            <Canvas key={openId} draft={draft} panel={panel} />
+            <Canvas key={openId} draft={draft} panel={panel} show={show} />
           ) : null}
         </main>
-        <Inspector open={openId !== undefined} panel={setPanel} />
+        <Inspector
+          open={openId !== undefined}
+          draft={draft}
+          panel={setPanel}
+          onShowNode={(node) => setShow({ node, at: Date.now() })}
+        />
       </div>
       <StatusBar draft={draft} />
     </div>
