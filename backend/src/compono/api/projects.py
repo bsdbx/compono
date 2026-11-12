@@ -105,11 +105,16 @@ class ProjectMemberNotFoundError(BaseModel):
     detail: Literal["team_not_found", "project_not_found", "member_not_found"]
 
 
+class LastLeadError(BaseModel):
+    detail: Literal["last_lead"]
+
+
 # Responses as tuples of status code and error
 NOT_IN_PROJECT: Final = (status.HTTP_404_NOT_FOUND, ProjectNotFoundError)
 LEADS_ONLY: Final = (status.HTTP_403_FORBIDDEN, LeadsOnlyError)
 NAME_TAKEN: Final = (status.HTTP_409_CONFLICT, NameTakenError)
 MEMBER_NOT_FOUND: Final = (status.HTTP_404_NOT_FOUND, ProjectMemberNotFoundError)
+LAST_LEAD: Final = (status.HTTP_409_CONFLICT, LastLeadError)
 
 
 class ProjectAccess(NamedTuple):
@@ -283,7 +288,7 @@ class MemberRole(BaseModel):
 
 @router.put(
     "/api/teams/{team_url}/projects/{project_url}/members/{account_id}",
-    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY),
+    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LAST_LEAD),
 )
 def set_project_member(
     account_id: UUID, body: MemberRole, access: InProject, database: Database
@@ -295,6 +300,8 @@ def set_project_member(
         account = projects.set_member(database, access.project, account_id, body.role)
     except projects.NotInTeam as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "member_not_found") from error
+    except projects.LastLead as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, "last_lead") from error
 
     member = ProjectMember(
         id=account.id, name=account.name, email=account.email, role=body.role
@@ -307,7 +314,7 @@ def set_project_member(
 @router.delete(
     "/api/teams/{team_url}/projects/{project_url}/members/{account_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY),
+    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LAST_LEAD),
 )
 def remove_project_member(
     account_id: UUID, access: InProject, database: Database
@@ -319,6 +326,8 @@ def remove_project_member(
         projects.remove_member(database, access.project, account_id)
     except projects.NotInProject as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "member_not_found") from error
+    except projects.LastLead as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, "last_lead") from error
 
     database.commit()
 
@@ -326,11 +335,15 @@ def remove_project_member(
 @router.delete(
     "/api/teams/{team_url}/projects/{project_url}/membership",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=answers(NOT_SIGNED_IN, NOT_IN_PROJECT),
+    responses=answers(NOT_SIGNED_IN, NOT_IN_PROJECT, LAST_LEAD),
 )
 def leave_project(access: InProject, account: SignedIn, database: Database) -> None:
-    """Takes the signed-in account out of a project."""
+    """Takes the signed-in account out of a project. Its only lead makes someone else a lead first."""
     require_in_project(access, ProjectAction.LEAVE)
 
-    projects.leave(database, access.project, account)
+    try:
+        projects.leave(database, access.project, account)
+    except projects.LastLead as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, "last_lead") from error
+
     database.commit()

@@ -414,7 +414,7 @@ export const setProjectMember = <ThrowOnError extends boolean = false>(options: 
 /**
  * Leave Project
  *
- * Takes the signed-in account out of a project.
+ * Takes the signed-in account out of a project. Its only lead makes someone else a lead first.
  */
 export const leaveProject = <ThrowOnError extends boolean = false>(options: Options<LeaveProjectData, ThrowOnError>): RequestResult<LeaveProjectResponses, LeaveProjectErrors, ThrowOnError> => (options.client ?? client).delete<LeaveProjectResponses, LeaveProjectErrors, ThrowOnError>({
     security: [{

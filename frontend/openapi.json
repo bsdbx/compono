@@ -1602,6 +1602,16 @@
             },
             "description": "Forbidden"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastLeadError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1687,6 +1697,16 @@
             },
             "description": "Forbidden"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastLeadError"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1703,7 +1723,7 @@
     "/api/teams/{team_url}/projects/{project_url}/membership": {
       "delete": {
         "summary": "Leave Project",
-        "description": "Takes the signed-in account out of a project.",
+        "description": "Takes the signed-in account out of a project. Its only lead makes someone else a lead first.",
         "operationId": "leave_project",
         "security": [
           {
@@ -1753,6 +1773,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LastLeadError"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
@@ -2595,6 +2625,20 @@
           "detail"
         ],
         "title": "InviteLinkNotValidError"
+      },
+      "LastLeadError": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "const": "last_lead",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "LastLeadError"
       },
       "LastOwnerError": {
         "properties": {

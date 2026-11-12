@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx2 import Response
 from pydantic import BaseModel, TypeAdapter
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from compono import auth, components, models, projects, teams
@@ -81,7 +82,10 @@ def acme(client: TestClient, session: Session) -> Acme:
         )
     marketing = projects.create_project(session, team, mira, "Marketing site", "")
     projects.set_member(session, marketing, jonas.id, ProjectRole.DEVELOPER)
-    projects.leave(session, marketing, mira)
+    # Mira steps out, which leaves no lead, as when the last lead leaves the team
+    session.execute(
+        delete(models.ProjectMember).where(models.ProjectMember.account_id == mira.id)
+    )
     card = components.create_component(session, marketing, "PricingCard")
     sign_in_as(client, session, jonas)
     return Acme(mira, jonas, daniel, marketing, card)

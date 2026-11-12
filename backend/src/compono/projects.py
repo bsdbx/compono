@@ -32,6 +32,10 @@ class NotInProject(Exception):
     """The account isn't in the project."""
 
 
+class LastLead(Exception):
+    """The project's only lead can't leave it, be taken out of it or be made a developer."""
+
+
 class ProjectAndRole(NamedTuple):
     """A project, with an account's role in it. No role if the account isn't in it."""
 
@@ -207,11 +211,34 @@ def members_of(
     return [(account, role) for account, role in rows]
 
 
+def _require_another_lead(
+    database: orm.Session, project: Project, account_id: UUID
+) -> None:
+    """Raises LastLead if the account is the project's only lead."""
+    # Lock the leads' rows until the transaction ends, so that two leads can't both step down at once
+    leads = database.scalars(
+        select(ProjectMember.account_id)
+        .where(
+            ProjectMember.project_id == project.id,
+            ProjectMember.role == ProjectRole.LEAD,
+        )
+        .with_for_update()
+    ).all()
+
+    # If the account is the only lead, the project would have none
+    if list(leads) == [account_id]:
+        raise LastLead
+
+
 def set_member(
     database: orm.Session, project: Project, account_id: UUID, role: ProjectRole
 ) -> Account:
-    """Adds a member of the project's team to the project with the role, or gives them the role if they're in it. Returns their account. Raises NotInTeam."""
+    """Adds a member of the project's team to the project with the role, or gives them the role if they're in it. Returns their account. Raises NotInTeam and LastLead."""
     new_role: dict[str, ProjectRole] = {"role": role}
+
+    # A lead made a developer has to leave another lead behind
+    if role == ProjectRole.DEVELOPER:
+        _require_another_lead(database, project, account_id)
 
     try:
         with database.begin_nested():
@@ -240,7 +267,9 @@ def set_member(
 
 
 def remove_member(database: orm.Session, project: Project, account_id: UUID) -> None:
-    """Takes a member out of the project. Raises NotInProject."""
+    """Takes a member out of the project. Raises NotInProject and LastLead."""
+    _require_another_lead(database, project, account_id)
+
     # Try to delete a project member that matches the supplied account
     # There must be one such member, or None
     removed = database.execute(
@@ -258,7 +287,9 @@ def remove_member(database: orm.Session, project: Project, account_id: UUID) -> 
 
 
 def leave(database: orm.Session, project: Project, account: Account) -> None:
-    """Takes the account out of the project. Does nothing if it isn't in it."""
+    """Takes the account out of the project. Does nothing if it isn't in it. Raises LastLead."""
+    _require_another_lead(database, project, account.id)
+
     database.execute(
         delete(ProjectMember).where(
             ProjectMember.project_id == project.id,
