@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 
-from compono.api import accounts, components, health, projects, teams
+from compono.api import accounts, components, graphs, health, projects, teams
 
 
 def operation_id(route: APIRoute) -> str:
@@ -51,6 +51,7 @@ app.include_router(accounts.router)
 app.include_router(teams.router)
 app.include_router(projects.router)
 app.include_router(components.router)
+app.include_router(graphs.router)
 
 
 def print_openapi() -> None:

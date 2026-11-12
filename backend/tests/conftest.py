@@ -1,6 +1,6 @@
 """Fixtures for tests against a real PostgreSQL database."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 
 import pytest
@@ -12,8 +12,10 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from compono.api.dependencies import database
+from compono.api.graphs import node_types
 from compono.app import app
 from compono.database import make_engine
+from compono.graph.node_types import NodeType
 from compono.settings import settings
 
 _url = make_url(settings.database_url)
@@ -78,3 +80,16 @@ def client(session: Session) -> Iterator[TestClient]:
     with TestClient(app, base_url="https://testserver") as client:
         yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def use_node_types(
+    client: TestClient,
+) -> Iterator[Callable[[Mapping[str, NodeType]], None]]:
+    """Makes the API answer with the test's node types instead of Compono's."""
+
+    def use(types: Mapping[str, NodeType]) -> None:
+        app.dependency_overrides[node_types] = lambda: types
+
+    yield use
+    app.dependency_overrides.pop(node_types, None)

@@ -3,7 +3,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ComponentData, ComponentErrors, ComponentResponses, CreateComponentData, CreateComponentErrors, CreateComponentResponses, CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteComponentData, DeleteComponentErrors, DeleteComponentResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DuplicateComponentData, DuplicateComponentErrors, DuplicateComponentResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectComponentsData, ProjectComponentsErrors, ProjectComponentsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, RenameComponentData, RenameComponentErrors, RenameComponentResponses, SaveComponentData, SaveComponentErrors, SaveComponentResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
+import type { ComponentData, ComponentErrors, ComponentResponses, CreateComponentData, CreateComponentErrors, CreateComponentResponses, CreateProjectData, CreateProjectErrors, CreateProjectResponses, CreateTeamData, CreateTeamErrors, CreateTeamResponses, CurrentAccountData, CurrentAccountErrors, CurrentAccountResponses, DeleteComponentData, DeleteComponentErrors, DeleteComponentResponses, DeleteProjectData, DeleteProjectErrors, DeleteProjectResponses, DeleteTeamData, DeleteTeamErrors, DeleteTeamResponses, DuplicateComponentData, DuplicateComponentErrors, DuplicateComponentResponses, EvaluateGraphData, EvaluateGraphErrors, EvaluateGraphResponses, HealthData, HealthResponses, InviteData, InviteErrors, InviteLinkData, InviteLinkErrors, InviteLinkResponses, InviteResponses, JoinTeamData, JoinTeamErrors, JoinTeamResponses, LeaveProjectData, LeaveProjectErrors, LeaveProjectResponses, LeaveTeamData, LeaveTeamErrors, LeaveTeamResponses, ListNodeTypesData, ListNodeTypesErrors, ListNodeTypesResponses, MakeOwnerData, MakeOwnerErrors, MakeOwnerResponses, MyTeamsData, MyTeamsErrors, MyTeamsResponses, ProjectComponentsData, ProjectComponentsErrors, ProjectComponentsResponses, ProjectData, ProjectErrors, ProjectMembersData, ProjectMembersErrors, ProjectMembersResponses, ProjectResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RemoveProjectMemberData, RemoveProjectMemberErrors, RemoveProjectMemberResponses, RenameComponentData, RenameComponentErrors, RenameComponentResponses, SaveComponentData, SaveComponentErrors, SaveComponentResponses, SetProjectMemberData, SetProjectMemberErrors, SetProjectMemberResponses, SignInData, SignInErrors, SignInResponses, SignOutData, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SignUpData, SignUpErrors, SignUpResponses, TeamData, TeamErrors, TeamMembersData, TeamMembersErrors, TeamMembersResponses, TeamProjectsData, TeamProjectsErrors, TeamProjectsResponses, TeamResponses, UpdateProjectData, UpdateProjectErrors, UpdateProjectResponses, UpdateTeamData, UpdateTeamErrors, UpdateTeamResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -541,4 +541,38 @@ export const duplicateComponent = <ThrowOnError extends boolean = false>(options
         }],
     url: '/api/teams/{team_url}/projects/{project_url}/components/{component_id}/copies',
     ...options
+});
+
+/**
+ * List Node Types
+ *
+ * Every node type there is.
+ */
+export const listNodeTypes = <ThrowOnError extends boolean = false>(options?: Options<ListNodeTypesData, ThrowOnError>): RequestResult<ListNodeTypesResponses, ListNodeTypesErrors, ThrowOnError> => (options?.client ?? client).get<ListNodeTypesResponses, ListNodeTypesErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/node-types',
+    ...options
+});
+
+/**
+ * Evaluate Graph
+ *
+ * Evaluates a graph: every node's sockets and values, and the wires it refuses.
+ */
+export const evaluateGraph = <ThrowOnError extends boolean = false>(options: Options<EvaluateGraphData, ThrowOnError>): RequestResult<EvaluateGraphResponses, EvaluateGraphErrors, ThrowOnError> => (options.client ?? client).post<EvaluateGraphResponses, EvaluateGraphErrors, ThrowOnError>({
+    security: [{
+            in: 'cookie',
+            name: 'session',
+            type: 'apiKey'
+        }],
+    url: '/api/evaluate',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });

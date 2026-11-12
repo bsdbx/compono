@@ -2415,6 +2415,98 @@
           }
         }
       }
+    },
+    "/api/node-types": {
+      "get": {
+        "summary": "List Node Types",
+        "description": "Every node type there is.",
+        "operationId": "list_node_types",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeTypeInfo"
+                  },
+                  "type": "array",
+                  "title": "Response List Node Types"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotSignedInError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
+    },
+    "/api/evaluate": {
+      "post": {
+        "summary": "Evaluate Graph",
+        "description": "Evaluates a graph: every node's sockets and values, and the wires it refuses.",
+        "operationId": "evaluate_graph",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Graph"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Evaluated"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotSignedInError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -2443,6 +2535,54 @@
         ],
         "title": "Account",
         "description": "Account model."
+      },
+      "AnyType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "any",
+            "title": "Kind",
+            "default": "any"
+          }
+        },
+        "type": "object",
+        "title": "AnyType",
+        "description": "An input that takes whatever type is wired into it."
+      },
+      "BooleanType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "boolean",
+            "title": "Kind",
+            "default": "boolean"
+          }
+        },
+        "type": "object",
+        "title": "BooleanType"
+      },
+      "ChoiceType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "choice",
+            "title": "Kind",
+            "default": "choice"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "options"
+        ],
+        "title": "ChoiceType",
+        "description": "One of a fixed set of options, such as an HTML tag."
       },
       "Component": {
         "properties": {
@@ -2538,6 +2678,31 @@
         ],
         "title": "ComponentNotFoundError"
       },
+      "DateType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "date",
+            "title": "Kind",
+            "default": "date"
+          }
+        },
+        "type": "object",
+        "title": "DateType"
+      },
+      "ElementType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "element",
+            "title": "Kind",
+            "default": "element"
+          }
+        },
+        "type": "object",
+        "title": "ElementType",
+        "description": "Rendered markup, such as an HTML element with its children."
+      },
       "EmailTakenError": {
         "properties": {
           "detail": {
@@ -2551,6 +2716,140 @@
           "detail"
         ],
         "title": "EmailTakenError"
+      },
+      "End": {
+        "properties": {
+          "node": {
+            "type": "string",
+            "title": "Node"
+          },
+          "socket": {
+            "type": "string",
+            "title": "Socket"
+          }
+        },
+        "type": "object",
+        "required": [
+          "node",
+          "socket"
+        ],
+        "title": "End",
+        "description": "A socket of a node: where a wire starts or ends."
+      },
+      "Evaluated": {
+        "properties": {
+          "nodes": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/EvaluatedNode"
+            },
+            "type": "object",
+            "title": "Nodes"
+          },
+          "wires": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Wires"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nodes",
+          "wires"
+        ],
+        "title": "Evaluated",
+        "description": "Every node of the graph, by node, and why each refused wire is refused, by wire."
+      },
+      "EvaluatedNode": {
+        "properties": {
+          "sockets": {
+            "$ref": "#/components/schemas/NodeSockets"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "skipped": {
+            "type": "boolean",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sockets",
+          "outputs",
+          "error",
+          "skipped"
+        ],
+        "title": "EvaluatedNode",
+        "description": "What became of a node."
+      },
+      "Graph": {
+        "properties": {
+          "format": {
+            "type": "integer",
+            "const": 1,
+            "title": "Format",
+            "default": 1
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/Node"
+            },
+            "type": "array",
+            "title": "Nodes",
+            "default": []
+          },
+          "wires": {
+            "items": {
+              "$ref": "#/components/schemas/Wire"
+            },
+            "type": "array",
+            "title": "Wires",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Graph",
+        "description": "Nodes and wires. A new component's graph is `{}`, which is a graph of neither."
+      },
+      "GroupSocket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SocketType"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "GroupSocket",
+        "description": "A socket group. Its rows are named like `children/<row id>`."
       },
       "HTTPValidationError": {
         "properties": {
@@ -2577,6 +2876,32 @@
           "status"
         ],
         "title": "Health"
+      },
+      "InputSocket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SocketType"
+          },
+          "default": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type",
+          "default"
+        ],
+        "title": "InputSocket"
       },
       "Invite": {
         "properties": {
@@ -2626,6 +2951,7 @@
         ],
         "title": "InviteLinkNotValidError"
       },
+      "JsonValue": {},
       "LastLeadError": {
         "properties": {
           "detail": {
@@ -2923,6 +3249,161 @@
         ],
         "title": "NewTeam"
       },
+      "Node": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Position",
+            "default": {
+              "x": 0.0,
+              "y": 0.0
+            }
+          },
+          "values": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Values",
+            "default": {}
+          },
+          "properties": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Properties",
+            "default": {}
+          },
+          "exposed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Exposed",
+            "default": []
+          },
+          "groups": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Groups",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "title": "Node",
+        "description": "One node. A socket of a group is named like `children/<row id>`."
+      },
+      "NodeProperty": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SocketType"
+          },
+          "default": {
+            "$ref": "#/components/schemas/JsonValue"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type",
+          "default"
+        ],
+        "title": "NodeProperty"
+      },
+      "NodeSockets": {
+        "properties": {
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/InputSocket"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupSocket"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "outputs": {
+            "items": {
+              "$ref": "#/components/schemas/OutputSocket"
+            },
+            "type": "array",
+            "title": "Outputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "inputs",
+          "groups",
+          "outputs"
+        ],
+        "title": "NodeSockets"
+      },
+      "NodeTypeInfo": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "properties": {
+            "items": {
+              "$ref": "#/components/schemas/NodeProperty"
+            },
+            "type": "array",
+            "title": "Properties"
+          },
+          "sockets": {
+            "$ref": "#/components/schemas/NodeSockets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "category",
+          "properties",
+          "sockets"
+        ],
+        "title": "NodeTypeInfo",
+        "description": "A node type, for the Add node menu, the canvas and the properties panel."
+      },
       "NotSignedInError": {
         "properties": {
           "detail": {
@@ -2935,6 +3416,104 @@
         ],
         "title": "NotSignedInError",
         "description": "Error wrapper."
+      },
+      "NothingType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "nothing",
+            "title": "Kind",
+            "default": "nothing"
+          }
+        },
+        "type": "object",
+        "title": "NothingType",
+        "description": "No value. A wire that brings Nothing counts as no wire."
+      },
+      "NumberType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "number",
+            "title": "Kind",
+            "default": "number"
+          },
+          "integer": {
+            "type": "boolean",
+            "title": "Integer",
+            "default": false
+          },
+          "minimum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum"
+          },
+          "maximum": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum"
+          }
+        },
+        "type": "object",
+        "title": "NumberType",
+        "description": "A number. Its subtype Integer is a whole number."
+      },
+      "ObjectType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "object",
+            "title": "Kind",
+            "default": "object"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SocketType"
+            },
+            "type": "object",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "title": "ObjectType",
+        "description": "Named fields, each with a socket type of its own."
+      },
+      "OutputSocket": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "$ref": "#/components/schemas/SocketType"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "OutputSocket"
       },
       "OwnerCannotBeRemovedError": {
         "properties": {
@@ -2963,6 +3542,23 @@
           "detail"
         ],
         "title": "OwnersOnlyError"
+      },
+      "Position": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X",
+            "default": 0
+          },
+          "y": {
+            "type": "number",
+            "title": "Y",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "Position",
+        "description": "Where a node sits on the canvas."
       },
       "Project": {
         "properties": {
@@ -3219,6 +3815,53 @@
         "title": "SignUp",
         "description": "Sign up model."
       },
+      "SlotType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "slot",
+            "title": "Kind",
+            "default": "slot"
+          }
+        },
+        "type": "object",
+        "title": "SlotType",
+        "description": "Where a component renders. It takes an Element."
+      },
+      "SocketType": {
+        "anyOf": [
+          {
+            "$ref": "#/components/schemas/BooleanType"
+          },
+          {
+            "$ref": "#/components/schemas/NumberType"
+          },
+          {
+            "$ref": "#/components/schemas/TextType"
+          },
+          {
+            "$ref": "#/components/schemas/ChoiceType"
+          },
+          {
+            "$ref": "#/components/schemas/ObjectType"
+          },
+          {
+            "$ref": "#/components/schemas/DateType"
+          },
+          {
+            "$ref": "#/components/schemas/ElementType"
+          },
+          {
+            "$ref": "#/components/schemas/SlotType"
+          },
+          {
+            "$ref": "#/components/schemas/NothingType"
+          },
+          {
+            "$ref": "#/components/schemas/AnyType"
+          }
+        ]
+      },
       "Team": {
         "properties": {
           "id": {
@@ -3305,6 +3948,24 @@
         "title": "TeamRole",
         "description": "What an account can do in a team."
       },
+      "TextType": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "text",
+            "title": "Kind",
+            "default": "text"
+          },
+          "link": {
+            "type": "boolean",
+            "title": "Link",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "TextType",
+        "description": "Text. Its subtype Link is an address to go to."
+      },
       "UrlTakenError": {
         "properties": {
           "detail": {
@@ -3372,6 +4033,28 @@
           "detail"
         ],
         "title": "VersionConflictError"
+      },
+      "Wire": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "from": {
+            "$ref": "#/components/schemas/End"
+          },
+          "to": {
+            "$ref": "#/components/schemas/End"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "from",
+          "to"
+        ],
+        "title": "Wire",
+        "description": "From an output to an input."
       },
       "WrongEmailOrPasswordError": {
         "properties": {
