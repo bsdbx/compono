@@ -4,6 +4,8 @@ import {
   type ReactNode,
   use,
   useCallback,
+  useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -28,6 +30,96 @@ export function useToast(): (toast: ToastMessage) => void {
 }
 
 let lastId = 0;
+const LIFETIME = 2500;
+
+/** Keep a closed toast mounted long enough for Radix's exit animation. */
+function ToastItem({
+  toast,
+  forget,
+}: {
+  toast: Shown;
+  forget: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [windowPaused, setWindowPaused] = useState(false);
+  const remaining = useRef(LIFETIME);
+  const paused = hovered || focused || windowPaused;
+  useEffect(() => {
+    const pause = () => setWindowPaused(true);
+    const resume = () => setWindowPaused(false);
+    window.addEventListener("blur", pause);
+    window.addEventListener("focus", resume);
+    return () => {
+      window.removeEventListener("blur", pause);
+      window.removeEventListener("focus", resume);
+    };
+  }, []);
+  useEffect(() => {
+    if (!open || paused) return;
+    const started = Date.now();
+    const timer = setTimeout(() => setOpen(false), remaining.current);
+    return () => {
+      clearTimeout(timer);
+      remaining.current = Math.max(
+        0,
+        remaining.current - (Date.now() - started),
+      );
+    };
+  }, [open, paused]);
+  useEffect(() => {
+    if (open) return;
+    const timer = setTimeout(() => forget(toast.id), 200);
+    return () => clearTimeout(timer);
+  }, [open, forget, toast.id]);
+  return (
+    <Primitive.Root
+      open={open}
+      onOpenChange={setOpen}
+      // Radix pauses the whole viewport; each toast owns its own countdown instead.
+      duration={Infinity}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocusCapture={() => setFocused(true)}
+      onBlurCapture={(event) => {
+        if (
+          !(event.relatedTarget instanceof Node) ||
+          !event.currentTarget.contains(event.relatedTarget)
+        )
+          setFocused(false);
+      }}
+      className="flex items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3.5 shadow-2xl duration-150 data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-bottom-2 data-[state=open]:slide-in-from-bottom-2 motion-reduce:animate-none"
+    >
+      {toast.icon ? (
+        <span className="mt-0.5 flex shrink-0 self-start [&_svg]:size-4">
+          {toast.icon}
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <Primitive.Title className="font-medium text-base">
+          {toast.title}
+        </Primitive.Title>
+        {toast.description ? (
+          <Primitive.Description className="text-muted-foreground text-sm">
+            {toast.description}
+          </Primitive.Description>
+        ) : null}
+      </div>
+      {toast.action ? (
+        <Primitive.Action altText={toast.action.label} asChild>
+          <button
+            type="button"
+            onClick={toast.action.onClick}
+            className="h-6.5 shrink-0 rounded-md bg-foreground px-2.5 font-medium text-background text-sm"
+          >
+            {toast.action.label}
+          </button>
+        </Primitive.Action>
+      ) : null}
+    </Primitive.Root>
+  );
+}
 
 /** Where the toasts of its children show. */
 export function Toasts({ children }: { children: ReactNode }) {
@@ -37,52 +129,19 @@ export function Toasts({ children }: { children: ReactNode }) {
     const id = lastId;
     setShown((all) => [...all, { ...toast, id }]);
   }, []);
-  const forget = (id: number) =>
-    setShown((all) => all.filter((toast) => toast.id !== id));
+  const forget = useCallback(
+    (id: number) => setShown((all) => all.filter((toast) => toast.id !== id)),
+    [],
+  );
 
   return (
     <ShowToast value={show}>
-      <Primitive.Provider swipeDirection="right" duration={5000}>
+      <Primitive.Provider swipeDirection="right" duration={LIFETIME}>
         {children}
         {shown.map((toast) => (
-          <Primitive.Root
-            key={toast.id}
-            onOpenChange={(open) => {
-              if (!open) {
-                forget(toast.id);
-              }
-            }}
-            className="flex items-center gap-3 rounded-xl border border-border bg-popover px-4 py-3.5 shadow-2xl data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:slide-in-from-bottom-2"
-          >
-            {toast.icon ? (
-              <span className="mt-0.5 flex shrink-0 self-start [&_svg]:size-4">
-                {toast.icon}
-              </span>
-            ) : null}
-            <div className="min-w-0 flex-1">
-              <Primitive.Title className="font-medium text-base">
-                {toast.title}
-              </Primitive.Title>
-              {toast.description ? (
-                <Primitive.Description className="text-muted-foreground text-sm">
-                  {toast.description}
-                </Primitive.Description>
-              ) : null}
-            </div>
-            {toast.action ? (
-              <Primitive.Action altText={toast.action.label} asChild>
-                <button
-                  type="button"
-                  onClick={toast.action.onClick}
-                  className="h-6.5 shrink-0 rounded-md bg-foreground px-2.5 font-medium text-background text-sm"
-                >
-                  {toast.action.label}
-                </button>
-              </Primitive.Action>
-            ) : null}
-          </Primitive.Root>
+          <ToastItem key={toast.id} toast={toast} forget={forget} />
         ))}
-        <Primitive.Viewport className="fixed right-6 bottom-12 z-50 flex w-89 flex-col gap-2 outline-none" />
+        <Primitive.Viewport className="fixed right-6 bottom-4 z-50 flex w-89 flex-col gap-2 outline-none" />
       </Primitive.Provider>
     </ShowToast>
   );
