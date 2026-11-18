@@ -136,7 +136,9 @@ test("a selected node shows its properties, and the inputs typed on it", () => {
   ).toBeInTheDocument();
   // Text has a wire, so it isn't typed here
   const inputs = screen.getByRole("region", { name: "Inputs" });
-  expect(within(inputs).getByLabelText("Tag")).toHaveValue("h3");
+  expect(
+    within(inputs).getByRole("combobox", { name: "Tag" }),
+  ).toHaveTextContent("h3");
   expect(within(inputs).getByLabelText("Class name")).toHaveValue("uppercase");
   expect(within(inputs).queryByText("Text")).toBeNull();
 
@@ -196,7 +198,7 @@ test("Component Input lists the props, and adds one", () => {
   ]);
 });
 
-test("a prop opens to edit it, and takes only a free name for React", () => {
+test("a prop opens to edit it, and takes only a free name for React", async () => {
   const { edit, edited } = show(["input"]);
 
   fireEvent.click(screen.getByRole("button", { name: /price/ }));
@@ -211,9 +213,10 @@ test("a prop opens to edit it, and takes only a free name for React", () => {
   fireEvent.change(name, { target: { value: "amount" } });
   expect(edited()?.props[0]?.name).toBe("amount");
 
-  fireEvent.change(screen.getByLabelText("Type"), {
-    target: { value: "choice" },
+  fireEvent.keyDown(screen.getByRole("combobox", { name: "Type" }), {
+    key: "ArrowDown",
   });
+  fireEvent.click(await screen.findByRole("option", { name: "Choice" }));
   expect(edited()?.props[0]?.type).toEqual({ kind: "choice", options: [] });
 });
 

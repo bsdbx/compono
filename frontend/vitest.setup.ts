@@ -10,6 +10,9 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 };
 
+// Radix Select scrolls its active option into view; jsdom has no layout to scroll.
+Element.prototype.scrollIntoView ??= () => {};
+
 afterEach(() => {
   cleanup();
   resetNavigation();
