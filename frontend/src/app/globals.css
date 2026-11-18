@@ -192,19 +192,12 @@
 .react-flow__node-graph {
   cursor: default;
 }
-/* Box selection, and the box around what it selected, which stands off the nodes */
-.react-flow__selection,
-.react-flow__nodesselection-rect::before {
+/* A subtle outline and fill while dragging; selected nodes use their normal highlight. */
+.react-flow .react-flow__selection {
   background: color-mix(in srgb, var(--selection) 5%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--selection) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--selection) 30%, transparent);
   border-radius: 6px;
 }
-.react-flow__nodesselection-rect {
-  background: transparent;
-  border: 0;
-}
-.react-flow__nodesselection-rect::before {
-  content: "";
-  position: absolute;
-  inset: -18px;
+.react-flow .react-flow__nodesselection-rect {
+  display: none;
 }
