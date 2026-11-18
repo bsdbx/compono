@@ -1,10 +1,11 @@
-import { Check, Copy, Download } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { Download } from "lucide-react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useGeneratedCode } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { HighlightedCode } from "@/components/editor/highlighted-code";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** The open component as code: the JSX file it becomes, to copy or download. */
 export function CodeView({ draft, name }: { draft: Draft; name: string }) {
@@ -18,7 +19,6 @@ export function CodeView({ draft, name }: { draft: Draft; name: string }) {
     [content],
   );
   const generated = useGeneratedCode(graph, name);
-  const [copied, setCopied] = useState(false);
 
   if (generated === undefined) {
     return null;
@@ -58,18 +58,7 @@ export function CodeView({ draft, name }: { draft: Draft; name: string }) {
     >
       <div className="flex h-10 shrink-0 items-center gap-1 border-border border-b pr-1.5 pl-3.5">
         <h2 className="flex-1 truncate font-mono text-xs">{filename}</h2>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            void navigator.clipboard?.writeText(code);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-          }}
-        >
-          {copied ? <Check /> : <Copy />}
-          {copied ? "Copied" : "Copy"}
-        </Button>
+        <CopyButton size="sm" variant="ghost" text={code} />
         <Button size="sm" variant="ghost" onClick={() => download(code)}>
           <Download />
           Download
