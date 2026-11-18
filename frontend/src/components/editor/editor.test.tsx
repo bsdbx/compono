@@ -170,6 +170,40 @@ test("a component that isn't there goes back to the project", async () => {
   );
 });
 
+test("panel dividers resize their areas and the library restores its width after collapsing", async () => {
+  answer([]);
+  renderWithClient(<Editor />);
+  const library = await screen.findByRole("complementary", {
+    name: "Components",
+  });
+  const inspector = screen.getByRole("complementary", { name: "Inspector" });
+  const left = screen.getByRole("separator", {
+    name: "Resize component library",
+  });
+  const right = screen.getByRole("separator", { name: "Resize inspector" });
+  const preview = screen.getByRole("separator", { name: "Resize preview" });
+
+  fireEvent.keyDown(left, { key: "ArrowRight", shiftKey: true });
+  expect(library).toHaveStyle({ width: "264px" });
+  fireEvent.click(screen.getByRole("button", { name: "Hide components" }));
+  expect(
+    screen.getByRole("button", { name: "Show components" }),
+  ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show components" }));
+  expect(screen.getByRole("complementary", { name: "Components" })).toHaveStyle(
+    { width: "264px" },
+  );
+  fireEvent.keyDown(right, { key: "Home" });
+  expect(inspector).toHaveStyle({ width: "280px" });
+  fireEvent.keyDown(right, { key: "ArrowRight" });
+  expect(inspector).toHaveStyle({ width: "280px" });
+  fireEvent.keyDown(preview, { key: "ArrowDown", shiftKey: true });
+  expect(preview).toHaveAttribute("aria-valuenow", "266");
+  expect(
+    screen.getByRole("region", { name: "Preview" }).parentElement,
+  ).toHaveStyle({ height: "266px" });
+});
+
 test("a project the account can't see is not found", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
   answer([], {

@@ -250,6 +250,9 @@ export function ComponentsPanel({
   openId,
   onCreate,
   creating,
+  width = 224,
+  collapsed,
+  onCollapsedChange,
 }: {
   team: Team;
   project: Project;
@@ -260,11 +263,19 @@ export function ComponentsPanel({
   openId: string | undefined;
   onCreate: () => void;
   creating: boolean;
+  width?: number;
+  collapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const toast = useToast();
-  const [hidden, setHidden] = useState(false);
+  const [localHidden, setLocalHidden] = useState(false);
+  const hidden = collapsed ?? localHidden;
+  const setHidden = (next: boolean) => {
+    setLocalHidden(next);
+    onCollapsedChange?.(next);
+  };
   const [search, setSearch] = useState("");
   const [renaming, setRenaming] = useState<string>();
   const [deleting, setDeleting] = useState<ListedComponent>();
@@ -410,7 +421,8 @@ export function ComponentsPanel({
   return (
     <aside
       aria-label="Components"
-      className="flex w-56 shrink-0 flex-col border-border border-r bg-sidebar"
+      className="flex shrink-0 flex-col border-border border-r bg-sidebar"
+      style={{ width }}
     >
       <div className="flex h-10 shrink-0 items-center justify-between pr-1.5 pl-3.5">
         <h2 className="font-semibold text-sm">

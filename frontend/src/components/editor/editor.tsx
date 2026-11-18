@@ -17,8 +17,10 @@ import { CodeView } from "@/components/editor/code-view";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
 import { Preview, PreviewPlaceholder } from "@/components/editor/preview";
+import { ResizeHandle } from "@/components/editor/resize-handle";
 import { SaveIndicator } from "@/components/editor/save-indicator";
 import { TopBar } from "@/components/editor/top-bar";
+import { usePanels } from "@/components/editor/use-panels";
 import { Button } from "@/components/ui/button";
 import { Toasts, useToast } from "@/components/ui/toast";
 import { notFound, useParams, useRouter } from "@/lib/navigation";
@@ -32,19 +34,37 @@ function Inspector({
   draft,
   panel,
   onShowNode,
+  width,
+  preview,
 }: {
   open: boolean;
   draft: Draft;
   panel: (element: HTMLElement | null) => void;
   onShowNode: (node: string) => void;
+  width: number;
+  preview: ReturnType<typeof usePanels>["preview"];
 }) {
   return (
-    <aside className="flex w-78.5 shrink-0 flex-col border-border border-l bg-sidebar">
-      {open ? (
-        <Preview draft={draft} onShowNode={onShowNode} />
-      ) : (
-        <PreviewPlaceholder />
-      )}
+    <aside
+      aria-label="Inspector"
+      className="flex min-h-0 shrink-0 flex-col border-border border-l bg-sidebar"
+      style={{ width }}
+    >
+      <div className="shrink-0" style={{ height: preview.height }}>
+        {open ? (
+          <Preview draft={draft} onShowNode={onShowNode} />
+        ) : (
+          <PreviewPlaceholder />
+        )}
+      </div>
+      <ResizeHandle
+        label="Resize preview"
+        axis="vertical"
+        value={preview.height}
+        min={preview.min}
+        max={preview.max}
+        onChange={preview.onChange}
+      />
       <section
         ref={panel}
         aria-label="Properties panel"
@@ -116,6 +136,7 @@ function EditorContent() {
   // A node the Preview asks the canvas to show, each time anew
   const [show, setShow] = useState<{ node: string; at: number }>();
   const [view, setView] = useState<View>("graph");
+  const panels = usePanels();
   // The newest first, as a new one is the one to work on
   const components = list.data?.toReversed();
   const newest = components?.[0]?.id;
@@ -196,7 +217,7 @@ function EditorContent() {
         renameNow={named !== undefined && named === listed?.id}
         onRenamed={() => setNamed(undefined)}
       />
-      <div className="flex min-h-0 flex-1">
+      <div ref={panels.container} className="flex min-h-0 flex-1">
         <ComponentsPanel
           team={team.data}
           project={project.data}
@@ -206,6 +227,18 @@ function EditorContent() {
           openId={openId}
           onCreate={() => create.mutate({ path, body: {} })}
           creating={create.isPending}
+          width={panels.library.width}
+          collapsed={panels.library.collapsed}
+          onCollapsedChange={panels.library.onCollapsedChange}
+        />
+        <ResizeHandle
+          label="Resize component library"
+          axis="horizontal"
+          value={panels.library.width}
+          min={panels.library.min}
+          max={panels.library.max}
+          collapsedSize={panels.library.collapsedSize}
+          onChange={panels.library.onChange}
         />
         <main
           className={cn(
@@ -252,10 +285,21 @@ function EditorContent() {
             </>
           ) : null}
         </main>
+        <ResizeHandle
+          label="Resize inspector"
+          axis="horizontal"
+          reverse
+          value={panels.inspector.width}
+          min={panels.inspector.min}
+          max={panels.inspector.max}
+          onChange={panels.inspector.onChange}
+        />
         <Inspector
           open={openId !== undefined}
           draft={draft}
           panel={setPanel}
+          width={panels.inspector.width}
+          preview={panels.preview}
           onShowNode={(node) => {
             setView("graph");
             setShow({ node, at: Date.now() });

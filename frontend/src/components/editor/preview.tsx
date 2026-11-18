@@ -140,7 +140,7 @@ const BOX_HEIGHT = 172;
 function Frame({ html, width }: { html: string; width: number }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
-  const [boxWidth, setBoxWidth] = useState(0);
+  const [boxSize, setBoxSize] = useState({ width: 0, height: BOX_HEIGHT });
 
   useEffect(() => {
     const element = box.current;
@@ -148,9 +148,14 @@ function Frame({ html, width }: { html: string; width: number }) {
       return;
     }
 
-    const observer = new ResizeObserver(() => setBoxWidth(element.clientWidth));
+    const measure = () =>
+      setBoxSize({
+        width: element.clientWidth,
+        height: element.clientHeight || BOX_HEIGHT,
+      });
+    const observer = new ResizeObserver(measure);
     observer.observe(element);
-    setBoxWidth(element.clientWidth);
+    measure();
     return () => observer.disconnect();
   }, []);
 
@@ -159,7 +164,7 @@ function Frame({ html, width }: { html: string; width: number }) {
     frame.current?.contentWindow?.postMessage(html, "*");
   }, [html]);
 
-  const scale = boxWidth > 0 ? Math.min(1, boxWidth / width) : 1;
+  const scale = boxSize.width > 0 ? Math.min(1, boxSize.width / width) : 1;
   return (
     <div ref={box} className="absolute inset-0 overflow-hidden">
       <iframe
@@ -172,7 +177,7 @@ function Frame({ html, width }: { html: string; width: number }) {
         className="absolute top-0 left-0 origin-top-left border-0"
         style={{
           width,
-          height: BOX_HEIGHT / scale,
+          height: boxSize.height / scale,
           transform: `scale(${scale})`,
         }}
       />
@@ -340,7 +345,7 @@ function SizePicker({
 
 function Box({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative mt-0.5 flex h-43 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-card px-4 text-center">
+    <div className="relative mt-0.5 flex min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-card px-4 text-center">
       {children}
     </div>
   );
@@ -349,8 +354,11 @@ function Box({ children }: { children: React.ReactNode }) {
 /** The Preview before a component is open. */
 export function PreviewPlaceholder() {
   return (
-    <section aria-label="Preview" className="px-3 pb-3">
-      <h2 className="flex h-10 items-center px-0.5 font-semibold text-sm">
+    <section
+      aria-label="Preview"
+      className="flex h-full min-h-0 flex-col px-3 pb-3"
+    >
+      <h2 className="flex h-10 shrink-0 items-center px-0.5 font-semibold text-sm">
         Preview
       </h2>
       <Box>
@@ -400,8 +408,11 @@ export function Preview({
   const first = errors[0];
 
   return (
-    <section aria-label="Preview" className="px-3 pb-3">
-      <div className="flex h-10 items-center justify-between px-0.5">
+    <section
+      aria-label="Preview"
+      className="flex h-full min-h-0 flex-col px-3 pb-3"
+    >
+      <div className="flex h-10 shrink-0 items-center justify-between px-0.5">
         <h2 className="font-semibold text-sm">Preview</h2>
         {current ? (
           <SizePicker
