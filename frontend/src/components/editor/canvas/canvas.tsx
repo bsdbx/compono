@@ -32,6 +32,7 @@ import type { Content, Draft } from "@/components/editor/draft";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -155,7 +156,10 @@ function editing(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement &&
     (target.isContentEditable ||
-      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
+      target.closest(
+        '[role="combobox"], [role="menu"], [role="listbox"], [role="dialog"]',
+      ) !== null)
   );
 }
 
@@ -186,6 +190,7 @@ function Flow({
 }) {
   const flow = useReactFlow<CanvasNode>();
   const wrapper = useRef<HTMLDivElement>(null);
+  const pointer = useRef<XY>(undefined);
   const graph = useMemo(() => readGraph(content.graph), [content.graph]);
   const evaluation = useEvaluation(graph);
   const evaluated = useMemo(
@@ -309,16 +314,46 @@ function Flow({
   );
 
   useEffect(() => {
+    const remember = (event: PointerEvent) => {
+      pointer.current = { x: event.clientX, y: event.clientY };
+    };
+    document.addEventListener("pointermove", remember, true);
+    return () => document.removeEventListener("pointermove", remember, true);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (
-        hidden ||
-        editing(event.target) ||
-        !(event.metaKey || event.ctrlKey)
-      ) {
+      if (hidden || editing(event.target) || event.altKey) {
         return;
       }
       const key = event.key.toLowerCase();
-      if (key === "z" && !event.shiftKey) {
+      const command = event.metaKey || event.ctrlKey;
+      if (key === "a" && event.shiftKey && !command) {
+        event.preventDefault();
+        const bounds = wrapper.current?.getBoundingClientRect();
+        if (!bounds) return;
+        const point = pointer.current;
+        const inside =
+          point &&
+          point.x >= bounds.left &&
+          point.x <= bounds.right &&
+          point.y >= bounds.top &&
+          point.y <= bounds.bottom;
+        const origin = inside
+          ? point
+          : {
+              x: bounds.left + bounds.width / 2,
+              y: bounds.top + bounds.height / 2,
+            };
+        setMenu(undefined);
+        setAdding({
+          x: origin.x - bounds.left,
+          y: origin.y - bounds.top,
+          at: flow.screenToFlowPosition(origin),
+        });
+      } else if (!command) {
+        return;
+      } else if (key === "z" && !event.shiftKey) {
         event.preventDefault();
         undo();
       } else if ((key === "z" && event.shiftKey) || key === "y") {
@@ -334,7 +369,7 @@ function Flow({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo, selectAll, duplicate, nodes, hidden]);
+  }, [undo, redo, selectAll, duplicate, nodes, hidden, flow]);
 
   // A wire is refused when the API refuses it, or when its types plainly don't fit
   const refused = useMemo(() => {
@@ -527,8 +562,12 @@ function Flow({
                 )
               }
             >
-              <DropdownMenuSubTrigger className={MENU_ITEM}>
+              <DropdownMenuSubTrigger
+                className={MENU_ITEM}
+                aria-keyshortcuts="Shift+A"
+              >
                 <span className="flex-1">Add node</span>
+                <DropdownMenuShortcut keys={["Shift", "A"]} />
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent
                 sideOffset={4}

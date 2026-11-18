@@ -191,17 +191,33 @@ function DropdownMenuSeparator({
 
 function DropdownMenuShortcut({
   className,
+  keys,
   ...props
-}: React.ComponentProps<"span">) {
+}: Omit<React.ComponentProps<"span">, "children"> & {
+  keys: readonly string[];
+}) {
   return (
     <span
       data-slot="dropdown-menu-shortcut"
+      aria-hidden
       className={cn(
-        "ml-auto text-[0.625rem] tracking-widest text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground",
+        "ml-auto inline-flex items-center gap-1 text-[0.625rem] text-muted-foreground",
         className,
       )}
       {...props}
-    />
+    >
+      {keys.map((key, index) => (
+        <React.Fragment key={key}>
+          {index > 0 ? <span className="text-subtle-foreground">+</span> : null}
+          <kbd
+            title={key}
+            className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded border border-foreground/5 bg-foreground/10 px-1 font-sans text-[0.625rem] leading-none"
+          >
+            {key === "Shift" ? "⇧" : key}
+          </kbd>
+        </React.Fragment>
+      ))}
+    </span>
   );
 }
 
