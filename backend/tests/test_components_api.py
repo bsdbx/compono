@@ -206,19 +206,25 @@ def test_a_new_component_is_untitled(client: TestClient, session: Session) -> No
         ("Tablet", 768),
         ("Mobile", 390),
     ]
-    assert Component.model_validate_json(second.text).name == "Untitled2"
+    assert Component.model_validate_json(second.text).name == "Untitled.001"
 
 
-def test_creating_a_named_component(client: TestClient, session: Session) -> None:
+@pytest.mark.parametrize("name", ["NavBar", "NavBar.001", "NavBar.1000"])
+def test_creating_a_named_component(
+    client: TestClient, session: Session, name: str
+) -> None:
     acme(client, session)
 
-    response = new_component(client, "NavBar")
+    response = new_component(client, name)
 
     assert response.status_code == 201
-    assert Component.model_validate_json(response.text).name == "NavBar"
+    assert Component.model_validate_json(response.text).name == name
 
 
-@pytest.mark.parametrize("name", ["", "navBar", "Nav Bar", "1Nav", "Nav-Bar", "N" * 65])
+@pytest.mark.parametrize(
+    "name",
+    ["", "navBar", "Nav Bar", "1Nav", "Nav-Bar", "Card.01", "Card.001.002", "N" * 65],
+)
 def test_a_component_name_is_a_capital_then_letters_and_digits(
     client: TestClient, session: Session, name: str
 ) -> None:
@@ -418,7 +424,7 @@ def test_duplicating_a_component(client: TestClient, session: Session) -> None:
 
     assert response.status_code == 201
     copy = Component.model_validate_json(response.text)
-    assert (copy.name, copy.graph, copy.version) == ("PricingCardCopy", GRAPH, 1)
+    assert (copy.name, copy.graph, copy.version) == ("PricingCard.001", GRAPH, 1)
     assert copy.id != acme_.card.id
 
 

@@ -15,7 +15,7 @@ from compono.models import (
 )
 from compono.nodes.component import new_graph
 
-# What a new component is called, then Untitled2, Untitled3...
+# What a new component is called, then Untitled.001, Untitled.002...
 NEW_NAME: Final[str] = "Untitled"
 
 
@@ -115,11 +115,12 @@ def _add_with_free_name(
     database: orm.Session,
     project: Project,
     stem: str,
-    suffix: str,
     graph: dict[str, object],
     screen_sizes: list[dict[str, object]],
+    *,
+    numbered: bool = False,
 ) -> Component:
-    """Adds a component named the stem and suffix, with the first number that makes the name free: FeatureGridCopy, FeatureGridCopy2..."""
+    """Adds the first free name, using .001, .002 and so on for duplicates."""
     # A set of component names in a project
     taken = {
         name.lower()
@@ -129,18 +130,10 @@ def _add_with_free_name(
     }
 
     # `while True`, as mypy knows that it never ends, so the function always returns
-    number = 1
+    number = 1 if numbered else 0
     while True:
-        # The first name has no number: FeatureGridCopy, then FeatureGridCopy2
-        digits = "" if number == 1 else str(number)
-        name = (
-            # Strip the stem, so we can fit into the `COMPONENT_NAME_MAX_LENGTH`
-            # Subtract suffix and digits length additionally
-            # Then add the suffix and digits to the stem
-            stem[: COMPONENT_NAME_MAX_LENGTH - len(suffix) - len(digits)]
-            + suffix
-            + digits
-        )
+        suffix = "" if number == 0 else f".{number:03d}"
+        name = stem[: COMPONENT_NAME_MAX_LENGTH - len(suffix)] + suffix
         number += 1
 
         # If the produced name is already taken - try the next number
@@ -159,10 +152,10 @@ def create_component(
 ) -> Component:
     """A new component with its Component Input and Output, and the default screen sizes. Named Untitled if no name is given. Raises NameTaken."""
     # If the name is not supplied - create a component with the `NEW_NAME` as the name.
-    # If that name is taken, add a number from 2: `Untitled2`, `Untitled3`, ...
+    # If that name is taken, use Untitled.001, Untitled.002, ...
     if name is None:
         return _add_with_free_name(
-            database, project, NEW_NAME, "", new_graph(), default_screen_sizes()
+            database, project, NEW_NAME, new_graph(), default_screen_sizes()
         )
 
     # Otherwise, do a normal add
@@ -172,16 +165,14 @@ def create_component(
 def duplicate(
     database: orm.Session, project: Project, original: Component
 ) -> Component:
-    """A copy of the component, named like FeatureGridCopy, with the same graph and screen sizes."""
-    # Return a new component, with the "Copy" as the suffix.
-    # FeatureGridCopy, then FeatureGridCopy2, FeatureGridCopy3, ...
+    """A numbered copy of the component, with the same graph and screen sizes."""
     return _add_with_free_name(
         database,
         project,
-        original.name,
-        "Copy",
+        original.name.split(".", 1)[0],
         original.graph,
         original.screen_sizes,
+        numbered=True,
     )
 
 

@@ -18,7 +18,7 @@
 | Name | Type | Definition |
 | ---- | ---- | ---------- |
 | ck_components_graph_object | CHECK | CHECK ((jsonb_typeof(graph) = 'object'::text)) |
-| ck_components_name_format | CHECK | CHECK (((name)::text ~ '^[A-Z][A-Za-z0-9]*$'::text)) |
+| ck_components_name_format | CHECK | CHECK (((name)::text ~ '^[A-Z][A-Za-z0-9]*(\.[0-9]{3,})?$'::text)) |
 | ck_components_name_length | CHECK | CHECK ((char_length((name)::text) <= 64)) |
 | ck_components_screen_sizes_not_empty | CHECK | CHECK (((jsonb_typeof(screen_sizes) = 'array'::text) AND (screen_sizes <> '[]'::jsonb))) |
 | ck_components_version_positive | CHECK | CHECK ((version >= 1)) |

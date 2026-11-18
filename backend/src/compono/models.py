@@ -385,7 +385,9 @@ class Component(Base):
             text("lower(name)"),
             unique=True,
         ),
-        CheckConstraint("name ~ '^[A-Z][A-Za-z0-9]*$'", name="name_format"),
+        CheckConstraint(
+            r"name ~ '^[A-Z][A-Za-z0-9]*(\.[0-9]{3,})?$'", name="name_format"
+        ),
         CheckConstraint(
             f"char_length(name) <= {COMPONENT_NAME_MAX_LENGTH}", name="name_length"
         ),

@@ -175,7 +175,7 @@ test("duplicating says the copy's name, and Open opens it", async () => {
     request.method === "POST"
       ? Response.json(
           {
-            ...listed("c4", "FeatureGridCopy"),
+            ...listed("c4", "FeatureGrid.001"),
             graph: {},
             screen_sizes: [],
             version: 1,
@@ -191,7 +191,7 @@ test("duplicating says the copy's name, and Open opens it", async () => {
 
   const title = await screen.findByText("FeatureGrid duplicated");
   const toast = title.closest("li") as HTMLElement;
-  expect(toast).toHaveTextContent("The copy is FeatureGridCopy.");
+  expect(toast).toHaveTextContent("The copy is FeatureGrid.001.");
   expect(fetch.mock.calls[0]?.[0].url).toBe(
     `http://localhost:3000${BASE}/c3/copies`,
   );

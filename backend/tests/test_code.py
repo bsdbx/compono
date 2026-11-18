@@ -304,6 +304,7 @@ def test_a_node_without_code_is_written_as_its_value_unless_it_takes_a_prop() ->
     ("name", "component"),
     [
         ("PricingCard", "PricingCard"),
+        ("PricingCard.001", "PricingCard001"),
         ("pricing card", "PricingCard"),
         ("nav-bar 2", "NavBar2"),
         ("2 columns", "Component2Columns"),
