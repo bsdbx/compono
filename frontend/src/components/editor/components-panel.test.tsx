@@ -201,6 +201,23 @@ test("duplicating says the copy's name, and Open opens it", async () => {
   );
 });
 
+test("right-clicking a component opens its actions without navigating", async () => {
+  stubApi(() => undefined);
+  renderPanel();
+  fireEvent.contextMenu(screen.getByRole("link", { name: "NavBar" }), {
+    clientX: 50,
+    clientY: 120,
+  });
+  expect(
+    (await screen.findAllByRole("menuitem")).map((item) => item.textContent),
+  ).toEqual(["Rename", "Duplicate", "Delete"]);
+  expect(navigation.router.push).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+  expect(
+    await screen.findByRole("textbox", { name: "Component name" }),
+  ).toHaveValue("NavBar");
+});
+
 test("deleting the open component asks first, then opens another", async () => {
   const fetch = stubApi((request) =>
     request.method === "DELETE"

@@ -4,6 +4,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 /** A menu item in a canvas menu, and the line between groups of them. */
 export const MENU_ITEM = "h-6.5 min-h-6.5 text-sm focus:bg-highlight";
@@ -15,11 +16,13 @@ export function PointerMenu({
   y,
   onClose,
   children,
+  className,
 }: {
   x: number;
   y: number;
   onClose: () => void;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <DropdownMenu
@@ -37,7 +40,7 @@ export function PointerMenu({
       <DropdownMenuContent
         align="start"
         sideOffset={0}
-        className="w-47"
+        className={cn("w-47", className)}
         // Letting go of the right button that opened the menu doesn't choose the item under it
         onPointerUpCapture={(event) => {
           if (event.button === 2) {
