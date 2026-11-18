@@ -71,6 +71,8 @@ import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
 import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
 
 const NODE_VIEWS = { graph: NodeView };
+// A stable prop lets queued fit commands keep their own nodes and animation options.
+const INITIAL_VIEW = { maxZoom: 1, padding: 0.3 };
 
 /** Where the Add node menu opens, and the output a wire was dragged from, if it was. */
 type Adding = {
@@ -313,6 +315,21 @@ function Flow({
     [edit],
   );
 
+  const fitToView = useCallback(() => {
+    const all = flow.getNodes();
+    const selected = all.filter((node) => node.selected);
+    if (all.length === 0) {
+      void flow.setCenter(0, 0, { zoom: 1, duration: 250 });
+    } else {
+      void flow.fitView({
+        nodes: selected.length ? selected : all,
+        maxZoom: 1,
+        padding: 0.3,
+        duration: 250,
+      });
+    }
+  }, [flow]);
+
   useEffect(() => {
     const remember = (event: PointerEvent) => {
       pointer.current = { x: event.clientX, y: event.clientY };
@@ -351,6 +368,9 @@ function Flow({
           y: origin.y - bounds.top,
           at: flow.screenToFlowPosition(origin),
         });
+      } else if (key === "f" && !command && !event.shiftKey) {
+        event.preventDefault();
+        fitToView();
       } else if (!command) {
         return;
       } else if (key === "z" && !event.shiftKey) {
@@ -369,7 +389,7 @@ function Flow({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo, selectAll, duplicate, nodes, hidden, flow]);
+  }, [undo, redo, selectAll, duplicate, nodes, hidden, fitToView, flow]);
 
   // A wire is refused when the API refuses it, or when its types plainly don't fit
   const refused = useMemo(() => {
@@ -591,11 +611,11 @@ function Flow({
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
-              onSelect={() =>
-                void flow.fitView({ maxZoom: 1, padding: 0.2, duration: 200 })
-              }
+              onSelect={fitToView}
+              aria-keyshortcuts="F"
             >
               Fit to view
+              <DropdownMenuShortcut keys={["F"]} />
             </DropdownMenuItem>
           </>
         );
@@ -780,7 +800,7 @@ function Flow({
           colorMode="dark"
           style={{ background: "transparent" }}
           fitView
-          fitViewOptions={{ maxZoom: 1, padding: 0.3 }}
+          fitViewOptions={INITIAL_VIEW}
           minZoom={0.2}
           maxZoom={2}
           selectionOnDrag
