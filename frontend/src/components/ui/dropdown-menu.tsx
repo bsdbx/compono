@@ -213,7 +213,7 @@ function DropdownMenuShortcut({
             title={key}
             className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded border border-foreground/5 bg-foreground/10 px-1 font-sans text-[0.625rem] leading-none"
           >
-            {key === "Shift" ? "⇧" : key}
+            {key === "Shift" ? "⇧" : key === "Ctrl" ? "⌃" : key}
           </kbd>
         </React.Fragment>
       ))}
