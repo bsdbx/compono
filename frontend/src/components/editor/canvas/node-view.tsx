@@ -1,11 +1,4 @@
-import {
-  Handle,
-  type Node,
-  type NodeProps,
-  Position,
-  useStore,
-} from "@xyflow/react";
-import { Plus } from "lucide-react";
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { memo, type ReactNode } from "react";
 import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types";
 import { cn } from "@/lib/utils";
@@ -238,9 +231,26 @@ function GroupRows({ node, group }: { node: GraphNode; group: GroupSocket }) {
           id={addRow(group.id)}
           position={Position.Left}
           style={{ left: -11 }}
-          className="flex! size-3.5! min-h-0! min-w-0! items-center justify-center rounded-full! border! border-muted-foreground! bg-card!"
+          className="size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
         >
-          <Plus className="pointer-events-none size-2.5 text-foreground" />
+          <svg
+            aria-hidden
+            viewBox="0 0 14 14"
+            className="pointer-events-none block size-full"
+          >
+            <circle
+              cx="7"
+              cy="7"
+              r="6.5"
+              fill="var(--card)"
+              stroke="var(--muted-foreground)"
+            />
+            <path
+              d="M4.5 7h5M7 4.5v5"
+              stroke="var(--foreground)"
+              strokeLinecap="round"
+            />
+          </svg>
         </Handle>
         Add
       </div>
@@ -291,8 +301,6 @@ function OnNodeValue({
 
 function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const canvas = useCanvas();
-  // Nodes in a box selection take its tint
-  const boxed = useStore((state) => state.nodesSelectionActive) && selected;
   const node = canvas.graph.nodes.find((each) => each.id === id);
   if (node === undefined) {
     return null;
@@ -346,11 +354,8 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
     <div
       data-node-type={node.type}
       className={cn(
-        "rounded-xl border text-foreground text-xs shadow-black/40 shadow-xl",
+        "rounded-xl border bg-card text-foreground text-xs shadow-black/40 shadow-xl",
         fields ? "w-47" : "w-max min-w-42 max-w-60",
-        boxed
-          ? "bg-[color-mix(in_srgb,var(--selection)_6%,var(--card))]"
-          : "bg-card",
         error
           ? "border-error/45"
           : selected
