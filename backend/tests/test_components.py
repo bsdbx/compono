@@ -65,8 +65,8 @@ def test_new_components_take_the_first_free_untitled_name(session: Session) -> N
     assert sorted(names(session, project)) == [
         "Header",
         "Untitled",
-        "Untitled2",
-        "Untitled3",
+        "Untitled.001",
+        "Untitled.002",
     ]
 
 
@@ -109,7 +109,9 @@ def test_a_copy_is_named_after_the_original_with_its_graph_and_sizes(
     first = components.duplicate(session, project, grid)
     second = components.duplicate(session, project, grid)
 
-    assert (first.name, second.name) == ("FeatureGridCopy", "FeatureGridCopy2")
+    assert (first.name, second.name) == ("FeatureGrid.001", "FeatureGrid.002")
+    third = components.duplicate(session, project, first)
+    assert third.name == "FeatureGrid.003"
     for copy in [first, second]:
         assert copy.id != grid.id
         assert (copy.graph, copy.screen_sizes, copy.version) == (GRAPH, SIZES, 1)
@@ -122,7 +124,7 @@ def test_a_copy_of_the_longest_name_still_fits(session: Session) -> None:
     first = components.duplicate(session, project, longest)
     second = components.duplicate(session, project, longest)
 
-    assert (first.name, second.name) == ("A" * 60 + "Copy", "A" * 59 + "Copy2")
+    assert (first.name, second.name) == ("A" * 60 + ".001", "A" * 60 + ".002")
 
 
 def test_saving_moves_the_version_on(session: Session) -> None:

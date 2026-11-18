@@ -9,13 +9,13 @@ import {
 import type { Component, ListedComponent } from "@/api/types";
 import { cn } from "@/lib/utils";
 
-const NAME = /^[A-Z][A-Za-z0-9]*$/;
+const NAME = /^[A-Z][A-Za-z0-9]*(\.[0-9]{3,})?$/;
 const MAX_LENGTH = 64;
 
 /** Why the API would refuse the name, if it would. React reads a lowercase name as an HTML tag. */
 export function nameProblem(name: string): string | undefined {
   if (!NAME.test(name)) {
-    return "Start with a capital letter, then use only letters and digits.";
+    return "Start with a capital letter, then letters and digits; an optional .001 suffix is allowed.";
   }
   if (name.length > MAX_LENGTH) {
     return `Use at most ${MAX_LENGTH} characters.`;

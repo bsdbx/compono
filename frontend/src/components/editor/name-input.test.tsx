@@ -50,6 +50,9 @@ const renames = (fetch: ReturnType<typeof stubApi>) =>
 
 test("a name is a capital letter, then letters and digits", () => {
   expect(nameProblem("PricingCard2")).toBeUndefined();
+  expect(nameProblem("PricingCard.001")).toBeUndefined();
+  expect(nameProblem("PricingCard.1000")).toBeUndefined();
+  expect(nameProblem("PricingCard.01")).toBeDefined();
   for (const refused of [
     "pricingCard",
     "Pricing card",
@@ -58,7 +61,7 @@ test("a name is a capital letter, then letters and digits", () => {
     "",
   ]) {
     expect(nameProblem(refused)).toBe(
-      "Start with a capital letter, then use only letters and digits.",
+      "Start with a capital letter, then letters and digits; an optional .001 suffix is allowed.",
     );
   }
   expect(nameProblem(`P${"a".repeat(63)}`)).toBeUndefined();
@@ -123,7 +126,7 @@ test("a name React can't use is refused without asking the API", () => {
   fireEvent.keyDown(field, { key: "Enter" });
 
   expect(screen.getByRole("alert")).toHaveTextContent(
-    "Start with a capital letter, then use only letters and digits.",
+    "Start with a capital letter, then letters and digits; an optional .001 suffix is allowed.",
   );
   expect(fetch).not.toHaveBeenCalled();
   expect(onDone).not.toHaveBeenCalled();

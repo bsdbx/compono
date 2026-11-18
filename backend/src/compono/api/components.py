@@ -26,13 +26,13 @@ router = APIRouter()
 
 COMPONENTS = "/api/teams/{team_url}/projects/{project_url}/components"
 
-# A capital letter, then letters and digits, like PricingCard. React treats a lowercase name as an HTML tag.
+# A capitalized identifier, with an optional numbered suffix such as PricingCard.001.
 ComponentName = Annotated[
     str,
     StringConstraints(
         min_length=1,
         max_length=COMPONENT_NAME_MAX_LENGTH,
-        pattern=r"^[A-Z][A-Za-z0-9]*$",
+        pattern=r"^[A-Z][A-Za-z0-9]*(\.[0-9]{3,})?$",
     ),
 ]
 
@@ -175,7 +175,7 @@ def project_components(access: InProject, database: Database) -> list[ListedComp
 
 
 class NewComponent(BaseModel):
-    """A new component. Named Untitled, Untitled2... when the name is left out."""
+    """A new component. Named Untitled, Untitled.001... when the name is left out."""
 
     name: ComponentName | None = None
 
