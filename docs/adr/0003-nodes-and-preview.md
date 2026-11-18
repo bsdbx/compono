@@ -118,7 +118,7 @@ Each node type's `generate` gives the code for what its `evaluate` computes. The
 
 ### Canvas
 
-React Flow, as `0002-stack.md` chose. Below 50% zoom, nodes leave out their text and inputs, which [the canvas benchmark](../BENCHMARKS.md) shows keeps 400 nodes at 60 fps on a desktop.
+React Flow, as `0002-stack.md` chose. Below 50% zoom, nodes leave out their text and inputs to keep navigation responsive in large graphs.
 
 ## Consequences
 
