@@ -164,6 +164,7 @@ function Benchmark() {
       <div ref={canvas} className="min-h-0 flex-1">
         <SimpleWhenZoomedOut value={simple}>
           <ReactFlow
+            proOptions={{ hideAttribution: true }}
             nodes={nodes}
             edges={graph.edges}
             onNodesChange={onNodesChange}

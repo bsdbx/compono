@@ -208,11 +208,3 @@
   position: absolute;
   inset: -18px;
 }
-/* React Flow's credit, quiet in a corner */
-.react-flow__attribution {
-  background: transparent;
-  color: var(--subtle-foreground);
-}
-.react-flow__attribution a {
-  color: inherit;
-}
