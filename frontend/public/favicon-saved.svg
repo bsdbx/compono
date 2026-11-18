@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
+  <title>Compono - Saved</title>
+  <polygon points="12,3 21,8 12,13 3,8" fill="#4ade80" stroke="#4ade80" stroke-width="1.2" stroke-linejoin="round" />
+  <polyline points="3,12.5 12,17.5 21,12.5" stroke="#4ade80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" />
+  <polyline points="3,16.5 12,21.5 21,16.5" stroke="#4ade80" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity="0.28" />
+</svg>
