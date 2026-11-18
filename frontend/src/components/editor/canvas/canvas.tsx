@@ -615,6 +615,14 @@ function Flow({
         ? createPortal(<PropertiesPanel selected={selected} />, panel)
         : null}
       <div ref={wrapper} className="relative h-full w-full">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-4"
+          style={{
+            background:
+              "radial-gradient(ellipse at center, transparent 45%, rgb(0 0 0 / 0.16) 100%)",
+          }}
+        />
         <ReactFlow<CanvasNode>
           proOptions={{ hideAttribution: true }}
           nodes={nodes}
