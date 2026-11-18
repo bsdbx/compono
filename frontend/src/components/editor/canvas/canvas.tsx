@@ -83,6 +83,13 @@ type Adding = {
   embedded?: boolean;
 };
 
+type Placement = {
+  graph: Graph;
+  node: string;
+  position: XY;
+  before: ReadonlySet<string>;
+};
+
 type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
 
 function inputType(
@@ -165,13 +172,18 @@ function editing(target: EventTarget | null): boolean {
   );
 }
 
-function toFlow(node: Graph["nodes"][number], before?: CanvasNode): CanvasNode {
+function toFlow(
+  node: Graph["nodes"][number],
+  before?: CanvasNode,
+  centered = false,
+): CanvasNode {
   return {
     ...before,
     id: node.id,
     type: "graph",
     position: node.position,
     data: {},
+    origin: centered ? [0.5, 0.5] : [0, 0],
   };
 }
 
@@ -193,7 +205,18 @@ function Flow({
   const flow = useReactFlow<CanvasNode>();
   const wrapper = useRef<HTMLDivElement>(null);
   const pointer = useRef<XY>(undefined);
-  const graph = useMemo(() => readGraph(content.graph), [content.graph]);
+  const [placement, setPlacement] = useState<Placement>();
+  const savedGraph = useMemo(() => readGraph(content.graph), [content.graph]);
+  const graph = useMemo(
+    () =>
+      placement
+        ? moveNodes(
+            placement.graph,
+            new Map([[placement.node, placement.position]]),
+          )
+        : savedGraph,
+    [placement, savedGraph],
+  );
   const evaluation = useEvaluation(graph);
   const evaluated = useMemo(
     () => new Map(Object.entries(evaluation?.nodes ?? {})),
@@ -214,6 +237,7 @@ function Flow({
     setNodes,
     setSelectedWires,
   );
+  const ignorePlacementClick = useRef(false);
 
   // Nodes an edit adds, to select once they're on the canvas
   const selectNext = useRef<ReadonlySet<string>>(undefined);
@@ -226,15 +250,19 @@ function Flow({
       const before = new Map(current.map((node) => [node.id, node]));
       return graph.nodes.map((node) => {
         const previous = before.get(node.id);
+        const centered = node.id === placement?.node;
+        const origin = centered ? 0.5 : 0;
         const moved =
           previous === undefined ||
           previous.position.x !== node.position.x ||
-          previous.position.y !== node.position.y;
-        const next = moved ? toFlow(node, previous) : previous;
+          previous.position.y !== node.position.y ||
+          previous.origin?.[0] !== origin ||
+          previous.origin?.[1] !== origin;
+        const next = moved ? toFlow(node, previous, centered) : previous;
         return select ? { ...next, selected: select.has(node.id) } : next;
       });
     });
-  }, [graph.nodes]);
+  }, [graph.nodes, placement?.node]);
 
   // The Preview's Show node selects a node and brings it into view
   useEffect(() => {
@@ -333,10 +361,62 @@ function Flow({
   useEffect(() => {
     const remember = (event: PointerEvent) => {
       pointer.current = { x: event.clientX, y: event.clientY };
+      if (placement) {
+        const position = flow.screenToFlowPosition(pointer.current);
+        setPlacement((current) =>
+          current ? { ...current, position } : current,
+        );
+      }
+    };
+    const place = (event: PointerEvent) => {
+      if (!placement) return;
+      if (
+        !(event.target instanceof Node) ||
+        !wrapper.current?.contains(event.target)
+      ) {
+        selectNext.current = placement.before;
+        setPlacement(undefined);
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      ignorePlacementClick.current = true;
+      if (event.button === 0) {
+        const position = flow.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        const node = flow.getNode(placement.node);
+        const element = wrapper.current.querySelector<HTMLElement>(
+          `.react-flow__node[data-id="${CSS.escape(placement.node)}"]`,
+        );
+        // Persist the graph's top-left coordinates after centering the temporary node on the pointer.
+        const topLeft = {
+          x:
+            position.x -
+            (node?.measured?.width ?? element?.offsetWidth ?? 0) / 2,
+          y:
+            position.y -
+            (node?.measured?.height ?? element?.offsetHeight ?? 0) / 2,
+        };
+        const finished = moveNodes(
+          placement.graph,
+          new Map([[placement.node, topLeft]]),
+        );
+        edit(() => finished);
+        selectNext.current = new Set([placement.node]);
+      } else {
+        selectNext.current = placement.before;
+      }
+      setPlacement(undefined);
     };
     document.addEventListener("pointermove", remember, true);
-    return () => document.removeEventListener("pointermove", remember, true);
-  }, []);
+    document.addEventListener("pointerdown", place, true);
+    return () => {
+      document.removeEventListener("pointermove", remember, true);
+      document.removeEventListener("pointerdown", place, true);
+    };
+  }, [placement, flow, edit]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -345,7 +425,11 @@ function Flow({
       }
       const key = event.key.toLowerCase();
       const command = event.metaKey || event.ctrlKey;
-      if (key === "a" && event.shiftKey && !command) {
+      if (key === "escape" && placement) {
+        event.preventDefault();
+        selectNext.current = placement.before;
+        setPlacement(undefined);
+      } else if (key === "a" && event.shiftKey && !command && !placement) {
         event.preventDefault();
         const bounds = wrapper.current?.getBoundingClientRect();
         if (!bounds) return;
@@ -368,10 +452,10 @@ function Flow({
           y: origin.y - bounds.top,
           at: flow.screenToFlowPosition(origin),
         });
-      } else if (key === "f" && !command && !event.shiftKey) {
+      } else if (key === "f" && !command && !event.shiftKey && !placement) {
         event.preventDefault();
         fitToView();
-      } else if (!command) {
+      } else if (placement || !command) {
         return;
       } else if (key === "z" && !event.shiftKey) {
         event.preventDefault();
@@ -389,7 +473,17 @@ function Flow({
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [undo, redo, selectAll, duplicate, nodes, hidden, fitToView, flow]);
+  }, [
+    undo,
+    redo,
+    selectAll,
+    duplicate,
+    nodes,
+    hidden,
+    fitToView,
+    placement,
+    flow,
+  ]);
 
   // A wire is refused when the API refuses it, or when its types plainly don't fit
   const refused = useMemo(() => {
@@ -539,20 +633,29 @@ function Flow({
     if (adding === undefined) {
       return;
     }
-    const node = newNode(nodeType.type, adding.at);
+    const position = pointer.current
+      ? flow.screenToFlowPosition(pointer.current)
+      : adding.at;
+    const node = newNode(nodeType.type, position);
     const from = adding.from;
-    edit((current) => {
-      const added = addNode(current, node);
-      return from && input
+    const added = addNode(latest(), node);
+    const next =
+      from && input
         ? connect(
             added,
             { node: from.node, socket: from.socket },
             { node: node.id, socket: input },
           )
         : added;
+    setPlacement({
+      graph: next,
+      node: node.id,
+      position,
+      before: new Set(selected),
     });
     selectNext.current = new Set([node.id]);
     setAdding(undefined);
+    setMenu(undefined);
   }
 
   // A graph has one of some nodes, like Component Input
@@ -709,6 +812,16 @@ function Flow({
         ref={wrapper}
         className="relative h-full w-full"
         {...boxSelection.handlers}
+        onPointerDownCapture={(event) => {
+          ignorePlacementClick.current = false;
+          boxSelection.handlers.onPointerDownCapture(event);
+        }}
+        onClickCapture={(event) => {
+          if (ignorePlacementClick.current) {
+            event.stopPropagation();
+            ignorePlacementClick.current = false;
+          } else boxSelection.handlers.onClickCapture(event);
+        }}
       >
         <div
           aria-hidden
@@ -724,6 +837,7 @@ function Flow({
           edges={edges}
           nodeTypes={NODE_VIEWS}
           onNodesChange={onNodesChange}
+          nodesDraggable={!placement}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onConnectEnd={onConnectEnd}
@@ -810,7 +924,7 @@ function Flow({
           panOnScroll
           multiSelectionKeyCode={["Shift", "Meta", "Control"]}
           // While the code shows, its keys aren't the canvas's
-          deleteKeyCode={hidden ? null : ["Delete", "Backspace"]}
+          deleteKeyCode={hidden || placement ? null : ["Delete", "Backspace"]}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -862,6 +976,9 @@ function Flow({
               }}
             />
           </div>
+        ) : null}
+        {placement ? (
+          <div aria-hidden className="absolute inset-0 z-10 cursor-grabbing" />
         ) : null}
         {menu ? (
           <PointerMenu
