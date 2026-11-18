@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Copy, MoreHorizontal, Search, UserCog, UserMinus } from "lucide-react";
+import { MoreHorizontal, Search, UserCog, UserMinus } from "lucide-react";
 import { useId, useState } from "react";
 import { inviteLinkOptions, teamMembersOptions } from "@/api/queries";
 import type { Member, Team } from "@/api/types";
@@ -12,6 +12,7 @@ import {
 } from "@/components/team-settings/team-dialogs";
 import { useTeam } from "@/components/team-settings/use-team";
 import { Button } from "@/components/ui/button";
+import { CopyButton } from "@/components/ui/copy-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,16 +27,10 @@ const TIME = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
 /** The team's invite link, to copy. It works for an hour, and a new one appears here after. */
 function InviteLink({ team }: { team: Team }) {
   const id = useId();
-  const [copied, setCopied] = useState(false);
   const { data: link } = useQuery(
     inviteLinkOptions({ path: { team_url: team.url } }),
   );
   const url = link ? `${window.location.origin}/join/${link.token}` : "";
-
-  async function copy() {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -44,16 +39,13 @@ function InviteLink({ team }: { team: Team }) {
       </label>
       <div className="flex gap-2">
         <Input id={`${id}-link`} readOnly value={url} />
-        <Button
+        <CopyButton
           variant="secondary"
           size="default"
           className="h-9"
           disabled={!link}
-          onClick={() => void copy()}
-        >
-          <Copy className="size-3.5" />
-          {copied ? "Copied" : "Copy"}
-        </Button>
+          text={url}
+        />
       </div>
       <p className="text-base text-muted-foreground">
         Anyone with this link joins {team.name} as a member

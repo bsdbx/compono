@@ -72,7 +72,9 @@ test("Copy puts the code on the clipboard", async () => {
 
   fireEvent.click(await screen.findByRole("button", { name: "Copy" }));
   expect(writeText).toHaveBeenCalledWith(CODE);
-  expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
+  expect(
+    await screen.findByRole("button", { name: "Copied" }),
+  ).toBeInTheDocument();
 });
 
 test("JSX is highlighted as text, including comments that span lines", async () => {
