@@ -4,7 +4,7 @@ import type {
   InputSocket,
   NodeSockets,
   NodeTypeInfo,
-} from "@/api/types.gen";
+} from "@/api/types";
 import type { Graph, GraphNode } from "./graph";
 
 /** A menu opened at the pointer, with what it's for. */

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { useId } from "react";
+import { Link } from "@/lib/navigation";
 
 /** The Compono mark: three stacked layers. */
 export function LogoMark({ size = 24 }: { size?: number }) {

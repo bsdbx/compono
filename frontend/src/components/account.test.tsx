@@ -9,7 +9,7 @@ import {
   useSignedInAccount,
 } from "./account";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 

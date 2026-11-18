@@ -1,13 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
+import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
-import { client } from "@/api/client.gen";
 
 /** Answers the API's requests with the handler, or 404 when it gives nothing. */
 export function stubApi(handler: (request: Request) => Response | undefined) {
   // Tests run without a page, so relative URLs need a base
-  client.setConfig({ baseUrl: "http://localhost" });
   const fetch = vi.fn(
     async (request: Request) =>
       handler(request) ?? Response.json({ detail: "none" }, { status: 404 }),
@@ -21,7 +20,11 @@ export function renderWithClient(ui: ReactNode): QueryClient {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+  render(
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
   return queryClient;
 }
 

@@ -1,5 +1,3 @@
-"use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown,
@@ -9,6 +7,7 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, type Ref, useId, useRef, useState } from "react";
+import { updateProject } from "@/api/client";
 import {
   deleteProjectMutation,
   leaveProjectMutation,
@@ -20,15 +19,14 @@ import {
   setProjectMemberMutation,
   teamMembersOptions,
   teamProjectsQueryKey,
-} from "@/api/@tanstack/react-query.gen";
-import { updateProject } from "@/api/sdk.gen";
+} from "@/api/queries";
 import type {
   ListedProject,
   Project,
   ProjectMember,
   ProjectRole,
   Team,
-} from "@/api/types.gen";
+} from "@/api/types";
 import { useSignedInAccount } from "@/components/account";
 import { Avatar } from "@/components/avatar";
 import { Button } from "@/components/ui/button";

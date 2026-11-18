@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
-import type { NodeTypeInfo } from "@/api/types.gen";
+import type { NodeTypeInfo } from "@/api/types";
 import { Toasts } from "@/components/ui/toast";
 import { CanvasContext, type CanvasState } from "./context";
 import { type Graph, newNode } from "./graph";

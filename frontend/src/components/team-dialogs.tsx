@@ -1,7 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import type { Team } from "@/api/types.gen";
+import type { Team } from "@/api/types";
 import { CreateTeamForm } from "@/components/create-team-form";
 import { JoinTeamForm } from "@/components/join-team-form";
 import { Button } from "@/components/ui/button";
@@ -14,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useRouter } from "@/lib/navigation";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 

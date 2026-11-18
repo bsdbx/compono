@@ -1,10 +1,8 @@
-"use client";
-
 import { ChevronLeft, SlidersHorizontal, Users } from "lucide-react";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import type { Team } from "@/api/types.gen";
+import type { Team } from "@/api/types";
 import { AccountMenu } from "@/components/account-menu";
+import { Link } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [

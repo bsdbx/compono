@@ -4,7 +4,7 @@ import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { RedirectIfSignedIn } from "./redirect-if-signed-in";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 

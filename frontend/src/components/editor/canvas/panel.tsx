@@ -1,7 +1,5 @@
-"use client";
-
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { Prop } from "@/api/types.gen";
+import type { Prop } from "@/api/types";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,

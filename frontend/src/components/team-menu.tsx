@@ -1,11 +1,8 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronsUpDown, Link2, Plus, Settings } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
-import { myTeamsOptions } from "@/api/@tanstack/react-query.gen";
-import type { Team } from "@/api/types.gen";
+import { myTeamsOptions } from "@/api/queries";
+import type { Team } from "@/api/types";
 import { CreateTeamDialog, JoinTeamDialog } from "@/components/team-dialogs";
 import {
   DropdownMenu,
@@ -15,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link } from "@/lib/navigation";
 
 /** The team at the top of the sidebar, with a menu to switch teams, open their settings, or create and join one. */
 export function TeamMenu({ team }: { team: Team }) {

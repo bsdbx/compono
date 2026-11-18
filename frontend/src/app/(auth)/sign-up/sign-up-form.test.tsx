@@ -4,7 +4,7 @@ import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignUpForm } from "./sign-up-form";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
@@ -33,7 +33,7 @@ test("creating an account goes to the projects", async () => {
     expect(navigation.router.replace).toHaveBeenCalledWith("/"),
   );
   const request = fetch.mock.calls[0]?.[0];
-  expect(request?.url).toBe("http://localhost/api/accounts");
+  expect(request?.url).toBe("http://localhost:3000/api/accounts");
   expect(await request?.json()).toEqual({
     name: "Mira Kovalenko",
     email: "mira@acme.dev",

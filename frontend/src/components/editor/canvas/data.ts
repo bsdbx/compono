@@ -1,16 +1,20 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { listNodeTypesOptions } from "@/api/@tanstack/react-query.gen";
-import { evaluateGraph, generateCode } from "@/api/sdk.gen";
-import type { Evaluated, GeneratedCode, NodeTypeInfo } from "@/api/types.gen";
+import { useEffect, useMemo, useState } from "react";
+import { evaluateGraph, generateCode } from "@/api/client";
+import { listNodeTypesOptions } from "@/api/queries";
+import type { Evaluated, GeneratedCode, NodeTypeInfo } from "@/api/types";
 import type { Graph } from "./graph";
 
 /** Every node type, by type. They don't change while the app runs. */
 export function useNodeTypes(): ReadonlyMap<string, NodeTypeInfo> | undefined {
   const { data } = useQuery({ ...listNodeTypesOptions(), staleTime: Infinity });
-  return data === undefined
-    ? undefined
-    : new Map(data.map((nodeType) => [nodeType.type, nodeType]));
+  return useMemo(
+    () =>
+      data === undefined
+        ? undefined
+        : new Map(data.map((nodeType) => [nodeType.type, nodeType])),
+    [data],
+  );
 }
 
 /** How long a graph has to stay the same before it's evaluated, so that typing asks once. */

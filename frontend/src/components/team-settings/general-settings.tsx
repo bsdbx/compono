@@ -1,21 +1,15 @@
-"use client";
-
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useId, useState } from "react";
+import { updateTeam } from "@/api/client";
 import {
   myTeamsQueryKey,
   teamMembersOptions,
   teamProjectsOptions,
   teamQueryKey,
-} from "@/api/@tanstack/react-query.gen";
-import { updateTeam } from "@/api/sdk.gen";
-import type { Team } from "@/api/types.gen";
+} from "@/api/queries";
+import type { Team } from "@/api/types";
 import { useSignedInAccount } from "@/components/account";
 import { Avatar } from "@/components/avatar";
-import { teamSchema } from "@/components/create-team-form";
 import { Field } from "@/components/field";
 import {
   DangerRow,
@@ -29,6 +23,8 @@ import { useTeam } from "@/components/team-settings/use-team";
 import { TeamUrlInput } from "@/components/team-url-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFields, validateTeam } from "@/lib/form";
+import { useRouter } from "@/lib/navigation";
 
 type Values = { name: string; url: string };
 
@@ -37,21 +33,19 @@ function TeamForm({ team }: { team: Team }) {
   const id = useId();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const {
-    register,
-    handleSubmit,
-    setError,
-    reset,
-    formState: { errors, dirtyFields },
-  } = useForm<Values>({
-    resolver: zodResolver(teamSchema),
-    values: { name: team.name, url: team.url },
-  });
+  const { values, errors, change, reset, setErrors, submit } = useFields(
+    { name: team.name, url: team.url },
+    validateTeam,
+  );
+
+  useEffect(() => {
+    reset({ name: team.name, url: team.url });
+  }, [team.name, team.url, reset]);
 
   async function save(values: Values) {
     const changes = {
-      ...(dirtyFields.name ? { name: values.name } : {}),
-      ...(dirtyFields.url ? { url: values.url } : {}),
+      ...(values.name !== team.name ? { name: values.name.trim() } : {}),
+      ...(values.url !== team.url ? { url: values.url } : {}),
     };
     if (Object.keys(changes).length === 0) {
       return;
@@ -74,46 +68,47 @@ function TeamForm({ team }: { team: Team }) {
         return;
       }
       if (error?.detail === "url_taken") {
-        setError("url", {
-          message: `${window.location.host}/${values.url} is taken. Try a different URL.`,
+        setErrors({
+          url: `${window.location.host}/${values.url} is taken. Try a different URL.`,
         });
         return;
       }
     } catch {
       // The request didn't reach the API
     }
-    setError("root", { message: "Couldn’t save. Try again." });
+    setErrors({ root: "Couldn’t save. Try again." });
   }
 
-  const submit = handleSubmit(save);
   return (
     <form
       method="post"
       noValidate
-      onSubmit={(event) => void submit(event)}
+      onSubmit={(event) => void submit(save, event)}
       className="flex flex-col gap-4"
     >
-      <Field
-        label="Team name"
-        htmlFor={`${id}-name`}
-        error={errors.name?.message}
-      >
+      <Field label="Team name" htmlFor={`${id}-name`} error={errors.name}>
         <Input
           id={`${id}-name`}
           aria-invalid={errors.name !== undefined}
-          {...register("name", { onBlur: () => void submit() })}
+          name="name"
+          value={values.name}
+          onChange={(event) => change("name", event.target.value)}
+          onBlur={() => void submit(save)}
         />
       </Field>
-      <Field label="Team URL" htmlFor={`${id}-url`} error={errors.url?.message}>
+      <Field label="Team URL" htmlFor={`${id}-url`} error={errors.url}>
         <TeamUrlInput
           id={`${id}-url`}
           aria-invalid={errors.url !== undefined}
-          {...register("url", { onBlur: () => void submit() })}
+          name="url"
+          value={values.url}
+          onChange={(event) => change("url", event.target.value)}
+          onBlur={() => void submit(save)}
         />
       </Field>
       {errors.root ? (
         <p role="alert" className="text-error text-sm">
-          {errors.root.message}
+          {errors.root}
         </p>
       ) : null}
       {/* Enter saves too */}

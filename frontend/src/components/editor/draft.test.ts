@@ -1,8 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { componentQueryKey } from "@/api/@tanstack/react-query.gen";
-import { client } from "@/api/client.gen";
-import type { Component } from "@/api/types.gen";
+import { componentQueryKey } from "@/api/queries";
+import type { Component } from "@/api/types";
 import { type Content, Draft, SAVE_DELAY } from "./draft";
 
 const PATH = {
@@ -11,7 +10,7 @@ const PATH = {
   component_id: "c1",
 };
 const BASE =
-  "http://localhost/api/teams/acme/projects/marketing-site/components";
+  "http://localhost:3000/api/teams/acme/projects/marketing-site/components";
 const SIZES = [{ name: "Desktop", width: 1280 }];
 const CARD: Component = {
   id: "c1",
@@ -36,7 +35,6 @@ type Save = { url: string; body: { version: number } & Content };
 
 /** Answers each request with the next answer, and keeps the saves it was sent. */
 function answer(...answers: Array<() => Response | Promise<Response>>) {
-  client.setConfig({ baseUrl: "http://localhost" });
   const saves: Save[] = [];
   const fetch = vi.fn(async (request: Request) => {
     if (request.method === "PUT") {

@@ -1,5 +1,3 @@
-"use client";
-
 import "@xyflow/react/dist/style.css";
 import {
   Background,
@@ -155,7 +153,7 @@ function Benchmark() {
           {state.status === "running" && `${state.scenario}…`}
           {state.status === "failed" && state.error}
         </p>
-        {process.env.NODE_ENV !== "production" && (
+        {import.meta.env.DEV && (
           <p className="text-amber-400">
             This is a development build, which is several times slower. Run it
             with pnpm build and pnpm start.

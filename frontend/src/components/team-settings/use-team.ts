@@ -1,9 +1,7 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
-import { notFound, useParams } from "next/navigation";
-import { teamOptions } from "@/api/@tanstack/react-query.gen";
-import type { Team } from "@/api/types.gen";
+import { teamOptions } from "@/api/queries";
+import type { Team } from "@/api/types";
+import { notFound, useParams } from "@/lib/navigation";
 
 /** The team of the page's URL, or the not-found page when the account isn't in it. */
 export function useTeam(): Team | undefined {

@@ -1,13 +1,8 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { Copy, MoreHorizontal, Search, UserCog, UserMinus } from "lucide-react";
 import { useId, useState } from "react";
-import {
-  inviteLinkOptions,
-  teamMembersOptions,
-} from "@/api/@tanstack/react-query.gen";
-import type { Member, Team } from "@/api/types.gen";
+import { inviteLinkOptions, teamMembersOptions } from "@/api/queries";
+import type { Member, Team } from "@/api/types";
 import { useSignedInAccount } from "@/components/account";
 import { Avatar } from "@/components/avatar";
 import { SettingsShell } from "@/components/team-settings/settings-shell";

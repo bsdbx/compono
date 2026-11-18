@@ -1,7 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { componentQueryKey } from "@/api/@tanstack/react-query.gen";
-import { component as loadComponent, saveComponent } from "@/api/sdk.gen";
-import type { Component, ScreenSize } from "@/api/types.gen";
+import { component as loadComponent, saveComponent } from "@/api/client";
+import { componentQueryKey } from "@/api/queries";
+import type { Component, ScreenSize } from "@/api/types";
 
 /** How long the draft waits after a change before saving, so that typing saves once. */
 export const SAVE_DELAY = 1000;

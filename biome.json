@@ -7,13 +7,7 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": [
-      "frontend/**",
-      ".vscode/*.json",
-      "!**/*.md",
-      "!frontend/openapi.json",
-      "!frontend/src/api"
-    ]
+    "includes": ["frontend/**", ".vscode/*.json", "!**/*.md"]
   },
   "formatter": {
     "enabled": true,
@@ -38,7 +32,6 @@
       }
     },
     "domains": {
-      "next": "recommended",
       "react": "recommended"
     }
   },

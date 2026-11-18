@@ -1,5 +1,3 @@
-"use client";
-
 import { Toast as Primitive } from "radix-ui";
 import {
   createContext,

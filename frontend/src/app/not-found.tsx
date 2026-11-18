@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { CenteredPage } from "@/components/centered-page";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/lib/navigation";
 
 export default function NotFound() {
   return (

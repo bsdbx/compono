@@ -1,5 +1,3 @@
-"use client";
-
 import { ChevronsUpDown, LogOut } from "lucide-react";
 import { useSignedInAccount, useSignOut } from "@/components/account";
 import { Avatar } from "@/components/avatar";

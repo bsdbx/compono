@@ -1,12 +1,10 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import { LayoutGrid } from "lucide-react";
-import Link from "next/link";
-import { teamProjectsOptions } from "@/api/@tanstack/react-query.gen";
-import type { Team } from "@/api/types.gen";
+import { teamProjectsOptions } from "@/api/queries";
+import type { Team } from "@/api/types";
 import { AccountMenu } from "@/components/account-menu";
 import { TeamMenu } from "@/components/team-menu";
+import { Link } from "@/lib/navigation";
 
 /** A team's sidebar: the team menu, the projects, and the account at the bottom. */
 export function TeamSidebar({ team }: { team: Team }) {

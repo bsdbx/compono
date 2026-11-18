@@ -1,8 +1,4 @@
-"use client";
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type ReactNode, useId, useState } from "react";
 import {
   deleteTeamMutation,
@@ -10,8 +6,8 @@ import {
   makeOwnerMutation,
   removeMemberMutation,
   teamMembersQueryKey,
-} from "@/api/@tanstack/react-query.gen";
-import type { Member, Team } from "@/api/types.gen";
+} from "@/api/queries";
+import type { Member, Team } from "@/api/types";
 import { firstName } from "@/components/team-settings/use-team";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Link, useRouter } from "@/lib/navigation";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 

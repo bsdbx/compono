@@ -1,13 +1,8 @@
-"use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { createContext, type ReactNode, use, useEffect } from "react";
-import {
-  currentAccountOptions,
-  signOutMutation,
-} from "@/api/@tanstack/react-query.gen";
-import type { Account, Reason } from "@/api/types.gen";
+import { currentAccountOptions, signOutMutation } from "@/api/queries";
+import type { Account, Reason } from "@/api/types";
+import { useRouter } from "@/lib/navigation";
 
 const REASONS: readonly string[] = [
   "no_session",

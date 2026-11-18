@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
+import { currentAccountQueryKey } from "@/api/queries";
 import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignedIn } from "./account";
 import { AccountMenu } from "./account-menu";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
@@ -46,5 +46,5 @@ test("the account menu shows who is signed in, and signs them out", async () => 
   const signOut = fetch.mock.calls
     .map(([request]) => request)
     .find((request) => request.method === "DELETE");
-  expect(signOut?.url).toBe("http://localhost/api/sessions/current");
+  expect(signOut?.url).toBe("http://localhost:3000/api/sessions/current");
 });

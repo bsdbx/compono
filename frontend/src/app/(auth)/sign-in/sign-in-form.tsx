@@ -1,25 +1,22 @@
-"use client";
-
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useId } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
-import { signIn } from "@/api/sdk.gen";
+import { signIn } from "@/api/client";
+import { currentAccountQueryKey } from "@/api/queries";
+import type { SignIn } from "@/api/types";
 import { Field } from "@/components/field";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { type Errors, useFields } from "@/lib/form";
+import { useRouter, useSearchParams } from "@/lib/navigation";
 import { safeNext } from "@/lib/team-url";
 
-const schema = z.object({
-  email: z.string().trim().min(1, "Enter your email."),
-  password: z.string().min(1, "Enter your password."),
-});
-
-type Values = z.infer<typeof schema>;
+function validate(values: SignIn): Errors<SignIn> {
+  return {
+    ...(!values.email.trim() ? { email: "Enter your email." } : {}),
+    ...(!values.password ? { password: "Enter your password." } : {}),
+  };
+}
 
 export function SignInForm() {
   // Ids of this form's own, as a page can keep another form with the same fields
@@ -28,18 +25,19 @@ export function SignInForm() {
   const next = useSearchParams().get("next");
   const queryClient = useQueryClient();
   const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { email: "", password: "" },
-  });
+    values,
+    errors,
+    submitting: isSubmitting,
+    change,
+    setErrors,
+    submit: send,
+  } = useFields({ email: "", password: "" }, validate);
 
-  async function submit(values: Values) {
+  async function submit(values: SignIn) {
     try {
-      const { data, error } = await signIn({ body: values });
+      const { data, error } = await signIn({
+        body: { ...values, email: values.email.trim() },
+      });
       if (data !== undefined) {
         queryClient.setQueryData(currentAccountQueryKey(), data);
         router.replace(safeNext(next));
@@ -47,17 +45,13 @@ export function SignInForm() {
       }
       if (error?.detail === "wrong_email_or_password") {
         // Both fields show as wrong, with one message under them
-        setError("email", { type: "wrong", message: "" });
-        setError("password", {
-          type: "wrong",
-          message: "Email or password is incorrect.",
-        });
+        setErrors({ email: "", password: "Email or password is incorrect." });
         return;
       }
     } catch {
       // The request didn't reach the API
     }
-    setError("root", { message: "Couldn’t sign in. Try again in a moment." });
+    setErrors({ root: "Couldn’t sign in. Try again in a moment." });
   }
 
   return (
@@ -65,39 +59,39 @@ export function SignInForm() {
       // Before the page is interactive, a submit posts rather than putting the password in the URL
       method="post"
       noValidate
-      onSubmit={handleSubmit(submit)}
+      onSubmit={(event) => void send(submit, event)}
       className="flex flex-col gap-4"
     >
-      <Field
-        label="Email"
-        htmlFor={`${id}-email`}
-        error={errors.email?.message}
-      >
+      <Field label="Email" htmlFor={`${id}-email`} error={errors.email}>
         <Input
           id={`${id}-email`}
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
           aria-invalid={errors.email !== undefined}
-          {...register("email")}
+          name="email"
+          value={values.email}
+          onChange={(event) => change("email", event.target.value)}
         />
       </Field>
       <Field
         label="Password"
         htmlFor={`${id}-password`}
-        error={errors.password?.message}
+        error={errors.password}
       >
         <PasswordInput
           id={`${id}-password`}
           autoComplete="current-password"
           placeholder="Your password"
           aria-invalid={errors.password !== undefined}
-          {...register("password")}
+          name="password"
+          value={values.password}
+          onChange={(event) => change("password", event.target.value)}
         />
       </Field>
       {errors.root ? (
         <p role="alert" className="text-error text-sm">
-          {errors.root.message}
+          {errors.root}
         </p>
       ) : null}
       <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2">

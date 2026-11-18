@@ -1,8 +1,6 @@
-"use client";
-
 import { ChevronRight, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { NodeTypeInfo } from "@/api/types.gen";
+import type { NodeTypeInfo } from "@/api/types";
 import { cn } from "@/lib/utils";
 import { accepts, SOCKET_COLOR } from "./accepts";
 import { addRow, type SocketType } from "./graph";

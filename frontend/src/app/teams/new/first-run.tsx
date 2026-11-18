@@ -1,8 +1,5 @@
-"use client";
-
-import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { Team } from "@/api/types.gen";
+import type { Team } from "@/api/types";
 import { CenteredPage } from "@/components/centered-page";
 import {
   CreateTeamButton,
@@ -11,6 +8,7 @@ import {
 import { JoinTeamForm } from "@/components/join-team-form";
 import { SignedInFooter } from "@/components/signed-in-footer";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@/lib/navigation";
 
 /** Creates the account's first team, or joins one with an invite link. */
 export function FirstRun() {

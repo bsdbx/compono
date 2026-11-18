@@ -1,0 +1,113 @@
+/* Only the dialog, menu, sheet and toast transitions used by Compono. */
+@property --tw-enter-opacity {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-enter-scale {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-enter-translate-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-enter-translate-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-exit-opacity {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-exit-scale {
+  syntax: "*";
+  inherits: false;
+  initial-value: 1;
+}
+@property --tw-exit-translate-x {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tw-exit-translate-y {
+  syntax: "*";
+  inherits: false;
+  initial-value: 0;
+}
+
+@theme inline {
+  --animate-in: enter var(--tw-duration, 0.15s) var(--tw-ease, ease);
+  --animate-out: exit var(--tw-duration, 0.15s) var(--tw-ease, ease);
+  @keyframes enter {
+    from {
+      opacity: var(--tw-enter-opacity);
+      transform: translate3d(
+          var(--tw-enter-translate-x),
+          var(--tw-enter-translate-y),
+          0
+        )
+        scale3d(
+          var(--tw-enter-scale),
+          var(--tw-enter-scale),
+          var(--tw-enter-scale)
+        );
+    }
+  }
+  @keyframes exit {
+    to {
+      opacity: var(--tw-exit-opacity);
+      transform: translate3d(
+          var(--tw-exit-translate-x),
+          var(--tw-exit-translate-y),
+          0
+        )
+        scale3d(
+          var(--tw-exit-scale),
+          var(--tw-exit-scale),
+          var(--tw-exit-scale)
+        );
+    }
+  }
+}
+
+@utility fade-in-0 {
+  --tw-enter-opacity: 0;
+}
+@utility fade-out-0 {
+  --tw-exit-opacity: 0;
+}
+@utility zoom-in-95 {
+  --tw-enter-scale: 0.95;
+}
+@utility zoom-out-95 {
+  --tw-exit-scale: 0.95;
+}
+@utility slide-in-from-top-* {
+  --tw-enter-translate-y: calc(--value(integer) * var(--spacing) * -1);
+}
+@utility slide-in-from-bottom-* {
+  --tw-enter-translate-y: calc(--value(integer) * var(--spacing));
+}
+@utility slide-in-from-left-* {
+  --tw-enter-translate-x: calc(--value(integer) * var(--spacing) * -1);
+}
+@utility slide-in-from-right-* {
+  --tw-enter-translate-x: calc(--value(integer) * var(--spacing));
+}
+@utility slide-out-to-top-* {
+  --tw-exit-translate-y: calc(--value(integer) * var(--spacing) * -1);
+}
+@utility slide-out-to-bottom-* {
+  --tw-exit-translate-y: calc(--value(integer) * var(--spacing));
+}
+@utility slide-out-to-left-* {
+  --tw-exit-translate-x: calc(--value(integer) * var(--spacing) * -1);
+}
+@utility slide-out-to-right-* {
+  --tw-exit-translate-x: calc(--value(integer) * var(--spacing));
+}

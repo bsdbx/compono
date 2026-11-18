@@ -3,7 +3,7 @@ import { expect, test, vi } from "vitest";
 import { navigation } from "@/test-navigation";
 import { SignedOutNotice } from "./signed-out-notice";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 

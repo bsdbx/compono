@@ -2,14 +2,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import { projectComponentsQueryKey } from "@/api/@tanstack/react-query.gen";
-import type { ListedComponent } from "@/api/types.gen";
+import { projectComponentsQueryKey } from "@/api/queries";
+import type { ListedComponent } from "@/api/types";
 import { Toasts } from "@/components/ui/toast";
 import { navigation } from "@/test-navigation";
 import { stubApi } from "@/test-utils";
 import { ComponentsPanel } from "./components-panel";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
@@ -193,7 +193,7 @@ test("duplicating says the copy's name, and Open opens it", async () => {
   const toast = title.closest("li") as HTMLElement;
   expect(toast).toHaveTextContent("The copy is FeatureGridCopy.");
   expect(fetch.mock.calls[0]?.[0].url).toBe(
-    `http://localhost${BASE}/c3/copies`,
+    `http://localhost:3000${BASE}/c3/copies`,
   );
   fireEvent.click(within(toast).getByRole("button", { name: "Open" }));
   expect(navigation.router.push).toHaveBeenCalledWith(
@@ -223,7 +223,7 @@ test("deleting the open component asks first, then opens another", async () => {
 
   expect(await screen.findByText("PricingCard deleted")).toBeInTheDocument();
   expect(fetch.mock.calls.map(([r]) => `${r.method} ${r.url}`)).toContain(
-    `DELETE http://localhost${BASE}/c1`,
+    `DELETE http://localhost:3000${BASE}/c1`,
   );
   // Gone from the list at once, so nothing opens it again
   expect(

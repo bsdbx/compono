@@ -1,9 +1,7 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
-import { healthOptions } from "@/api/@tanstack/react-query.gen";
+import { healthOptions } from "@/api/queries";
 
-/** Whether the backend answers, through the generated API client. */
+/** Whether the backend answers. */
 export function ApiStatus() {
   const { data, isError } = useQuery(healthOptions());
   if (isError) {

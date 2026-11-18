@@ -1,17 +1,14 @@
-"use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
 import {
   inviteOptions,
   joinTeamMutation,
   myTeamsQueryKey,
-} from "@/api/@tanstack/react-query.gen";
+} from "@/api/queries";
 import { notSignedIn, useAccount } from "@/components/account";
 import { CenteredPage } from "@/components/centered-page";
 import { SignedInFooter } from "@/components/signed-in-footer";
 import { Button } from "@/components/ui/button";
+import { Link, useParams, useRouter } from "@/lib/navigation";
 
 /** What an invite link opens: the team it joins, for anyone, signed in or not. */
 export function JoinInvite() {

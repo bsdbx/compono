@@ -1,8 +1,6 @@
-"use client";
-
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useAccount } from "@/components/account";
+import { useRouter, useSearchParams } from "@/lib/navigation";
 import { safeNext } from "@/lib/team-url";
 
 /** Sends an account that is already signed in where it was going, or to its projects. */

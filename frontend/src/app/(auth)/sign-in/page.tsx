@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { Link } from "@/lib/navigation";
 import { SignInForm } from "./sign-in-form";
 import { SignedOutNotice } from "./signed-out-notice";
-
-export const metadata: Metadata = { title: "Sign in · Compono" };
 
 export default function SignInPage() {
   return (

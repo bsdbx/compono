@@ -48,11 +48,13 @@ cd frontend
 pnpm dev
 ```
 
-When the backend's API changes, generate the frontend's API client from it again.
+When the API changes, update the small, typed client in `frontend/src/api/client.ts` and its models in `frontend/src/api/types.ts`. There is no client generation step. Check the frontend with:
 
 ```sh
 cd frontend
-pnpm generate
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
 We suggest using [Visual Studio Code] for development of this project.
@@ -60,6 +62,8 @@ We suggest using [Visual Studio Code] for development of this project.
 ## Deployment
 
 [Vercel](https://vercel.com) deploys `main` to production at <https://compono-app.vercel.app>. Frontend at `/`, backend at `/api`. PostgreSQL DB is hosted via [Neon](https://neon.com).
+
+Vercel serves `frontend/dist` as static assets. The frontend service falls back to `index.html` for client routes, including direct links to components; the `/api` rewrite still goes to FastAPI first. `pnpm start` previews a production frontend build locally; `pnpm dev` proxies `/api` to the backend on port 8000.
 
 ## Development & Contribution
 

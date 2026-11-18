@@ -1,11 +1,11 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
+import { currentAccountQueryKey } from "@/api/queries";
 import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { SignInForm } from "./sign-in-form";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
@@ -34,7 +34,7 @@ test("signing in goes to the projects, with the account known", async () => {
   );
   expect(queryClient.getQueryData(currentAccountQueryKey())).toEqual(MIRA);
   const request = fetch.mock.calls[0]?.[0];
-  expect(request?.url).toBe("http://localhost/api/sessions");
+  expect(request?.url).toBe("http://localhost:3000/api/sessions");
   expect(await request?.json()).toEqual({
     email: "mira@acme.dev",
     password: "correct horse battery staple",

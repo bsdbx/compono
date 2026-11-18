@@ -1,9 +1,6 @@
-"use client";
-
 import { ChevronDown, ChevronRight, LogOut } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
-import type { ListedComponent, Project, Team } from "@/api/types.gen";
+import type { ListedComponent, Project, Team } from "@/api/types";
 import { useSignedInAccount, useSignOut } from "@/components/account";
 import { Avatar } from "@/components/avatar";
 import { NameInput } from "@/components/editor/name-input";
@@ -15,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Link } from "@/lib/navigation";
 
 function AccountButton() {
   const account = useSignedInAccount();

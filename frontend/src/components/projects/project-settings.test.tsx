@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import type { ListedProject } from "@/api/types.gen";
+import type { ListedProject } from "@/api/types";
 import { SignedIn } from "@/components/account";
 import { stubTeam } from "@/components/team-settings/test-team";
 import { MIRA, renderWithClient } from "@/test-utils";
 import { ProjectSettings } from "./project-settings";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
@@ -204,7 +204,7 @@ test("a lead leaves once another member is a lead", async () => {
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(requests(fetch, "DELETE")[0]?.url).toBe(
-    `http://localhost${BASE}/membership`,
+    `http://localhost:3000${BASE}/membership`,
   );
 });
 
@@ -293,7 +293,7 @@ test("a lead removes a member", async () => {
 
   await waitFor(() => expect(requests(fetch, "DELETE")).toHaveLength(1));
   expect(requests(fetch, "DELETE")[0]?.url).toBe(
-    `http://localhost${BASE}/members/j2`,
+    `http://localhost:3000${BASE}/members/j2`,
   );
 });
 
@@ -318,7 +318,9 @@ test("deleting the project takes typing its address", async () => {
   fireEvent.click(remove);
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
-  expect(requests(fetch, "DELETE")[0]?.url).toBe(`http://localhost${BASE}`);
+  expect(requests(fetch, "DELETE")[0]?.url).toBe(
+    `http://localhost:3000${BASE}`,
+  );
 });
 
 test("a developer sees the project, its leads and members, and can leave", async () => {
@@ -346,7 +348,7 @@ test("a developer sees the project, its leads and members, and can leave", async
 
   await waitFor(() => expect(onClose).toHaveBeenCalled());
   expect(requests(fetch, "DELETE")[0]?.url).toBe(
-    `http://localhost${BASE}/membership`,
+    `http://localhost:3000${BASE}/membership`,
   );
 });
 

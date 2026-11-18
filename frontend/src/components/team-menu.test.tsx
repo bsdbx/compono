@@ -4,7 +4,7 @@ import { navigation } from "@/test-navigation";
 import { renderWithClient, stubApi } from "@/test-utils";
 import { TeamMenu } from "./team-menu";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
