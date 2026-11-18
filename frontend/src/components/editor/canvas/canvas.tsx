@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { accepts, WIRE_COLOR } from "./accepts";
 import { AddNodeMenu, type Choice } from "./add-node-menu";
+import { useBoxSelection } from "./box-selection";
 import {
   CanvasContext,
   type CanvasState,
@@ -197,6 +198,12 @@ function Flow({
   );
   const [menu, setMenu] = useState<Menu>();
   const [adding, setAdding] = useState<Adding>();
+  const boxSelection = useBoxSelection(
+    flow,
+    wrapper,
+    setNodes,
+    setSelectedWires,
+  );
 
   // Nodes an edit adds, to select once they're on the canvas
   const selectNext = useRef<ReadonlySet<string>>(undefined);
@@ -614,7 +621,11 @@ function Flow({
       {panel
         ? createPortal(<PropertiesPanel selected={selected} />, panel)
         : null}
-      <div ref={wrapper} className="relative h-full w-full">
+      <div
+        ref={wrapper}
+        className="relative h-full w-full"
+        {...boxSelection.handlers}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 z-4"
@@ -709,6 +720,7 @@ function Flow({
           minZoom={0.2}
           maxZoom={2}
           selectionOnDrag
+          selectionKeyCode={null}
           selectionMode={SelectionMode.Partial}
           panOnDrag={[1]}
           panOnScroll
@@ -751,6 +763,22 @@ function Flow({
             </ViewportPortal>
           ) : null}
         </ReactFlow>
+        {boxSelection.box ? (
+          <div
+            aria-hidden
+            className="react-flow absolute inset-0 z-5 pointer-events-none"
+          >
+            <div
+              className="react-flow__selection absolute"
+              style={{
+                left: boxSelection.box.x,
+                top: boxSelection.box.y,
+                width: boxSelection.box.width,
+                height: boxSelection.box.height,
+              }}
+            />
+          </div>
+        ) : null}
         {menu ? (
           <PointerMenu x={menu.x} y={menu.y} onClose={() => setMenu(undefined)}>
             {menuItems(menu)}
