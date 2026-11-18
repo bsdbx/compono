@@ -274,6 +274,7 @@ export function ComponentsPanel({
   width = 224,
   collapsed,
   onCollapsedChange,
+  animate = true,
 }: {
   team: Team;
   project: Project;
@@ -287,6 +288,7 @@ export function ComponentsPanel({
   width?: number;
   collapsed?: boolean;
   onCollapsedChange?: (collapsed: boolean) => void;
+  animate?: boolean;
 }) {
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -337,7 +339,14 @@ export function ComponentsPanel({
 
   if (hidden) {
     return (
-      <aside className="flex w-11 shrink-0 flex-col items-center border-border border-r bg-sidebar pt-1.25">
+      <aside
+        className={cn(
+          "flex w-11 shrink-0 flex-col items-center overflow-hidden border-border border-r bg-sidebar pt-1.25",
+          animate
+            ? "transition-[width] duration-200 ease-out motion-reduce:transition-none"
+            : "",
+        )}
+      >
         <Button
           variant="ghost"
           size="icon-sm"
@@ -442,7 +451,12 @@ export function ComponentsPanel({
   return (
     <aside
       aria-label="Components"
-      className="flex shrink-0 flex-col border-border border-r bg-sidebar"
+      className={cn(
+        "flex shrink-0 flex-col overflow-hidden border-border border-r bg-sidebar",
+        animate
+          ? "transition-[width] duration-200 ease-out motion-reduce:transition-none"
+          : "",
+      )}
       style={{ width }}
     >
       <div className="flex h-10 shrink-0 items-center justify-between pr-1.5 pl-3.5">

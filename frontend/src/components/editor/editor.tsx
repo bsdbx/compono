@@ -236,6 +236,7 @@ function EditorContent() {
           width={panels.library.width}
           collapsed={panels.library.collapsed}
           onCollapsedChange={panels.library.onCollapsedChange}
+          animate={panels.library.animate}
         />
         <ResizeHandle
           label="Resize component library"

@@ -19,6 +19,7 @@ export function usePanels() {
   }));
   const [library, setLibrary] = useState(224);
   const [collapsed, setCollapsed] = useState(false);
+  const [animateLibrary, setAnimateLibrary] = useState(false);
   const [inspector, setInspector] = useState(314);
   const [preview, setPreview] = useState(226);
 
@@ -59,8 +60,13 @@ export function usePanels() {
       max: libraryMax,
       collapsedSize: LIBRARY_COLLAPSED,
       collapsed,
-      onCollapsedChange: setCollapsed,
+      animate: animateLibrary,
+      onCollapsedChange: (next: boolean) => {
+        setAnimateLibrary(true);
+        setCollapsed(next);
+      },
       onChange: (width: number) => {
+        setAnimateLibrary(false);
         setCollapsed(width === LIBRARY_COLLAPSED);
         if (width !== LIBRARY_COLLAPSED) setLibrary(width);
       },
