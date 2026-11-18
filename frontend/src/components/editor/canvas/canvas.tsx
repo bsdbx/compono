@@ -616,6 +616,7 @@ function Flow({
         : null}
       <div ref={wrapper} className="relative h-full w-full">
         <ReactFlow<CanvasNode>
+          proOptions={{ hideAttribution: true }}
           nodes={nodes}
           edges={edges}
           nodeTypes={NODE_VIEWS}
