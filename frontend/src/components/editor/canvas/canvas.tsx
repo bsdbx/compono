@@ -709,8 +709,13 @@ function Flow({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
-            <DropdownMenuItem className={MENU_ITEM} onSelect={selectAll}>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              onSelect={selectAll}
+              aria-keyshortcuts="Control+A Meta+A"
+            >
               Select all
+              <DropdownMenuShortcut keys={["Ctrl", "A"]} />
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
