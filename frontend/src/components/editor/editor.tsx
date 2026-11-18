@@ -36,6 +36,7 @@ function Inspector({
   onShowNode,
   width,
   preview,
+  componentId,
 }: {
   open: boolean;
   draft: Draft;
@@ -43,6 +44,7 @@ function Inspector({
   onShowNode: (node: string) => void;
   width: number;
   preview: ReturnType<typeof usePanels>["preview"];
+  componentId: string | undefined;
 }) {
   return (
     <aside
@@ -52,7 +54,11 @@ function Inspector({
     >
       <div className="shrink-0" style={{ height: preview.height }}>
         {open ? (
-          <Preview draft={draft} onShowNode={onShowNode} />
+          <Preview
+            draft={draft}
+            componentId={componentId}
+            onShowNode={onShowNode}
+          />
         ) : (
           <PreviewPlaceholder />
         )}
@@ -300,6 +306,7 @@ function EditorContent() {
           panel={setPanel}
           width={panels.inspector.width}
           preview={panels.preview}
+          componentId={openId}
           onShowNode={(node) => {
             setView("graph");
             setShow({ node, at: Date.now() });
