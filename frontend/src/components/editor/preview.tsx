@@ -372,9 +372,11 @@ export function PreviewPlaceholder() {
 export function Preview({
   draft,
   onShowNode,
+  componentId,
 }: {
   draft: Draft;
   onShowNode: (node: string) => void;
+  componentId?: string | undefined;
 }) {
   const { content } = useSyncExternalStore(
     draft.subscribe,
@@ -387,11 +389,36 @@ export function Preview({
   );
   const evaluated = useEvaluation(graph);
   const nodeTypes = useNodeTypes();
-  const [picked, setPicked] = useState<string>();
+  const remembered = useMemo(() => {
+    try {
+      return componentId
+        ? (localStorage.getItem(`compono:preview:${componentId}`) ?? undefined)
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  }, [componentId]);
+  const [picked, setPicked] = useState<{
+    component: string | undefined;
+    name: string;
+  }>();
+  const pickedName =
+    picked?.component === componentId
+      ? (picked?.name ?? remembered)
+      : remembered;
+  function pick(name: string) {
+    setPicked({ component: componentId, name });
+    try {
+      if (componentId)
+        localStorage.setItem(`compono:preview:${componentId}`, name);
+    } catch {
+      /* The selection still works when browser storage is unavailable. */
+    }
+  }
 
   const sizes = content?.screen_sizes ?? [];
   const current =
-    sizes.find((size) => size.name === picked) ?? sizes[0] ?? undefined;
+    sizes.find((size) => size.name === pickedName) ?? sizes[0] ?? undefined;
   const html = useMemo(() => toHtml(evaluated?.rendered), [evaluated]);
   const errors = Object.entries(evaluated?.nodes ?? {}).flatMap(
     ([id, node]) => {
@@ -418,7 +445,7 @@ export function Preview({
           <SizePicker
             sizes={sizes}
             current={current}
-            onPick={(size) => setPicked(size.name)}
+            onPick={(size) => pick(size.name)}
             onChange={(screen_sizes) => {
               const now = draft.getSnapshot().content;
               if (now) {

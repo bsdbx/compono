@@ -1,4 +1,10 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { renderWithClient, stubApi } from "@/test-utils";
 import type { Content, Draft } from "./draft";
@@ -62,6 +68,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  localStorage.clear();
 });
 
 const content: Content = {
@@ -163,6 +170,31 @@ async function openSizes() {
   });
   return screen.findByRole("menu");
 }
+
+test("a component keeps its picked preview size after leaving and reopening, independently of other components", async () => {
+  const { draft, change } = fakeDraft(content);
+  renderWithClient(
+    <Preview componentId="card-a" draft={draft} onShowNode={() => {}} />,
+  );
+  fireEvent.click(
+    within(await openSizes()).getByRole("menuitem", { name: /Tablet/ }),
+  );
+  cleanup();
+  renderWithClient(
+    <Preview componentId="card-b" draft={draft} onShowNode={() => {}} />,
+  );
+  expect(
+    screen.getByRole("button", { name: "Screen size: Desktop 1280" }),
+  ).toBeInTheDocument();
+  cleanup();
+  renderWithClient(
+    <Preview componentId="card-a" draft={draft} onShowNode={() => {}} />,
+  );
+  expect(
+    screen.getByRole("button", { name: "Screen size: Tablet 768" }),
+  ).toBeInTheDocument();
+  expect(change).not.toHaveBeenCalled();
+});
 
 test("a screen size picks, adds and goes", async () => {
   answer.rendered = { tag: "div", className: "", attributes: {}, children: [] };
