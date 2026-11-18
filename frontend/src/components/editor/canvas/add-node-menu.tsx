@@ -1,5 +1,11 @@
 import { ChevronRight, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import type { NodeTypeInfo } from "@/api/types";
 import { cn } from "@/lib/utils";
 import { accepts, SOCKET_COLOR } from "./accepts";
@@ -138,10 +144,25 @@ export function AddNodeMenu({
   onClose: () => void;
 }) {
   const menu = useRef<HTMLDivElement>(null);
+  const submenu = useRef<HTMLDivElement>(null);
+  const categoryRows = useRef(new Map<string, HTMLButtonElement>());
+  const [submenuTop, setSubmenuTop] = useState(0);
   const [search, setSearch] = useState("");
   const [active, setActive] = useState(0);
   const [category, setCategory] = useState<string>();
   const query = search.trim().toLowerCase();
+
+  const alignSubmenu = useCallback(() => {
+    const parent =
+      category === undefined ? undefined : categoryRows.current.get(category);
+    const first = submenu.current?.firstElementChild;
+    if (!parent || !first) return;
+    const offset =
+      parent.getBoundingClientRect().top - first.getBoundingClientRect().top;
+    if (Math.abs(offset) > 0.1) setSubmenuTop((top) => top + offset);
+  }, [category]);
+
+  useLayoutEffect(alignSubmenu, [alignSubmenu]);
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -243,11 +264,15 @@ export function AddNodeMenu({
             className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           />
         </label>
-        <div className="max-h-100 overflow-y-auto">
+        <div className="max-h-100 overflow-y-auto" onScroll={alignSubmenu}>
           {browsing ? (
             categories.map((name, index) => (
               <button
                 key={name}
+                ref={(element) => {
+                  if (element) categoryRows.current.set(name, element);
+                  else categoryRows.current.delete(name);
+                }}
                 type="button"
                 role="menuitem"
                 aria-haspopup="menu"
@@ -321,8 +346,10 @@ export function AddNodeMenu({
       </div>
       {browsing && category ? (
         <div
+          ref={submenu}
           role="menu"
           aria-label={category}
+          style={{ marginTop: submenuTop }}
           className="w-54 rounded-xl border border-foreground/10 bg-popover p-1 shadow-2xl"
         >
           {inCategory.map((option, index) => (
