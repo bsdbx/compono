@@ -475,12 +475,7 @@ export function Preview({
             </Button>
           </>
         ) : (
-          <>
-            <p className="font-medium text-2xs">Nothing to render yet</p>
-            <p className="text-2xs text-muted-foreground">
-              Wire an element into Component Output’s Render.
-            </p>
-          </>
+          <p className="font-medium text-2xs">Nothing to render yet</p>
         )}
       </Box>
     </section>

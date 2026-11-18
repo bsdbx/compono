@@ -153,14 +153,14 @@ test("nodes in error keep it from rendering, and Show node shows the first", asy
   expect(onShowNode).toHaveBeenCalledWith("n1");
 });
 
-test("with nothing rendered, the Preview says what to wire", async () => {
+test("with nothing rendered, the Preview shows only its empty state", async () => {
   const { draft } = fakeDraft(content);
   renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
 
   expect(await screen.findByText("Nothing to render yet")).toBeInTheDocument();
   expect(
-    screen.getByText("Wire an element into Component Output’s Render."),
-  ).toBeInTheDocument();
+    screen.queryByText("Wire an element into Component Output’s Render."),
+  ).not.toBeInTheDocument();
 });
 
 async function openSizes() {
