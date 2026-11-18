@@ -18,7 +18,6 @@ import NewTeamPage from "./teams/new/page";
 const Editor = lazy(() =>
   import("@/components/editor/editor").then((m) => ({ default: m.Editor })),
 );
-const Benchmark = lazy(() => import("./%5Fbenchmarks/canvas/page"));
 
 class PageBoundary extends Component<
   { children: ReactNode; location: string; onRetry: () => void },
@@ -123,14 +122,6 @@ export function App() {
                 element={
                   <Title title="Join a team">
                     <JoinPage />
-                  </Title>
-                }
-              />
-              <Route
-                path="/_benchmarks/canvas"
-                element={
-                  <Title title="Canvas benchmark">
-                    <Benchmark />
                   </Title>
                 }
               />
