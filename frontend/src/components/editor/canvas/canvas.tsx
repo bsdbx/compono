@@ -18,7 +18,6 @@ import {
   useReactFlow,
   ViewportPortal,
 } from "@xyflow/react";
-import { ChevronRight } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -33,6 +32,9 @@ import type { Content, Draft } from "@/components/editor/draft";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
 import { accepts, WIRE_COLOR } from "./accepts";
 import { AddNodeMenu, type Choice } from "./add-node-menu";
@@ -75,6 +77,7 @@ type Adding = {
   y: number;
   at: XY;
   from?: { node: string; socket: string; type: SocketType; start: XY };
+  embedded?: boolean;
 };
 
 type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
@@ -514,13 +517,35 @@ function Flow({
       case "canvas":
         return (
           <>
-            <DropdownMenuItem
-              className={MENU_ITEM}
-              onSelect={() => setAdding(at(open.x, open.y))}
+            <DropdownMenuSub
+              open={adding?.embedded === true}
+              onOpenChange={(isOpen) =>
+                setAdding(
+                  isOpen
+                    ? { ...at(open.x, open.y), embedded: true }
+                    : undefined,
+                )
+              }
             >
-              <span className="flex-1">Add node</span>
-              <ChevronRight className="size-3.5 text-subtle-foreground" />
-            </DropdownMenuItem>
+              <DropdownMenuSubTrigger className={MENU_ITEM}>
+                <span className="flex-1">Add node</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent
+                sideOffset={4}
+                alignOffset={-5}
+                className="w-auto overflow-visible bg-transparent p-0 shadow-none ring-0"
+              >
+                <AddNodeMenu
+                  embedded
+                  x={0}
+                  y={0}
+                  nodeTypes={[...nodeTypes.values()]}
+                  unavailable={unavailable}
+                  onChoose={onChoose}
+                  onClose={() => setAdding(undefined)}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem className={MENU_ITEM} onSelect={selectAll}>
               Select all
@@ -780,11 +805,18 @@ function Flow({
           </div>
         ) : null}
         {menu ? (
-          <PointerMenu x={menu.x} y={menu.y} onClose={() => setMenu(undefined)}>
+          <PointerMenu
+            x={menu.x}
+            y={menu.y}
+            onClose={() => {
+              setMenu(undefined);
+              setAdding((current) => (current?.embedded ? undefined : current));
+            }}
+          >
             {menuItems(menu)}
           </PointerMenu>
         ) : null}
-        {adding ? (
+        {adding && !adding.embedded ? (
           <AddNodeMenu
             x={adding.x}
             // A dropped wire meets the menu's edge just below its top
