@@ -17,7 +17,7 @@ import { CodeView } from "@/components/editor/code-view";
 import { ComponentsPanel } from "@/components/editor/components-panel";
 import { Draft } from "@/components/editor/draft";
 import { Preview, PreviewPlaceholder } from "@/components/editor/preview";
-import { StatusBar } from "@/components/editor/status-bar";
+import { SaveIndicator } from "@/components/editor/save-indicator";
 import { TopBar } from "@/components/editor/top-bar";
 import { Button } from "@/components/ui/button";
 import { Toasts, useToast } from "@/components/ui/toast";
@@ -262,7 +262,7 @@ function EditorContent() {
           }}
         />
       </div>
-      <StatusBar draft={draft} />
+      <SaveIndicator draft={draft} />
     </div>
   );
 }
