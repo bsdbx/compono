@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { Select } from "radix-ui";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -109,21 +110,47 @@ export function ChoiceField({
   const all =
     options.includes(value) || value === "" ? options : [value, ...options];
   return (
-    <span className="relative flex w-full">
-      <select
+    <Select.Root
+      value={all.includes(value) ? `option:${value}` : ""}
+      onValueChange={(next) => onChange(next.slice(7))}
+    >
+      <Select.Trigger
         aria-label={label}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className={cn(FIELD, "appearance-none pr-6 text-foreground", className)}
+        className={cn(
+          FIELD,
+          "justify-between text-foreground outline-none focus-visible:border-primary",
+          className,
+        )}
       >
-        {all.map((option) => (
-          <option key={option} value={option}>
-            {names[option] ?? (option === "" ? "None" : option)}
-          </option>
-        ))}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-    </span>
+        <span className="truncate">
+          <Select.Value placeholder="None" />
+        </span>
+        <Select.Icon asChild>
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Content
+          position="popper"
+          sideOffset={4}
+          className="nodrag nopan nowheel z-50 max-h-72 min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg border border-foreground/10 bg-popover p-1 text-foreground shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
+          <Select.Viewport>
+            {all.map((option) => (
+              <Select.Item
+                key={option}
+                value={`option:${option}`}
+                className="relative flex h-6.5 cursor-default items-center rounded-md px-2 text-xs outline-none data-highlighted:bg-highlight data-[state=checked]:text-primary"
+              >
+                <Select.ItemText>
+                  {names[option] ?? (option === "" ? "None" : option)}
+                </Select.ItemText>
+              </Select.Item>
+            ))}
+          </Select.Viewport>
+        </Select.Content>
+      </Select.Portal>
+    </Select.Root>
   );
 }
 
