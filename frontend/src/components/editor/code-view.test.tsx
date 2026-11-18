@@ -75,6 +75,27 @@ test("Copy puts the code on the clipboard", async () => {
   expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();
 });
 
+test("JSX is highlighted as text, including comments that span lines", async () => {
+  const source = `/* A comment\n   on two lines */\nexport default function Card() {\n  return <p title="<script>alert(1)</script>">Hello</p>;\n}\n`;
+  answer = { filename: "Card.jsx", code: source, errors: [] };
+  renderWithClient(<CodeView draft={draft()} name="Card" />);
+
+  const region = await screen.findByRole("region", { name: "Code" });
+  const code = region.querySelector("code");
+  expect(
+    Array.from(
+      code?.children ?? [],
+      (line) => line.lastChild?.textContent,
+    ).join("\n"),
+  ).toBe(source.trimEnd());
+  expect(within(region).getByText("export").className).not.toBe(
+    within(region).getByText("<script>alert(1)</script>").className,
+  );
+  expect(within(region).getByText("/* A comment")).toHaveClass("italic");
+  expect(within(region).getByText("on two lines */")).toHaveClass("italic");
+  expect(code?.querySelector("script, p")).toBeNull();
+});
+
 test("Download saves the code as its file", async () => {
   // jsdom has no object URLs
   const urls: Blob[] = [];

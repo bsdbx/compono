@@ -3,6 +3,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { useGeneratedCode } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
+import { HighlightedCode } from "@/components/editor/highlighted-code";
 import { Button } from "@/components/ui/button";
 
 /** The open component as code: the JSX file it becomes, to copy or download. */
@@ -50,7 +51,6 @@ export function CodeView({ draft, name }: { draft: Draft; name: string }) {
     URL.revokeObjectURL(url);
   }
 
-  const lines = code.replace(/\n$/, "").split("\n");
   return (
     <section
       aria-label="Code"
@@ -75,22 +75,7 @@ export function CodeView({ draft, name }: { draft: Draft; name: string }) {
           Download
         </Button>
       </div>
-      <pre className="min-h-0 flex-1 overflow-auto py-3 font-mono text-xs leading-5">
-        <code>
-          {lines.map((line, index) => (
-            // biome-ignore lint/suspicious/noArrayIndexKey: a line is where it is in the file
-            <span key={index} className="flex">
-              <span
-                aria-hidden
-                className="w-12 shrink-0 select-none pr-4 text-right text-subtle-foreground"
-              >
-                {index + 1}
-              </span>
-              <span className="whitespace-pre pr-4">{line || " "}</span>
-            </span>
-          ))}
-        </code>
-      </pre>
+      <HighlightedCode code={code} />
     </section>
   );
 }
