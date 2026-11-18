@@ -692,9 +692,19 @@ function Flow({
                 <span className="flex-1">Add node</span>
                 <DropdownMenuShortcut keys={["Shift", "A"]} />
               </DropdownMenuSubTrigger>
+              {/* Allow for the row's 4px inset and the parent's 1px outer ring before the 4px gap. */}
               <DropdownMenuSubContent
-                sideOffset={4}
+                sideOffset={9}
                 alignOffset={-5}
+                onFocusOutside={(event) => {
+                  // Crossing the gap can briefly focus the parent menu before search receives focus.
+                  if (
+                    event.target instanceof HTMLElement &&
+                    event.target.dataset.slot === "dropdown-menu-content"
+                  ) {
+                    event.preventDefault();
+                  }
+                }}
                 className="w-auto overflow-visible bg-transparent p-0 shadow-none ring-0"
               >
                 <AddNodeMenu
