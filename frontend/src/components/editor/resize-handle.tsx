@@ -54,12 +54,12 @@ export function ResizeHandle({
         aria-valuenow={Math.round(value)}
         tabIndex={0}
         className={cn(
-          "relative z-20 shrink-0 touch-none border-0 outline-none hover:bg-primary/30 focus-visible:bg-primary/40",
+          "relative z-20 shrink-0 touch-none border-0 outline-none after:absolute after:bg-primary/40 after:opacity-0 hover:bg-sidebar hover:after:opacity-100 focus-visible:bg-sidebar focus-visible:after:opacity-100",
           horizontal
-            ? "-mx-0.75 h-auto w-1.5 self-stretch"
-            : "-my-0.75 h-1.5 w-full",
+            ? "-mx-0.75 h-auto w-1.5 self-stretch after:inset-y-0 after:left-1/2 after:w-1 after:-translate-x-1/2"
+            : "-my-0.75 h-1.5 w-full after:inset-x-0 after:top-1/2 after:h-1 after:-translate-y-1/2",
           cursor,
-          dragging ? "bg-primary/40" : "",
+          dragging ? "bg-sidebar after:opacity-100" : "",
         )}
         onPointerDown={(event) => {
           if (event.button !== 0) return;
