@@ -132,6 +132,7 @@ export function AddNodeMenu({
   from,
   onChoose,
   onClose,
+  embedded = false,
 }: {
   x: number;
   y: number;
@@ -142,6 +143,7 @@ export function AddNodeMenu({
   from?: SocketType | undefined;
   onChoose: (choice: Choice) => void;
   onClose: () => void;
+  embedded?: boolean;
 }) {
   const menu = useRef<HTMLDivElement>(null);
   const submenu = useRef<HTMLDivElement>(null);
@@ -165,6 +167,7 @@ export function AddNodeMenu({
   useLayoutEffect(alignSubmenu, [alignSubmenu]);
 
   useEffect(() => {
+    if (embedded) return;
     const close = (event: PointerEvent) => {
       if (!menu.current?.contains(event.target as Node)) {
         onClose();
@@ -172,7 +175,7 @@ export function AddNodeMenu({
     };
     document.addEventListener("pointerdown", close, true);
     return () => document.removeEventListener("pointerdown", close, true);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   const offered: Option[] = (
     from
@@ -199,6 +202,7 @@ export function AddNodeMenu({
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
+    event.stopPropagation();
     if (event.key === "Escape") {
       event.preventDefault();
       if (browsing && category) {
@@ -237,8 +241,11 @@ export function AddNodeMenu({
       ref={menu}
       role="menu"
       aria-label="Add node"
-      style={{ left: x, top: y }}
-      className="nopan nowheel absolute z-50 flex items-start gap-1"
+      style={embedded ? undefined : { left: x, top: y }}
+      className={cn(
+        "nopan nowheel z-50 flex items-start gap-1",
+        embedded ? "relative" : "absolute",
+      )}
     >
       {/* Categories are narrower than a list that names each node's category or input */}
       <div
