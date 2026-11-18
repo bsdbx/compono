@@ -19,6 +19,7 @@ import {
   projectComponentsQueryKey,
 } from "@/api/queries";
 import type { ListedComponent, Project, Team } from "@/api/types";
+import { PointerMenu } from "@/components/editor/canvas/pointer-menu";
 import { NameInput } from "@/components/editor/name-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -116,6 +117,28 @@ function Row({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
+  const [context, setContext] = useState<{ x: number; y: number }>();
+  const actions = (
+    <>
+      <DropdownMenuItem className="h-8 text-sm" onSelect={onRename}>
+        <Pencil className="size-4" />
+        Rename
+      </DropdownMenuItem>
+      <DropdownMenuItem className="h-8 text-sm" onSelect={onDuplicate}>
+        <Copy className="size-4" />
+        Duplicate
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        variant="destructive"
+        className="h-8 text-sm"
+        onSelect={onDelete}
+      >
+        <Trash2 className="size-4" />
+        Delete
+      </DropdownMenuItem>
+    </>
+  );
   const icon = (
     <ComponentIcon
       className={cn(
@@ -134,9 +157,13 @@ function Row({
   }
   return (
     <li
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setContext({ x: event.clientX, y: event.clientY });
+      }}
       className={cn(
         "group relative rounded-md has-[[data-state=open]]:bg-accent/60",
-        open ? "bg-accent" : "hover:bg-accent/60",
+        open || context ? "bg-accent" : "hover:bg-accent/60",
       )}
     >
       <Link
@@ -161,25 +188,19 @@ function Row({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem className="h-8 text-sm" onSelect={onRename}>
-            <Pencil className="size-4" />
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuItem className="h-8 text-sm" onSelect={onDuplicate}>
-            <Copy className="size-4" />
-            Duplicate
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="destructive"
-            className="h-8 text-sm"
-            onSelect={onDelete}
-          >
-            <Trash2 className="size-4" />
-            Delete
-          </DropdownMenuItem>
+          {actions}
         </DropdownMenuContent>
       </DropdownMenu>
+      {context ? (
+        <PointerMenu
+          x={context.x}
+          y={context.y}
+          className="w-40"
+          onClose={() => setContext(undefined)}
+        >
+          {actions}
+        </PointerMenu>
+      ) : null}
     </li>
   );
 }
