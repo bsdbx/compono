@@ -60,12 +60,6 @@ export function useEvaluation(graph: Graph | undefined): Evaluated | undefined {
   return data;
 }
 
-/** Nodes with an error, which the status bar counts. A refused wire is red on the canvas, and the input keeps its field. */
-export function errorsIn(evaluated: Evaluated): number {
-  return Object.values(evaluated.nodes).filter((node) => node.error !== null)
-    .length;
-}
-
 /** The component as a JSX file, from the API, again whenever its name or what its graph means changes. */
 export function useGeneratedCode(
   graph: Graph | undefined,

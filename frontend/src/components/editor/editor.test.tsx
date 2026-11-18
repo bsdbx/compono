@@ -8,11 +8,18 @@ vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 
+let icon: HTMLLinkElement;
+
 beforeEach(() => {
   navigation.params = { team: "acme", project: "marketing-site" };
+  icon = document.createElement("link");
+  icon.rel = "icon";
+  icon.href = "/favicon.ico";
+  document.head.append(icon);
 });
 
 afterEach(() => {
+  icon.remove();
   vi.unstubAllGlobals();
 });
 
@@ -73,7 +80,7 @@ test("opening a project opens its newest component", async () => {
   ).toEqual(["PricingCard", "NavBar"]);
 });
 
-test("the open component shows where it is, its nodes, and that it's saved", async () => {
+test("the open component shows where it is and saved feedback without a status bar", async () => {
   navigation.params.component = "c2";
   answer([listed("c1", "NavBar"), listed("c2", "PricingCard")], {
     [`GET ${PROJECT}/components/c2`]: () =>
@@ -100,8 +107,13 @@ test("the open component shows where it is, its nodes, and that it's saved", asy
   expect(
     within(breadcrumb).getByRole("link", { name: "Marketing site" }),
   ).toHaveAttribute("href", "/acme/marketing-site");
-  expect(await screen.findByText("9 nodes")).toBeInTheDocument();
+  await waitFor(() =>
+    expect(icon).toHaveAttribute("href", "/favicon-saved.svg"),
+  );
   expect(screen.getByRole("status")).toHaveTextContent("Saved");
+  expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
+  expect(screen.queryByText("9 nodes")).not.toBeInTheDocument();
+  expect(screen.queryByText("v0.1.0")).not.toBeInTheDocument();
   // Once the graph is evaluated
   expect(await screen.findByText("Nothing to render yet")).toBeInTheDocument();
   expect(
