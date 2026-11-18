@@ -146,6 +146,7 @@ export function AddNodeMenu({
   embedded?: boolean;
 }) {
   const menu = useRef<HTMLDivElement>(null);
+  const searchInput = useRef<HTMLInputElement>(null);
   const submenu = useRef<HTMLDivElement>(null);
   const categoryRows = useRef(new Map<string, HTMLButtonElement>());
   const [submenuTop, setSubmenuTop] = useState(0);
@@ -241,6 +242,18 @@ export function AddNodeMenu({
       ref={menu}
       role="menu"
       aria-label="Add node"
+      onPointerEnter={() => searchInput.current?.focus({ preventScroll: true })}
+      onMouseDownCapture={(event) => {
+        if (
+          event.button === 0 &&
+          event.target instanceof Element &&
+          event.target.closest("button")
+        ) {
+          // Choosing with the pointer keeps subsequent typing in the search field.
+          event.preventDefault();
+          searchInput.current?.focus({ preventScroll: true });
+        }
+      }}
       style={embedded ? undefined : { left: x, top: y }}
       className={cn(
         "nopan nowheel z-50 flex items-start gap-1",
@@ -254,9 +267,10 @@ export function AddNodeMenu({
           browsing ? "w-54" : "w-60",
         )}
       >
-        <label className="mx-1 mb-1 flex h-8 items-center gap-2 rounded-md border border-selection/50 bg-card px-2">
+        <label className="mb-1 flex h-6.5 items-center gap-2 rounded-md px-2">
           <Search className="size-3.5 shrink-0 text-subtle-foreground" />
           <input
+            ref={searchInput}
             // biome-ignore lint/a11y/noAutofocus: the menu opens to search right away
             autoFocus
             aria-label="Search nodes"
