@@ -190,6 +190,9 @@ importers:
       react-router:
         specifier: ^8.5.1
         version: 8.5.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      sugar-high:
+        specifier: ^2.7.0
+        version: 2.7.0
     devDependencies:
       '@biomejs/biome':
         specifier: 2.6.6
@@ -2017,6 +2020,9 @@ packages:
     resolution: {integrity: sha512-laJTa3Jb+VQpaC6DseHhF7dXVqHTfJPCRDaEbid/drOhgitgYku/letMUqOXFoWV0zIIUbjpdH2t+tYj4bQMRQ==}
     engines: {node: '>=8'}
 
+  sugar-high@2.7.0:
+    resolution: {integrity: sha512-N9Ed+lQ3lvmWVKf+TBXgp5p2Lfwqx8VIInD8K1BvWvkyLuEZ7mjPB2KFa5vuAs71T4P16hAcI4343Y3pD0zddw==}
+
   tailwindcss@4.3.3:
     resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
 
@@ -3788,6 +3794,8 @@ snapshots:
   strip-indent@3.0.0:
     dependencies:
       min-indent: 1.0.1
+
+  sugar-high@2.7.0: {}
 
   tailwindcss@4.3.3: {}
 

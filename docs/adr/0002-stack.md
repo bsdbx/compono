@@ -33,6 +33,7 @@ The alpha has no email: no password reset, and no invitations sent by email.
 - React state and plain validation functions for forms. The API remains authoritative for validation.
 - Existing browser and React controls for socket rows; native `Intl` for formatting.
 - Graph evaluation and JSX generation stay in the existing FastAPI endpoints.
+- **Sugar High** tokenizes generated JSX for syntax highlighting. React renders the tokens as text; Copy and Download use the original source.
 - **Vitest** and **Testing Library** for fast unit and component tests.
 
 On 18.11.2026, the frontend stack was simplified at the product owner's request. The existing UI, behavior and API contracts remain the reference. React Flow, Radix, TanStack Query and Lucide were explicitly retained because replacing their canvas, accessibility, cache and icon behavior with custom implementations would add maintenance and regression risk. Next.js, React Compiler, React Hook Form, Zod, the shadcn CLI and API code generation were removed. Small local CSS rules preserve the existing transitions.
@@ -61,7 +62,7 @@ On 18.11.2026, the frontend stack was simplified at the product owner's request.
 ### Not decided yet
 
 - Further Preview and node-framework decisions are recorded in `0003-nodes-and-preview.md`.
-- Code formatting and syntax highlighting.
+- Formatting generated code.
 - Email, and signing in with Google or GitHub. Neither is in the alpha.
 - Error monitoring.
 
