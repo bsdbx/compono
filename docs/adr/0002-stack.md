@@ -76,5 +76,4 @@ The technical consequences:
 - **The API client is maintained with the backend**: endpoint or model changes update its TypeScript declarations and relevant behavior tests. CI checks types, tests and the static production build.
 - **Strict typing on both sides**: FastAPI and SQLAlchemy produce `Any` in places, so some backend modules will need their own, relaxed mypy rules, as the README describes.
 - **The database documentation needs a database**: tbls reads a migrated PostgreSQL, so CI generates it against the test database, and locally it runs against the one in Docker Compose.
-- **The performance target rests on React Flow**: a benchmark with 200 nodes should run early, before the editor is built on top of it.
 - **Static hosting needs an index fallback**: Vercel routes `/api` to the backend first and lets the frontend service serve `index.html` for browser routes. The frontend needs no Node.js server in production.

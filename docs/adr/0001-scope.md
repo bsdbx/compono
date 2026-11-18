@@ -59,6 +59,6 @@ The main drawback of a university project with a set deadline is that there are 
 Apart from the philosophy, there are other, more technical consequences:
 
 - **Interactivity has to be designed in from the start**: Hover and click states mean a component is more than a static picture. The node model needs a notion of states and of what switches between them, and the export has to turn that into real React state and click handlers.
-- **The performance target rules out simple designs**: Holding 60 fps at 200 nodes, and degrading gradually after that, means an edit can't recompute the whole graph; only what the edit affects can be recomputed. It also means we need a benchmark graph and a way to measure frame rate from `M2` onwards, or the target cannot be checked.
+- **The performance target rules out simple designs**: Holding 60 fps at 200 nodes, and degrading gradually after that, means an edit can't recompute the whole graph; only what the edit affects can be recomputed. The editor needs to avoid unnecessary work while panning, zooming and editing large graphs.
 - **Share links are the app's public surface**: They are the one part anyone can reach without an account. So share tokens must be impossible to guess and revocable, and users should understand that a shared component is effectively public, code included.
 - **Hosting is narrowed down**: The course requires FastAPI and PostgreSQL, so the hosting service must run a Python app and a Postgres database, which rules out purely static hosts.
