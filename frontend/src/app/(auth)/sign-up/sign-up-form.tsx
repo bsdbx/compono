@@ -1,35 +1,31 @@
-"use client";
-
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useId } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { currentAccountQueryKey } from "@/api/@tanstack/react-query.gen";
-import { signUp } from "@/api/sdk.gen";
+import { signUp } from "@/api/client";
+import { currentAccountQueryKey } from "@/api/queries";
+import type { SignUp } from "@/api/types";
 import { Field } from "@/components/field";
 import { PasswordInput } from "@/components/password-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { type Errors, useFields } from "@/lib/form";
+import { Link, useRouter, useSearchParams } from "@/lib/navigation";
 import { safeNext } from "@/lib/team-url";
 
-// The same limits as the API's
-const schema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Enter your name.")
-    .max(100, "Use at most 100 characters."),
-  email: z.email("Enter a valid email address."),
-  password: z
-    .string()
-    .min(8, "Use at least 8 characters.")
-    .max(128, "Use at most 128 characters."),
-});
-
-type Values = z.infer<typeof schema>;
+// The same validation and messages as the account API and the original form.
+const EMAIL =
+  /^(?:[A-Za-z0-9_'+-]+\.)*[A-Za-z0-9_'+-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9-]*\.)+[A-Za-z]{2,}$/;
+function validate(values: SignUp): Errors<SignUp> {
+  const errors: Errors<SignUp> = {};
+  if (!values.name.trim()) errors.name = "Enter your name.";
+  else if (values.name.trim().length > 100)
+    errors.name = "Use at most 100 characters.";
+  if (!EMAIL.test(values.email)) errors.email = "Enter a valid email address.";
+  if (values.password.length < 8)
+    errors.password = "Use at least 8 characters.";
+  else if (values.password.length > 128)
+    errors.password = "Use at most 128 characters.";
+  return errors;
+}
 
 export function SignUpForm() {
   // Ids of this form's own, as a page can keep another form with the same fields
@@ -38,37 +34,36 @@ export function SignUpForm() {
   const next = useSearchParams().get("next");
   const queryClient = useQueryClient();
   const {
-    register,
-    handleSubmit,
-    setError,
-    formState: { errors, isSubmitting },
-  } = useForm<Values>({
-    resolver: zodResolver(schema),
-    defaultValues: { name: "", email: "", password: "" },
-  });
+    values,
+    errors,
+    submitting: isSubmitting,
+    change,
+    setErrors,
+    submit: send,
+  } = useFields({ name: "", email: "", password: "" }, validate);
 
-  async function submit(values: Values) {
+  async function submit(values: SignUp) {
     try {
-      const { data, error } = await signUp({ body: values });
+      const { data, error } = await signUp({
+        body: { ...values, name: values.name.trim() },
+      });
       if (data !== undefined) {
         queryClient.setQueryData(currentAccountQueryKey(), data);
         router.replace(safeNext(next));
         return;
       }
       if (error?.detail === "email_taken") {
-        setError("email", { type: "taken", message: "" });
+        setErrors({ email: "taken" });
         return;
       }
     } catch {
       // The request didn't reach the API
     }
-    setError("root", {
-      message: "Couldn’t create your account. Try again in a moment.",
-    });
+    setErrors({ root: "Couldn’t create your account. Try again in a moment." });
   }
 
   const emailError =
-    errors.email?.type === "taken" ? (
+    errors.email === "taken" ? (
       <>
         An account with this email already exists.{" "}
         <Link href="/sign-in" className="font-medium text-foreground">
@@ -76,7 +71,7 @@ export function SignUpForm() {
         </Link>
       </>
     ) : (
-      errors.email?.message
+      errors.email
     );
 
   return (
@@ -84,16 +79,18 @@ export function SignUpForm() {
       // Before the page is interactive, a submit posts rather than putting the password in the URL
       method="post"
       noValidate
-      onSubmit={handleSubmit(submit)}
+      onSubmit={(event) => void send(submit, event)}
       className="flex flex-col gap-4"
     >
-      <Field label="Name" htmlFor={`${id}-name`} error={errors.name?.message}>
+      <Field label="Name" htmlFor={`${id}-name`} error={errors.name}>
         <Input
           id={`${id}-name`}
           autoComplete="name"
           placeholder="Your name"
           aria-invalid={errors.name !== undefined}
-          {...register("name")}
+          name="name"
+          value={values.name}
+          onChange={(event) => change("name", event.target.value)}
         />
       </Field>
       <Field label="Work email" htmlFor={`${id}-email`} error={emailError}>
@@ -103,25 +100,29 @@ export function SignUpForm() {
           autoComplete="email"
           placeholder="you@company.com"
           aria-invalid={errors.email !== undefined}
-          {...register("email")}
+          name="email"
+          value={values.email}
+          onChange={(event) => change("email", event.target.value)}
         />
       </Field>
       <Field
         label="Password"
         htmlFor={`${id}-password`}
-        error={errors.password?.message}
+        error={errors.password}
       >
         <PasswordInput
           id={`${id}-password`}
           autoComplete="new-password"
           placeholder="At least 8 characters"
           aria-invalid={errors.password !== undefined}
-          {...register("password")}
+          name="password"
+          value={values.password}
+          onChange={(event) => change("password", event.target.value)}
         />
       </Field>
       {errors.root ? (
         <p role="alert" className="text-error text-sm">
-          {errors.root.message}
+          {errors.root}
         </p>
       ) : null}
       <Button type="submit" size="lg" disabled={isSubmitting} className="mt-2">

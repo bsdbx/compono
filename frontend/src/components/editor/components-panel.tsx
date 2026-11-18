@@ -1,5 +1,3 @@
-"use client";
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CircleAlert,
@@ -13,16 +11,14 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import {
   componentQueryKey,
   deleteComponentMutation,
   duplicateComponentMutation,
   projectComponentsQueryKey,
-} from "@/api/@tanstack/react-query.gen";
-import type { ListedComponent, Project, Team } from "@/api/types.gen";
+} from "@/api/queries";
+import type { ListedComponent, Project, Team } from "@/api/types";
 import { NameInput } from "@/components/editor/name-input";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
+import { Link, useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 /** A panel at the left, filled while it shows. */

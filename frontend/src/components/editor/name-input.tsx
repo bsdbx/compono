@@ -1,5 +1,3 @@
-"use client";
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert } from "lucide-react";
 import { useRef, useState } from "react";
@@ -7,8 +5,8 @@ import {
   componentQueryKey,
   projectComponentsQueryKey,
   renameComponentMutation,
-} from "@/api/@tanstack/react-query.gen";
-import type { Component, ListedComponent } from "@/api/types.gen";
+} from "@/api/queries";
+import type { Component, ListedComponent } from "@/api/types";
 import { cn } from "@/lib/utils";
 
 const NAME = /^[A-Z][A-Za-z0-9]*$/;

@@ -1,4 +1,4 @@
-import type { Prop, SocketTypeOutput, Wire } from "@/api/types.gen";
+import type { Prop, SocketTypeOutput, Wire } from "@/api/types";
 
 export type SocketType = SocketTypeOutput;
 
@@ -77,7 +77,7 @@ export function addNode(graph: Graph, node: GraphNode): Graph {
 export function newNode(
   type: string,
   position: XY,
-  id = crypto.randomUUID(),
+  id: string = crypto.randomUUID(),
 ): GraphNode {
   return {
     id,
@@ -122,7 +122,7 @@ export function connect(
   graph: Graph,
   from: Wire["from"],
   to: Wire["to"],
-  id = crypto.randomUUID(),
+  id: string = crypto.randomUUID(),
 ): Graph {
   let next = graph;
   let socket = to.socket;

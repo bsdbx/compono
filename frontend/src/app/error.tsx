@@ -1,9 +1,7 @@
-"use client";
-
-import Link from "next/link";
 import { CenteredPage } from "@/components/centered-page";
 import { SignedInFooter } from "@/components/signed-in-footer";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/lib/navigation";
 
 export default function ErrorPage({ retry }: { retry: () => void }) {
   return (

@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
+import { Link } from "@/lib/navigation";
 import { SignUpForm } from "./sign-up-form";
-
-export const metadata: Metadata = { title: "Create an account · Compono" };
 
 export default function SignUpPage() {
   return (

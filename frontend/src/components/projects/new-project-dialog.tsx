@@ -1,10 +1,8 @@
-"use client";
-
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useId, useState } from "react";
-import { teamProjectsQueryKey } from "@/api/@tanstack/react-query.gen";
-import { createProject } from "@/api/sdk.gen";
-import type { Team } from "@/api/types.gen";
+import { createProject } from "@/api/client";
+import { teamProjectsQueryKey } from "@/api/queries";
+import type { Team } from "@/api/types";
 import { Field } from "@/components/field";
 import { Button } from "@/components/ui/button";
 import {

@@ -1,5 +1,3 @@
-"use client";
-
 import "@xyflow/react/dist/style.css";
 import {
   applyNodeChanges,
@@ -30,7 +28,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import type { NodeTypeInfo } from "@/api/types.gen";
+import type { NodeTypeInfo } from "@/api/types";
 import type { Content, Draft } from "@/components/editor/draft";
 import {
   DropdownMenuItem,

@@ -1,5 +1,3 @@
-"use client";
-
 import { useAccount, useSignOut } from "@/components/account";
 
 /** "Signed in as mira@acme.dev · Sign out", once the account is known. */

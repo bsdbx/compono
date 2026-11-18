@@ -1,8 +1,8 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
-import type { ListedProject } from "@/api/types.gen";
+import type { ListedProject } from "@/api/types";
 import { Avatar } from "@/components/avatar";
 import { editedAgo } from "@/lib/edited-ago";
+import { Link } from "@/lib/navigation";
 
 /** Up to three members, or two and how many more. */
 function Members({ members }: { members: ListedProject["members"] }) {

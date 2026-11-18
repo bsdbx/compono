@@ -1,9 +1,5 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# Frontend
 
-## This is NOT the Next.js you know
+Before changing the stack, read [the stack decision](../docs/adr/0002-stack.md). Keep the existing appearance and interactions in `../.hidden/compono-alpha-screens-v2.zip`; refactoring the stack does not authorize product changes.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+Route matching lives in `src/app/app.tsx`. Keep the editor mounted when switching components so its draft, panel state and Graph/Code selection survive navigation. API calls use the same origin and the backend's HttpOnly session cookie.

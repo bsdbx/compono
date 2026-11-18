@@ -1,12 +1,19 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { teamQueryKey } from "@/api/queries";
 import { SignedIn } from "@/components/account";
 import { navigation } from "@/test-navigation";
 import { MIRA, renderWithClient } from "@/test-utils";
 import { GeneralSettings } from "./general-settings";
 import { JONAS, MIRA_MEMBER, stubTeam } from "./test-team";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 vi.mock("@/components/account-menu", () => ({ AccountMenu: () => null }));
@@ -36,12 +43,30 @@ function answer(
 }
 
 function renderPage() {
-  renderWithClient(
+  return renderWithClient(
     <SignedIn>
       <GeneralSettings />
     </SignedIn>,
   );
 }
+
+test("settings follow a refreshed team name and URL", async () => {
+  answer("OWNER", [MIRA_MEMBER]);
+  const client = renderPage();
+  const name = await screen.findByLabelText("Team name");
+  expect(name).toHaveValue("Acme");
+  act(() => {
+    client.setQueryData(teamQueryKey({ path: { team_url: "acme" } }), {
+      ...ACME,
+      name: "Acme Inc",
+      url: "acme-inc",
+    });
+  });
+  await waitFor(() => {
+    expect(name).toHaveValue("Acme Inc");
+    expect(screen.getByLabelText("Team URL")).toHaveValue("acme-inc");
+  });
+});
 
 test("an owner renames the team as the field is left", async () => {
   const fetch = answer("OWNER", [MIRA_MEMBER, JONAS], {

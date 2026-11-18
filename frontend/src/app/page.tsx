@@ -1,10 +1,8 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { myTeamsOptions } from "@/api/@tanstack/react-query.gen";
+import { myTeamsOptions } from "@/api/queries";
 import { SignedIn } from "@/components/account";
+import { useRouter } from "@/lib/navigation";
 
 /** Opens the account's first team, or sets one up when it has none. */
 function OpenTeam() {

@@ -3,7 +3,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { MIRA, renderWithClient, stubApi } from "@/test-utils";
 import ErrorPage from "./error";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 

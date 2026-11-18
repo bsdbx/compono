@@ -1,6 +1,7 @@
+import { type ComponentProps, createElement } from "react";
 import { vi } from "vitest";
 
-/** What tests see of Next's navigation, and change: the router's calls, the search params and the route's params. */
+/** What component tests see and change: navigation calls, search params and route params. */
 export const navigation = {
   router: { replace: vi.fn(), push: vi.fn() },
   search: new URLSearchParams(),
@@ -10,8 +11,10 @@ export const navigation = {
   }),
 };
 
-/** In a test: vi.mock("next/navigation", () => import("@/test-navigation").then((m) => m.navigationMock)) */
+/** In a test: vi.mock("@/lib/navigation", () => import("@/test-navigation").then((m) => m.navigationMock)) */
 export const navigationMock = {
+  Link: ({ href, ...props }: ComponentProps<"a">) =>
+    createElement("a", { href, ...props }),
   useRouter: () => navigation.router,
   useSearchParams: () => navigation.search,
   useParams: () => navigation.params,

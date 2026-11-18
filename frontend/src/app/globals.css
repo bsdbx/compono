@@ -1,8 +1,17 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import "../../public/fonts/fonts.css";
+@import "./motion.css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant data-open (
+  &:where([data-state="open"], [data-open]:not([data-open="false"]))
+);
+@custom-variant data-closed (
+  &:where([data-state="closed"], [data-closed]:not([data-closed="false"]))
+);
+@custom-variant data-disabled (
+  &:where([data-disabled]:not([data-disabled="false"]))
+);
 
 @theme inline {
   --color-background: var(--background);
@@ -89,6 +98,8 @@
 
 /* The colors of the design screens. */
 :root {
+  --font-sans: "Inter", "Inter Fallback";
+  --font-mono: "JetBrains Mono", "JetBrains Mono Fallback";
   --background: #09090b;
   --foreground: #fafafa;
   --card: #111114;

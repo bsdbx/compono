@@ -2,47 +2,41 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "vite --port 3000",
+    "build": "tsc --noEmit && vite build",
+    "start": "vite preview --port 3000",
     "lint": "biome check --error-on-warnings",
     "format": "biome check --write",
-    "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run",
-    "generate": "uv --directory ../backend run --frozen compono-openapi > openapi.json && openapi-ts"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
-    "@hookform/resolvers": "^7.0.5",
     "@tanstack/react-query": "^5.107.1",
     "@xyflow/react": "^12.12.1",
-    "class-variance-authority": "^0.7.1",
     "cn": "^0.5.2",
     "lucide-react": "^1.70.0",
-    "next": "16.4.6",
     "radix-ui": "^1.8.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-hook-form": "^7.91.0",
-    "tw-animate-css": "^1.4.0",
-    "zod": "^4.6.7"
+    "react-router": "^8.5.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
-    "@hey-api/openapi-ts": "^0.99.0",
-    "@tailwindcss/turbopack": "4.3.3",
+    "@tailwindcss/vite": "4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.6.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
     "jsdom": "^31.0.0",
-    "shadcn": "4.23.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.0",
+    "vite": "8.3.6"
   },
   "engines": {
     "node": "26.x"

@@ -1,11 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import {
-  componentQueryKey,
-  projectComponentsQueryKey,
-} from "@/api/@tanstack/react-query.gen";
-import type { Component, ListedComponent } from "@/api/types.gen";
+import { componentQueryKey, projectComponentsQueryKey } from "@/api/queries";
+import type { Component, ListedComponent } from "@/api/types";
 import { stubApi } from "@/test-utils";
 import { NameInput, nameProblem } from "./name-input";
 
@@ -83,7 +80,9 @@ test("Enter renames, and the list and the component show the new name", async ()
   fireEvent.keyDown(field, { key: "Enter" });
 
   await waitFor(() => expect(onDone).toHaveBeenCalledOnce());
-  expect(renames(fetch).map((r) => r.url)).toEqual([`http://localhost${URL}`]);
+  expect(renames(fetch).map((r) => r.url)).toEqual([
+    `http://localhost:3000${URL}`,
+  ]);
   expect(await renames(fetch)[0]?.json()).toEqual({ name: "PricingTable" });
   expect(
     queryClient

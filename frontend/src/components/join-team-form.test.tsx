@@ -36,7 +36,7 @@ test("a pasted link joins its team", async () => {
   await waitFor(() => expect(onJoined).toHaveBeenCalledWith(NORTHWIND));
   const request = fetch.mock.calls[0]?.[0];
   expect(request?.method).toBe("POST");
-  expect(request?.url).toBe("http://localhost/api/invite-links/abc123");
+  expect(request?.url).toBe("http://localhost:3000/api/invite-links/abc123");
 });
 
 test("a link that isn't valid says so", async () => {

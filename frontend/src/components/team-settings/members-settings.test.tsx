@@ -6,7 +6,7 @@ import { MIRA, renderWithClient } from "@/test-utils";
 import { MembersSettings } from "./members-settings";
 import { JONAS, MIRA_MEMBER, stubTeam } from "./test-team";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 vi.mock("@/components/account-menu", () => ({ AccountMenu: () => null }));

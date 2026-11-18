@@ -4,7 +4,7 @@ import { navigation } from "@/test-navigation";
 import { Boundary, MIRA, renderWithClient, stubApi } from "@/test-utils";
 import { TeamHome } from "./team-home";
 
-vi.mock("next/navigation", () =>
+vi.mock("@/lib/navigation", () =>
   import("@/test-navigation").then((m) => m.navigationMock),
 );
 vi.mock("@/components/team-sidebar", () => ({ TeamSidebar: () => null }));

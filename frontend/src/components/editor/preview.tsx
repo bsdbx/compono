@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Check,
   ChevronDown,
@@ -16,7 +14,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ScreenSize } from "@/api/types.gen";
+import type { ScreenSize } from "@/api/types";
 import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";

@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Handle,
   type Node,
@@ -9,7 +7,7 @@ import {
 } from "@xyflow/react";
 import { Plus } from "lucide-react";
 import { memo, type ReactNode } from "react";
-import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types.gen";
+import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types";
 import { cn } from "@/lib/utils";
 import {
   type CanvasState,

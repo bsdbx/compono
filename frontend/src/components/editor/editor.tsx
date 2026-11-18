@@ -1,8 +1,5 @@
-"use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleAlert, Plus } from "lucide-react";
-import { notFound, useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   componentOptions,
@@ -12,7 +9,7 @@ import {
   projectComponentsQueryKey,
   projectOptions,
   teamOptions,
-} from "@/api/@tanstack/react-query.gen";
+} from "@/api/queries";
 import { SignedIn } from "@/components/account";
 import { Canvas } from "@/components/editor/canvas/canvas";
 import { PropertiesPlaceholder } from "@/components/editor/canvas/panel";
@@ -24,6 +21,7 @@ import { StatusBar } from "@/components/editor/status-bar";
 import { TopBar } from "@/components/editor/top-bar";
 import { Button } from "@/components/ui/button";
 import { Toasts, useToast } from "@/components/ui/toast";
+import { notFound, useParams, useRouter } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 
 type Params = { team: string; project: string; component?: string };

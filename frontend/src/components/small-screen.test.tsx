@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router";
 import { afterEach, expect, test, vi } from "vitest";
 import { SmallScreen } from "./small-screen";
 
@@ -9,7 +10,11 @@ afterEach(() => {
 test("a small screen copies the page's link, to open on a computer", async () => {
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { clipboard: { writeText } });
-  render(<SmallScreen />);
+  render(
+    <MemoryRouter>
+      <SmallScreen />
+    </MemoryRouter>,
+  );
 
   fireEvent.click(screen.getByRole("button", { name: "Copy link" }));
 

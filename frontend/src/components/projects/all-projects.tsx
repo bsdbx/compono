@@ -1,5 +1,3 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowUpDown,
@@ -10,8 +8,8 @@ import {
   Settings,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { teamProjectsOptions } from "@/api/@tanstack/react-query.gen";
-import type { ListedProject, Team } from "@/api/types.gen";
+import { teamProjectsOptions } from "@/api/queries";
+import type { ListedProject, Team } from "@/api/types";
 import { NewProjectDialog } from "@/components/projects/new-project-dialog";
 import { ProjectCard } from "@/components/projects/project-card";
 import { ProjectSettings } from "@/components/projects/project-settings";

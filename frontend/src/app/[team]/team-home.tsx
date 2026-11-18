@@ -1,11 +1,9 @@
-"use client";
-
 import { useQuery } from "@tanstack/react-query";
-import { notFound, useParams } from "next/navigation";
-import { teamOptions } from "@/api/@tanstack/react-query.gen";
+import { teamOptions } from "@/api/queries";
 import { SignedIn } from "@/components/account";
 import { AllProjects } from "@/components/projects/all-projects";
 import { TeamSidebar } from "@/components/team-sidebar";
+import { notFound, useParams } from "@/lib/navigation";
 
 function TeamHomeContent() {
   const { team: url } = useParams<{ team: string }>();

@@ -1,7 +1,5 @@
-"use client";
-
 import { Info } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "@/lib/navigation";
 
 const MESSAGES: Record<string, string> = {
   signed_out: "You were signed out from another device.",

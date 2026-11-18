@@ -1,5 +1,3 @@
-"use client";
-
 import { Check, Copy, Download } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useGeneratedCode } from "@/components/editor/canvas/data";
