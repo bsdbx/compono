@@ -3,7 +3,12 @@ import { cn } from "@/lib/utils";
 import { useCanvas } from "./context";
 import { type GraphNode, renameNode, setNodeWidth } from "./graph";
 import { NodeNameInput } from "./node-name-input";
-import { labelWidth, NODE_DEFAULT_WIDTH, nodeName } from "./node-size";
+import {
+  collapsedWidth,
+  labelWidth,
+  NODE_DEFAULT_WIDTH,
+  nodeName,
+} from "./node-size";
 import { NodeWidthControl } from "./node-width-control";
 
 /** Shared node dimensions, a label that fits its text, and horizontal side borders. */
@@ -13,6 +18,7 @@ export function NodeFrame({
   selected,
   error,
   skipped,
+  collapsedHeight = 32,
   children,
 }: {
   node: GraphNode;
@@ -20,6 +26,7 @@ export function NodeFrame({
   selected: boolean;
   error: boolean;
   skipped: boolean;
+  collapsedHeight?: number;
   children: ReactNode;
 }) {
   const canvas = useCanvas();
@@ -31,9 +38,11 @@ export function NodeFrame({
   const renaming = canvas.renaming === node.id;
   const label = nodeName(renaming ? (draftName ?? name) : name);
   const changedName = renaming && draftName !== undefined && label !== name;
-  const width = changedName
-    ? labelWidth(measuredLabelWidth, node.width ?? NODE_DEFAULT_WIDTH)
-    : (node.width ?? labelWidth(measuredLabelWidth));
+  const width = node.collapsed
+    ? collapsedWidth(measuredLabelWidth, collapsedHeight)
+    : changedName
+      ? labelWidth(measuredLabelWidth, node.width ?? NODE_DEFAULT_WIDTH)
+      : (node.width ?? labelWidth(measuredLabelWidth));
 
   useLayoutEffect(() => {
     const span = measure.current;
@@ -49,8 +58,10 @@ export function NodeFrame({
     <div
       ref={element}
       data-node-type={node.type}
+      data-node-collapsed={node.collapsed ? "true" : undefined}
       className={cn(
-        "relative rounded-xl border bg-card text-foreground text-xs shadow-black/40 shadow-xl",
+        "relative border bg-card text-foreground text-xs shadow-black/40 shadow-xl",
+        node.collapsed ? "rounded-full" : "rounded-xl",
         error
           ? "border-error/45"
           : selected
@@ -58,7 +69,7 @@ export function NodeFrame({
             : "border-input",
         skipped ? "opacity-70" : "",
       )}
-      style={{ width }}
+      style={{ width, ...(node.collapsed ? { height: collapsedHeight } : {}) }}
     >
       <span
         ref={measure}
@@ -67,19 +78,30 @@ export function NodeFrame({
       >
         {label || typeName}
       </span>
-      {(["left", "right"] as const).map((side) => (
-        <NodeWidthControl
-          key={side}
-          node={node}
-          side={side}
-          element={element}
-          width={width}
-        />
-      ))}
+      {!node.collapsed &&
+        (["left", "right"] as const).map((side) => (
+          <NodeWidthControl
+            key={side}
+            node={node}
+            side={side}
+            element={element}
+            width={width}
+          />
+        ))}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: F2 and the context menu provide keyboard access to renaming. */}
       <div
         data-node-header
-        className="flex h-8 min-w-0 items-center border-border border-b px-3.5 font-medium text-sm"
+        className={cn(
+          "flex min-w-0 items-center font-medium text-sm",
+          node.collapsed
+            ? "h-full justify-center"
+            : "h-8 border-border border-b px-3.5",
+        )}
+        style={
+          node.collapsed
+            ? { paddingInline: collapsedHeight / 2 + 10 }
+            : undefined
+        }
         onDoubleClick={(event) => {
           event.stopPropagation();
           canvas.startRename(node.id);

@@ -24,6 +24,23 @@ export const nodeWidth = (width: number) =>
 export const labelWidth = (textWidth: number, minimum = NODE_DEFAULT_WIDTH) =>
   nodeWidth(Math.max(minimum, Math.ceil(textWidth) + HEADER_INSET));
 
+/** Compact sockets keep 16px between centers, with a rounded end on each side. */
+export const collapsedHeight = (inputs: number, outputs: number) =>
+  Math.max(32, Math.max(inputs, outputs) * 16);
+
+export const collapsedWidth = (textWidth: number, height: number) =>
+  // Allow for borders and subpixel text metrics, so a fitting label never gets an ellipsis.
+  Math.min(NODE_MAX_WIDTH, Math.max(80, height + Math.ceil(textWidth) + 24));
+
+export function collapsedSocket(index: number, count: number, height: number) {
+  const top = height / 2 + (index - (count - 1) / 2) * 16;
+  const radius = height / 2;
+  return {
+    top,
+    inset: radius - Math.sqrt(Math.max(0, radius ** 2 - (top - radius) ** 2)),
+  };
+}
+
 /** Move either side horizontally, preserving the opposite side and the vertical position. */
 export function resizedNode(
   size: NodeSize,

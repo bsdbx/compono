@@ -212,6 +212,7 @@ export type Node = {
   id: string;
   type: string;
   name?: string | null;
+  collapsed?: boolean;
   position?: Position;
   values?: {
     [key: string]: JsonValue;

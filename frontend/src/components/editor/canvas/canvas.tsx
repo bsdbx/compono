@@ -65,6 +65,7 @@ import {
   removeRow,
   type SocketType,
   setNodeWidth,
+  toggleCollapsed,
   type XY,
 } from "./graph";
 import { History } from "./history";
@@ -543,6 +544,17 @@ function Flow({
         const selection = nodes.filter((node) => node.selected);
         if (selection.length === 1 && selection[0])
           startRename(selection[0].id);
+      } else if (key === "h" && !command && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        if (event.repeat) return;
+        edit((current) =>
+          toggleCollapsed(
+            current,
+            new Set(
+              nodes.filter((node) => node.selected).map((node) => node.id),
+            ),
+          ),
+        );
       } else if (key === "d" && !command && (event.shiftKey || event.altKey)) {
         event.preventDefault();
         const ids = nodes
@@ -610,6 +622,7 @@ function Flow({
     redo,
     selectAll,
     deselectAll,
+    edit,
     duplicate,
     removeSelection,
     disconnectSelection,
