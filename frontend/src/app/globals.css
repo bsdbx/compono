@@ -173,6 +173,9 @@
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
+  input[type="search"]:focus-visible {
+    outline: none;
+  }
   ::placeholder {
     color: var(--subtle-foreground);
   }
