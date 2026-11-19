@@ -5,7 +5,7 @@ import type {
   NodeSockets,
   NodeTypeInfo,
 } from "@/api/types";
-import type { Graph, GraphNode } from "./graph";
+import type { Graph, GraphNode, SocketType } from "./graph";
 
 /** A menu opened at the pointer, with what it's for. */
 export type Menu =
@@ -58,7 +58,7 @@ export function socketsOf(
   );
 }
 
-type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
+export type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
 
 /** A node's inputs: its own, then its exposed properties, as the graph has them before the API says so. */
 export function inputsOf(canvas: Known, node: GraphNode): InputSocket[] {
@@ -75,6 +75,40 @@ export function inputsOf(canvas: Known, node: GraphNode): InputSocket[] {
       default: node.properties[property.id] ?? property.default,
     }));
   return [...own, ...exposed];
+}
+
+/** The current type of an input, including exposed properties and existing group rows. */
+export function inputType(
+  graph: Graph,
+  known: Known,
+  node: string,
+  socket: string,
+): SocketType | undefined {
+  const into = graph.nodes.find((each) => each.id === node);
+  if (into === undefined) return undefined;
+  const sockets = socketsOf(known, into.id, into.type);
+  const group = socket.split("/")[0] ?? "";
+  return (
+    inputsOf(known, into).find((each) => each.id === socket)?.type ??
+    (socket.includes("/") &&
+    (into.groups[group] ?? []).includes(socket.slice(group.length + 1))
+      ? sockets.groups.find((each) => each.id === group)?.type
+      : undefined)
+  );
+}
+
+export function outputType(
+  graph: Graph,
+  known: Known,
+  node: string,
+  socket: string,
+): SocketType | undefined {
+  const from = graph.nodes.find((each) => each.id === node);
+  return from
+    ? socketsOf(known, from.id, from.type).outputs.find(
+        (each) => each.id === socket,
+      )?.type
+    : undefined;
 }
 
 /** The options a Choice node offers: those of the inputs it's wired into. */
