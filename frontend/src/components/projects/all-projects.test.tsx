@@ -211,6 +211,44 @@ test("a sole lead can leave from the project menu", async () => {
   expect(await screen.findByText("No projects yet")).toBeInTheDocument();
 });
 
+test("the background menu sorts the same grid and offers project creation to owners", async () => {
+  answer(PROJECTS);
+  renderWithClient(<AllProjects team={OWNER} />);
+  await screen.findByRole("link", { name: /^Checkout flow/ });
+  const background = screen.getByRole("region", { name: "Projects" });
+  fireEvent.contextMenu(background, { clientX: 700, clientY: 600 });
+  const menu = await screen.findByRole("menu");
+  expect(
+    within(menu)
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent),
+  ).toEqual(["New project", "Last edited", "Name"]);
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "Name" }));
+  expect(cardNames()).toEqual(["Analytics", "Checkout flow", "Marketing site"]);
+  expect(
+    screen.getByRole("button", { name: "Sort by Name" }),
+  ).toBeInTheDocument();
+  fireEvent.contextMenu(background);
+  fireEvent.click(await screen.findByRole("menuitem", { name: "New project" }));
+  expect(
+    await screen.findByRole("dialog", { name: "New project" }),
+  ).toBeInTheDocument();
+});
+
+test("a member's empty background menu offers sorting without creation", async () => {
+  answer([]);
+  renderWithClient(<AllProjects team={MEMBER} />);
+  await screen.findByText("No projects yet");
+  fireEvent.contextMenu(screen.getByRole("region", { name: "Projects" }));
+  const menu = await screen.findByRole("menu");
+  expect(
+    within(menu).queryByRole("menuitem", { name: "New project" }),
+  ).toBeNull();
+  expect(
+    within(menu).getByRole("menuitem", { name: "Name" }),
+  ).toBeInTheDocument();
+});
+
 test("with no projects, owners are asked to create one and members told to wait", async () => {
   answer([]);
   renderWithClient(<AllProjects team={OWNER} />);
