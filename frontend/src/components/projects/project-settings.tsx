@@ -184,7 +184,7 @@ function General({
               void save({ description: description.trim() });
             }
           }}
-          className="w-full resize-none rounded-md border border-input bg-field px-3 py-1.5 text-base"
+          className="min-h-16 w-full resize-y rounded-md border border-input bg-field px-3 py-1.5 text-base"
         />
       </div>
     </div>
