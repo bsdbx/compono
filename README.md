@@ -74,6 +74,15 @@ To see the milestones of the project: [Compono Milestones](https://github.com/bs
 
 To work with the tasks: `./tasks.sh`. Run `./tasks.sh --help` to see the usage.
 
+Every change is a task, from its issue to its pull request:
+
+1. `./tasks.sh create` creates a task. Anyone can create one.
+2. `./tasks.sh assign` gives it to someone. Only the admin assigns tasks.
+3. `./tasks.sh work` starts your task on its own branch, such as `docs/184-describe-the-task-workflow-in-the-readme`. Commit there as usual.
+4. `./tasks.sh submit` pushes the branch and opens its pull request, which closes the task when merged.
+
+A pull request passes the Task check only if it comes from the branch of an open task assigned to its author and says `Closes #<task>` in its description. `./tasks.sh submit` writes that for you.
+
 > [!WARNING]
 > This project is a University project. Any contribution is disallowed for the time being. Contributing will be possible once the initial project is completed
 
