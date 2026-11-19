@@ -86,7 +86,7 @@ function selectionCanvas(hidden = false, count = 2) {
   return { change, graph: () => readGraph(snapshot.content.graph) };
 }
 
-test.each([false])(
+test.each([false, true])(
   "duplicate shortcuts place the selection together and undo in one step (linked: %s)",
   async (linked) => {
     const canvas = selectionCanvas();

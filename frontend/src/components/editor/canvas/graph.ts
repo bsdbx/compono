@@ -163,11 +163,14 @@ export function disconnectNodes(graph: Graph, ids: ReadonlySet<string>): Graph {
   return wires.length === graph.wires.length ? graph : { ...graph, wires };
 }
 
-/** Copies a selection and its internal wires. */
+/** Copies a selection and its internal wires; linked copies also retain external inputs. */
 export function duplicateNodes(
   graph: Graph,
   ids: readonly string[],
-  { newId = () => crypto.randomUUID() }: { newId?: () => string } = {},
+  {
+    linked = false,
+    newId = () => crypto.randomUUID(),
+  }: { linked?: boolean; newId?: () => string } = {},
 ): { graph: Graph; copies: string[] } {
   const mapping = new Map<string, string>();
   const selected = new Set(ids);
@@ -182,7 +185,7 @@ export function duplicateNodes(
   const wires = graph.wires.flatMap((wire) => {
     const to = mapping.get(wire.to.node);
     const from = mapping.get(wire.from.node);
-    if (to === undefined || from === undefined) return [];
+    if (to === undefined || (!linked && from === undefined)) return [];
     return [
       {
         id: newId(),

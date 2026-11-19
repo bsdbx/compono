@@ -312,13 +312,13 @@ function Flow({
   );
 
   const duplicate = useCallback(
-    (ids: string[]) => {
+    (ids: string[], linked = false) => {
       const current = latest();
       const allowed = ids.filter((id) => {
         const node = current.nodes.find((node) => node.id === id);
         return node && !nodeTypes.get(node.type)?.single;
       });
-      const done = duplicateNodes(current, allowed);
+      const done = duplicateNodes(current, allowed, { linked });
       if (done.copies.length === 0) return;
       const bounds = wrapper.current?.getBoundingClientRect();
       const anchor = flow.screenToFlowPosition(
@@ -483,12 +483,12 @@ function Flow({
         setPlacement(undefined);
       } else if (placement) {
         return;
-      } else if (key === "d" && !command && event.shiftKey !== event.altKey) {
+      } else if (key === "d" && !command && (event.shiftKey || event.altKey)) {
         event.preventDefault();
         const ids = nodes
           .filter((node) => node.selected)
           .map((node) => node.id);
-        if (event.shiftKey) duplicate(ids);
+        if (event.shiftKey) duplicate(ids, event.altKey);
         else disconnectSelection(ids);
       } else if (
         (key === "delete" || key === "backspace" || (key === "x" && command)) &&
@@ -835,6 +835,15 @@ function Flow({
             >
               Duplicate
               <DropdownMenuShortcut keys={["Shift", "D"]} />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              onSelect={() => duplicate(ids, true)}
+              disabled={!canDuplicate}
+              aria-keyshortcuts="Shift+Alt+D"
+            >
+              Duplicate linked
+              <DropdownMenuShortcut keys={["Shift", "Alt", "D"]} />
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}

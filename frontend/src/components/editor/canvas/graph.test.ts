@@ -167,9 +167,40 @@ test("duplicates keep internal connections without copying external inputs", () 
   ]);
 });
 
+test("linked duplicates reuse external inputs and remap internal inputs without stealing outputs", () => {
+  const start = graph();
+  let count = 0;
+  const done = duplicateNodes(start, ["card", "badge"], {
+    linked: true,
+    newId: () => `copy${++count}`,
+  });
+  expect(done.graph.wires).toEqual([
+    ...start.wires,
+    { id: "copy3", from: at("title", "value"), to: at("copy1", "text") },
+    {
+      id: "copy4",
+      from: at("copy2", "element"),
+      to: at("copy1", "children/r1"),
+    },
+  ]);
+  expect(done.graph.nodes.find((node) => node.id === "copy1")?.groups).toEqual({
+    children: ["r1"],
+  });
+});
+
 test("an empty duplication is a no-op", () => {
   const start = graph();
   expect(duplicateNodes(start, ["missing"]).graph).toBe(start);
+});
+
+test("linked duplication leaves external consumers connected to the original", () => {
+  const start = graph();
+  const done = duplicateNodes(start, ["title"], {
+    linked: true,
+    newId: () => "copy",
+  });
+  expect(done.graph.wires).toEqual(start.wires);
+  expect(done.graph.wires[0]?.from.node).toBe("title");
 });
 
 test("disconnecting a selection removes all touching wires and preserves socket rows", () => {
