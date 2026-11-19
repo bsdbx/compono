@@ -85,8 +85,10 @@ type Adding = {
 
 type Placement = {
   graph: Graph;
-  node: string;
+  nodes: ReadonlySet<string>;
+  anchor: XY;
   position: XY;
+  centered?: string;
   before: ReadonlySet<string>;
 };
 
@@ -212,7 +214,23 @@ function Flow({
       placement
         ? moveNodes(
             placement.graph,
-            new Map([[placement.node, placement.position]]),
+            new Map(
+              placement.graph.nodes
+                .filter((node) => placement.nodes.has(node.id))
+                .map((node) => [
+                  node.id,
+                  {
+                    x:
+                      node.position.x +
+                      placement.position.x -
+                      placement.anchor.x,
+                    y:
+                      node.position.y +
+                      placement.position.y -
+                      placement.anchor.y,
+                  },
+                ]),
+            ),
           )
         : savedGraph,
     [placement, savedGraph],
@@ -250,7 +268,7 @@ function Flow({
       const before = new Map(current.map((node) => [node.id, node]));
       return graph.nodes.map((node) => {
         const previous = before.get(node.id);
-        const centered = node.id === placement?.node;
+        const centered = node.id === placement?.centered;
         const origin = centered ? 0.5 : 0;
         const moved =
           previous === undefined ||
@@ -262,7 +280,7 @@ function Flow({
         return select ? { ...next, selected: select.has(node.id) } : next;
       });
     });
-  }, [graph.nodes, placement?.node]);
+  }, [graph.nodes, placement?.centered]);
 
   // The Preview's Show node selects a node and brings it into view
   useEffect(() => {
@@ -332,15 +350,36 @@ function Flow({
 
   const duplicate = useCallback(
     (ids: string[]) => {
-      edit((current) => {
-        const done = duplicateNodes(current, ids);
-        if (done.copies.length > 0) {
-          selectNext.current = new Set(done.copies);
-        }
-        return done.graph;
+      const current = latest();
+      const allowed = ids.filter((id) => {
+        const node = current.nodes.find((node) => node.id === id);
+        return node && !nodeTypes.get(node.type)?.single;
       });
+      const done = duplicateNodes(current, allowed);
+      if (done.copies.length === 0) return;
+      const bounds = wrapper.current?.getBoundingClientRect();
+      const anchor = flow.screenToFlowPosition(
+        pointer.current ?? {
+          x: (bounds?.left ?? 0) + (bounds?.width ?? 0) / 2,
+          y: (bounds?.top ?? 0) + (bounds?.height ?? 0) / 2,
+        },
+      );
+      const copies = new Set(done.copies);
+      selectNext.current = copies;
+      setSelectedWires(new Set());
+      setPlacement({
+        graph: done.graph,
+        nodes: copies,
+        anchor,
+        position: anchor,
+        before: new Set(
+          nodes.filter((node) => node.selected).map((node) => node.id),
+        ),
+      });
+      setMenu(undefined);
+      setAdding(undefined);
     },
-    [edit],
+    [latest, nodeTypes, flow, nodes],
   );
 
   const fitToView = useCallback(() => {
@@ -386,25 +425,33 @@ function Flow({
           x: event.clientX,
           y: event.clientY,
         });
-        const node = flow.getNode(placement.node);
-        const element = wrapper.current.querySelector<HTMLElement>(
-          `.react-flow__node[data-id="${CSS.escape(placement.node)}"]`,
+        const positions = new Map(
+          placement.graph.nodes
+            .filter((node) => placement.nodes.has(node.id))
+            .map((node) => [
+              node.id,
+              {
+                x: node.position.x + position.x - placement.anchor.x,
+                y: node.position.y + position.y - placement.anchor.y,
+              },
+            ]),
         );
-        // Persist the graph's top-left coordinates after centering the temporary node on the pointer.
-        const topLeft = {
-          x:
-            position.x -
-            (node?.measured?.width ?? element?.offsetWidth ?? 0) / 2,
-          y:
-            position.y -
-            (node?.measured?.height ?? element?.offsetHeight ?? 0) / 2,
-        };
-        const finished = moveNodes(
-          placement.graph,
-          new Map([[placement.node, topLeft]]),
-        );
-        edit(() => finished);
-        selectNext.current = new Set([placement.node]);
+        if (placement.centered) {
+          const node = flow.getNode(placement.centered);
+          const element = wrapper.current.querySelector<HTMLElement>(
+            `.react-flow__node[data-id="${CSS.escape(placement.centered)}"]`,
+          );
+          positions.set(placement.centered, {
+            x:
+              position.x -
+              (node?.measured?.width ?? element?.offsetWidth ?? 0) / 2,
+            y:
+              position.y -
+              (node?.measured?.height ?? element?.offsetHeight ?? 0) / 2,
+          });
+        }
+        edit(() => moveNodes(placement.graph, positions));
+        selectNext.current = placement.nodes;
       } else {
         selectNext.current = placement.before;
       }
@@ -420,7 +467,7 @@ function Flow({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (hidden || editing(event.target) || event.altKey) {
+      if (hidden || editing(event.target)) {
         return;
       }
       const key = event.key.toLowerCase();
@@ -429,7 +476,14 @@ function Flow({
         event.preventDefault();
         selectNext.current = placement.before;
         setPlacement(undefined);
-      } else if (key === "a" && event.shiftKey && !command && !placement) {
+      } else if (placement) {
+        return;
+      } else if (key === "d" && !command && event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        duplicate(nodes.filter((node) => node.selected).map((node) => node.id));
+      } else if (event.altKey) {
+        return;
+      } else if (key === "a" && event.shiftKey && !command) {
         event.preventDefault();
         const bounds = wrapper.current?.getBoundingClientRect();
         if (!bounds) return;
@@ -466,9 +520,6 @@ function Flow({
       } else if (key === "a") {
         event.preventDefault();
         selectAll();
-      } else if (key === "d") {
-        event.preventDefault();
-        duplicate(nodes.filter((node) => node.selected).map((node) => node.id));
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -508,7 +559,14 @@ function Flow({
   }, [graph, evaluated, nodeTypes, evaluation]);
 
   const canvas: CanvasState = useMemo(
-    () => ({ graph, nodeTypes, evaluated, refused, edit, openMenu: setMenu }),
+    () => ({
+      graph,
+      nodeTypes,
+      evaluated,
+      refused,
+      edit,
+      openMenu: setMenu,
+    }),
     [graph, nodeTypes, evaluated, refused, edit],
   );
 
@@ -649,8 +707,10 @@ function Flow({
         : added;
     setPlacement({
       graph: next,
-      node: node.id,
+      nodes: new Set([node.id]),
+      anchor: position,
       position,
+      centered: node.id,
       before: new Set(selected),
     });
     selectNext.current = new Set([node.id]);
@@ -740,13 +800,19 @@ function Flow({
       case "node": {
         // A right click on a selected node acts on the whole selection
         const ids = selected.includes(open.node) ? selected : [open.node];
+        const canDuplicate = graph.nodes.some(
+          (node) => ids.includes(node.id) && !nodeTypes.get(node.type)?.single,
+        );
         return (
           <>
             <DropdownMenuItem
               className={MENU_ITEM}
               onSelect={() => duplicate(ids)}
+              disabled={!canDuplicate}
+              aria-keyshortcuts="Shift+D"
             >
               Duplicate
+              <DropdownMenuShortcut keys={["Shift", "D"]} />
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
@@ -831,6 +897,13 @@ function Flow({
           ignorePlacementClick.current = false;
           boxSelection.handlers.onPointerDownCapture(event);
         }}
+        onContextMenuCapture={(event) => {
+          if (ignorePlacementClick.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            ignorePlacementClick.current = false;
+          }
+        }}
         onClickCapture={(event) => {
           if (ignorePlacementClick.current) {
             event.stopPropagation();
@@ -847,6 +920,7 @@ function Flow({
           }}
         />
         <ReactFlow<CanvasNode>
+          className={placement ? "[&_*]:cursor-grabbing!" : ""}
           proOptions={{ hideAttribution: true }}
           nodes={nodes}
           edges={edges}
@@ -938,8 +1012,6 @@ function Flow({
           panOnDrag={[1]}
           panOnScroll
           multiSelectionKeyCode={["Shift", "Meta", "Control"]}
-          // While the code shows, its keys aren't the canvas's
-          deleteKeyCode={hidden || placement ? null : ["Delete", "Backspace"]}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -993,12 +1065,16 @@ function Flow({
           </div>
         ) : null}
         {placement ? (
-          <div aria-hidden className="absolute inset-0 z-10 cursor-grabbing" />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-10 cursor-grabbing"
+          />
         ) : null}
         {menu ? (
           <PointerMenu
             x={menu.x}
             y={menu.y}
+            className={menu.kind === "node" ? "w-64" : ""}
             onClose={() => {
               setMenu(undefined);
               setAdding((current) => (current?.embedded ? undefined : current));

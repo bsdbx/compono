@@ -127,26 +127,48 @@ test("moving and adding nodes", () => {
   );
 });
 
-test("a duplicate sits to the side, with its values but no wires or rows", () => {
+test("a duplicate preserves its position, values and socket rows independently", () => {
   const start = setValue(graph(), "card", "class", "card");
   let count = 0;
-  const { graph: next, copies } = duplicateNodes(
-    start,
-    ["card"],
-    () => `copy${++count}`,
-  );
+  const { graph: next, copies } = duplicateNodes(start, ["card"], {
+    newId: () => `copy${++count}`,
+  });
 
   expect(copies).toEqual(["copy1"]);
   expect(next.nodes.at(-1)).toEqual({
     id: "copy1",
     type: "element",
-    position: { x: 340, y: 40 },
+    position: { x: 300, y: 0 },
     values: { class: "card" },
     properties: {},
     exposed: [],
-    groups: {},
+    groups: { children: ["r1"] },
   });
   expect(next.wires).toEqual(start.wires);
+  next.nodes.at(-1)?.groups.children?.push("r2");
+  expect(start.nodes[1]?.groups.children).toEqual(["r1"]);
+});
+
+test("duplicates keep internal connections without copying external inputs", () => {
+  const start = graph();
+  let count = 0;
+  const done = duplicateNodes(start, ["title", "card"], {
+    newId: () => `copy${++count}`,
+  });
+  expect(done.copies).toEqual(["copy1", "copy2"]);
+  expect(done.graph.wires).toEqual([
+    ...start.wires,
+    {
+      id: "copy3",
+      from: at("copy1", "value"),
+      to: at("copy2", "text"),
+    },
+  ]);
+});
+
+test("an empty duplication is a no-op", () => {
+  const start = graph();
+  expect(duplicateNodes(start, ["missing"]).graph).toBe(start);
 });
 
 test("typing a value in, and clearing it back to the default", () => {
