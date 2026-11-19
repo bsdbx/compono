@@ -43,12 +43,13 @@ import { useBoxSelection } from "./box-selection";
 import {
   CanvasContext,
   type CanvasState,
-  inputsOf,
+  inputType,
   type Menu,
-  socketsOf,
+  outputType,
   useCanvas,
 } from "./context";
 import { useEvaluation, useNodeTypes } from "./data";
+import { dissolveNodes } from "./dissolve";
 import {
   addNode,
   connect,
@@ -91,44 +92,6 @@ type Placement = {
   centered?: string;
   before: ReadonlySet<string>;
 };
-
-type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
-
-function inputType(
-  graph: Graph,
-  known: Known,
-  node: string,
-  socket: string,
-): SocketType | undefined {
-  const into = graph.nodes.find((each) => each.id === node);
-  if (into === undefined) {
-    return undefined;
-  }
-
-  const sockets = socketsOf(known, into.id, into.type);
-  const group = socket.split("/")[0] ?? "";
-  return (
-    inputsOf(known, into).find((each) => each.id === socket)?.type ??
-    (socket.includes("/") &&
-    (into.groups[group] ?? []).includes(socket.slice(group.length + 1))
-      ? sockets.groups.find((each) => each.id === group)?.type
-      : undefined)
-  );
-}
-
-function outputType(
-  graph: Graph,
-  known: Known,
-  node: string,
-  socket: string,
-): SocketType | undefined {
-  const from = graph.nodes.find((each) => each.id === node);
-  return from
-    ? socketsOf(known, from.id, from.type).outputs.find(
-        (each) => each.id === socket,
-      )?.type
-    : undefined;
-}
 
 /** The wire being dragged, in the color of the socket it comes from. */
 function ConnectionLine({
@@ -382,6 +345,40 @@ function Flow({
     [latest, nodeTypes, flow, nodes],
   );
 
+  const removeSelection = useCallback(
+    (ids: readonly string[], dissolve = false) => {
+      const selected = new Set(ids);
+      if (selected.size === 0 && selectedWires.size === 0) return;
+      edit((current) => {
+        // Box selection also selects incident wires; dissolve must keep the boundary wires it reconnects.
+        const cut = new Set(
+          [...selectedWires].filter(
+            (id) =>
+              !dissolve ||
+              !current.wires.some(
+                (wire) =>
+                  wire.id === id &&
+                  (selected.has(wire.from.node) || selected.has(wire.to.node)),
+              ),
+          ),
+        );
+        return disconnect(
+          dissolve
+            ? dissolveNodes(
+                current,
+                selected,
+                { evaluated, nodeTypes },
+                new Set(Object.keys(evaluation?.wires ?? {})),
+              )
+            : removeNodes(current, selected),
+          cut,
+        );
+      });
+      setSelectedWires(new Set());
+    },
+    [edit, selectedWires, evaluated, nodeTypes, evaluation?.wires],
+  );
+
   const fitToView = useCallback(() => {
     const all = flow.getNodes();
     const selected = all.filter((node) => node.selected);
@@ -481,6 +478,17 @@ function Flow({
       } else if (key === "d" && !command && event.shiftKey && !event.altKey) {
         event.preventDefault();
         duplicate(nodes.filter((node) => node.selected).map((node) => node.id));
+      } else if (
+        (key === "delete" || key === "backspace" || (key === "x" && command)) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        (key === "x" || !command)
+      ) {
+        event.preventDefault();
+        removeSelection(
+          nodes.filter((node) => node.selected).map((node) => node.id),
+          key !== "delete",
+        );
       } else if (event.altKey) {
         return;
       } else if (key === "a" && event.shiftKey && !command) {
@@ -529,6 +537,7 @@ function Flow({
     redo,
     selectAll,
     duplicate,
+    removeSelection,
     nodes,
     hidden,
     fitToView,
@@ -826,11 +835,20 @@ function Flow({
             <DropdownMenuItem
               variant="destructive"
               className={MENU_ITEM}
-              onSelect={() =>
-                edit((current) => removeNodes(current, new Set(ids)))
-              }
+              onSelect={() => removeSelection(ids)}
+              aria-keyshortcuts="Delete"
             >
               Delete
+              <DropdownMenuShortcut keys={["Del"]} />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              className={MENU_ITEM}
+              onSelect={() => removeSelection(ids, true)}
+              aria-keyshortcuts="Control+X Meta+X Backspace"
+            >
+              Dissolve
+              <DropdownMenuShortcut keys={["Ctrl", "X"]} />
             </DropdownMenuItem>
           </>
         );
@@ -1012,6 +1030,8 @@ function Flow({
           panOnDrag={[1]}
           panOnScroll
           multiSelectionKeyCode={["Shift", "Meta", "Control"]}
+          // The canvas handles Delete and Backspace separately so Backspace can dissolve.
+          deleteKeyCode={null}
         >
           <Background
             variant={BackgroundVariant.Dots}

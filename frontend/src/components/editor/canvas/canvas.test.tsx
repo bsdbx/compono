@@ -146,6 +146,27 @@ test("Escape cancels a duplicate and restores the original selection without sav
   expect(canvas.change).not.toHaveBeenCalled();
 });
 
+test.each(["Delete", "Backspace", "Control+x"])(
+  "%s acts on the whole selection and can be undone",
+  async (shortcut) => {
+    const canvas = selectionCanvas();
+    await waitFor(() =>
+      expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+    );
+    fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+    fireEvent.keyDown(window, {
+      key: shortcut.split("+").at(-1),
+      ctrlKey: shortcut.startsWith("Control"),
+      altKey: shortcut.startsWith("Alt"),
+    });
+    expect(canvas.graph().nodes).toHaveLength(shortcut === "Alt+d" ? 2 : 0);
+    expect(canvas.graph().wires).toEqual([]);
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(canvas.graph().nodes).toHaveLength(2);
+    expect(canvas.graph().wires).toHaveLength(1);
+  },
+);
+
 test("the shortcuts leave focused text fields alone", async () => {
   const canvas = selectionCanvas();
   await waitFor(() =>
@@ -159,7 +180,12 @@ test("the shortcuts leave focused text fields alone", async () => {
     0,
   );
   fireEvent.keyDown(window, { key: "a", ctrlKey: true });
-  for (const keys of [{ key: "D", shiftKey: true }])
+  for (const keys of [
+    { key: "D", shiftKey: true },
+    { key: "Delete" },
+    { key: "Backspace" },
+    { key: "x", ctrlKey: true },
+  ])
     fireEvent.keyDown(field, keys);
   expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
     2,
@@ -175,7 +201,9 @@ test("a hidden canvas ignores selection shortcuts", async () => {
   );
   for (const keys of [
     { key: "a", ctrlKey: true },
+    { key: "Delete" },
     { key: "D", shiftKey: true },
+    { key: "x", ctrlKey: true },
   ])
     fireEvent.keyDown(window, keys);
   expect(canvas.change).not.toHaveBeenCalled();
