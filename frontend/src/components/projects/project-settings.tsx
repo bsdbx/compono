@@ -337,7 +337,7 @@ function Members({
                   {chosen
                     ? chosen.name
                     : addable.length === 0
-                      ? `Everyone in ${team.name} is in this project`
+                      ? "Everyone is in this project"
                       : "Add a team member"}
                 </span>
                 <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
