@@ -160,23 +160,40 @@ export function disconnectNode(graph: Graph, id: string): Graph {
   };
 }
 
-/** Copies of the nodes, a little to the side, without their wires. */
+/** Copies a selection and its internal wires. */
 export function duplicateNodes(
   graph: Graph,
   ids: readonly string[],
-  newId: () => string = () => crypto.randomUUID(),
+  { newId = () => crypto.randomUUID() }: { newId?: () => string } = {},
 ): { graph: Graph; copies: string[] } {
+  const mapping = new Map<string, string>();
+  const selected = new Set(ids);
   const copies: GraphNode[] = graph.nodes
-    .filter((node) => ids.includes(node.id))
-    .map((node) => ({
-      ...structuredClone(node),
-      id: newId(),
-      position: { x: node.position.x + 40, y: node.position.y + 40 },
-      // Rows were for the original's wires
-      groups: {},
-    }));
+    .filter((node) => selected.has(node.id))
+    .map((node) => {
+      const id = newId();
+      mapping.set(node.id, id);
+      return { ...structuredClone(node), id };
+    });
+  if (copies.length === 0) return { graph, copies: [] };
+  const wires = graph.wires.flatMap((wire) => {
+    const to = mapping.get(wire.to.node);
+    const from = mapping.get(wire.from.node);
+    if (to === undefined || from === undefined) return [];
+    return [
+      {
+        id: newId(),
+        from: { ...wire.from, node: from ?? wire.from.node },
+        to: { ...wire.to, node: to },
+      },
+    ];
+  });
   return {
-    graph: { ...graph, nodes: [...graph.nodes, ...copies] },
+    graph: {
+      ...graph,
+      nodes: [...graph.nodes, ...copies],
+      wires: [...graph.wires, ...wires],
+    },
     copies: copies.map((copy) => copy.id),
   };
 }
