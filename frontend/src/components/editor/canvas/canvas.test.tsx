@@ -86,12 +86,74 @@ function selectionCanvas(hidden = false, count = 2) {
   return { change, graph: () => readGraph(snapshot.content.graph) };
 }
 
+test("A selects every node and Alt+A clears selection without changing the graph", async () => {
+  const canvas = selectionCanvas();
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+  );
+  expect(fireEvent.keyDown(window, { key: "a" })).toBe(false);
+  expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
+    2,
+  );
+  expect(fireEvent.keyDown(window, { key: "a", altKey: true })).toBe(false);
+  expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
+    0,
+  );
+  fireEvent.keyDown(window, { key: "Delete" });
+  expect(canvas.change).not.toHaveBeenCalled();
+  expect(canvas.graph().nodes).toHaveLength(2);
+});
+
+test("Ctrl+A and Meta+A no longer select canvas nodes", async () => {
+  selectionCanvas();
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+  );
+  for (const modifier of [{ ctrlKey: true }, { metaKey: true }]) {
+    expect(fireEvent.keyDown(window, { key: "a", ...modifier })).toBe(true);
+    expect(
+      document.querySelectorAll(".react-flow__node.selected"),
+    ).toHaveLength(0);
+  }
+});
+
+test("the canvas menu shows A and Alt+A and performs both selection actions", async () => {
+  const canvas = selectionCanvas();
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+  );
+  const pane = document.querySelector(".react-flow__pane") as Element;
+  fireEvent.contextMenu(pane);
+  const select = await screen.findByRole("menuitem", { name: "Select all" });
+  const deselect = screen.getByRole("menuitem", { name: "Deselect all" });
+  expect(select).toHaveAttribute("aria-keyshortcuts", "A");
+  expect(deselect).toHaveAttribute("aria-keyshortcuts", "Alt+A");
+  expect([...select.querySelectorAll("kbd")].map((key) => key.title)).toEqual([
+    "A",
+  ]);
+  expect([...deselect.querySelectorAll("kbd")].map((key) => key.title)).toEqual(
+    ["Alt", "A"],
+  );
+  fireEvent.click(select);
+  expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
+    2,
+  );
+  fireEvent.contextMenu(pane);
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Deselect all" }),
+  );
+  expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
+    0,
+  );
+  expect(canvas.change).not.toHaveBeenCalled();
+});
+
 test("F2 renames one selected node and the rename supports undo and redo", async () => {
   const canvas = selectionCanvas(false, 1);
   await waitFor(() =>
     expect(document.querySelectorAll(".react-flow__node")).toHaveLength(1),
   );
-  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "a" });
   fireEvent.keyDown(window, { key: "F2" });
   const field = await screen.findByLabelText("Node name");
   expect(field).toHaveFocus();
@@ -127,7 +189,7 @@ test("double-clicking one node header starts renaming, and an unchanged name doe
   await waitFor(() =>
     expect(document.querySelector("[data-node-header]")).not.toBeNull(),
   );
-  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "a" });
   fireEvent.doubleClick(
     document.querySelector("[data-node-header]") as Element,
   );
@@ -143,7 +205,7 @@ test("a multi-node selection cannot be renamed from F2, a double-click, or the m
   await waitFor(() =>
     expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
   );
-  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "a" });
   fireEvent.keyDown(window, { key: "F2" });
   fireEvent.doubleClick(
     document.querySelector("[data-node-header]") as Element,
@@ -165,7 +227,7 @@ test.each([false, true])(
     await waitFor(() =>
       expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
     );
-    fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "a" });
     fireEvent.pointerMove(document, { clientX: 100, clientY: 100 });
     fireEvent.keyDown(window, { key: "D", shiftKey: true, altKey: linked });
     await waitFor(() =>
@@ -203,7 +265,7 @@ test("Escape cancels a duplicate and restores the original selection without sav
   await waitFor(() =>
     expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
   );
-  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "a" });
   fireEvent.keyDown(window, { key: "D", shiftKey: true });
   await waitFor(() =>
     expect(document.querySelectorAll(".react-flow__node")).toHaveLength(4),
@@ -225,7 +287,7 @@ test.each(["Delete", "Backspace", "Control+x", "Alt+d"])(
     await waitFor(() =>
       expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
     );
-    fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "a" });
     fireEvent.keyDown(window, {
       key: shortcut.split("+").at(-1),
       ctrlKey: shortcut.startsWith("Control"),
@@ -247,12 +309,13 @@ test("the shortcuts leave focused text fields alone", async () => {
   const field = document.querySelector(
     ".react-flow__node input",
   ) as HTMLInputElement;
-  fireEvent.keyDown(field, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(field, { key: "a" });
   expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
     0,
   );
-  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "a" });
   for (const keys of [
+    { key: "a", altKey: true },
     { key: "D", shiftKey: true },
     { key: "d", altKey: true },
     { key: "Delete" },
@@ -273,7 +336,8 @@ test("a hidden canvas ignores selection shortcuts", async () => {
     expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
   );
   for (const keys of [
-    { key: "a", ctrlKey: true },
+    { key: "a" },
+    { key: "a", altKey: true },
     { key: "Delete" },
     { key: "D", shiftKey: true },
     { key: "x", ctrlKey: true },
