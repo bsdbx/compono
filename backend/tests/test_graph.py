@@ -286,6 +286,7 @@ def test_node_display_names_do_not_change_evaluation() -> None:
                 "type": "number",
                 "name": "Price",
                 "width": 320,
+                "collapsed": True,
                 "properties": {"value": 24},
             }
         ]
@@ -298,6 +299,7 @@ def test_node_display_names_do_not_change_evaluation() -> None:
 
     assert named.nodes[0].name == "Price"
     assert named.nodes[0].width == 320
+    assert named.nodes[0].collapsed
     assert Graph.model_validate_json(named.model_dump_json()).nodes[0].name == "Price"
     assert evaluate(named, NODE_TYPES) == evaluate(unnamed, NODE_TYPES)
 

@@ -23,6 +23,7 @@ class Node(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     # Canvas layout only; height follows the node's content.
     width: float | None = Field(default=None, ge=168, le=1024)
+    collapsed: bool = False
     position: Position = Position()
     # Typed into inputs on the node, by input
     values: dict[str, JsonValue] = {}

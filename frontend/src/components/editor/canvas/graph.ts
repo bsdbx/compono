@@ -13,6 +13,8 @@ export type GraphNode = {
   name?: string;
   /** A manually chosen width. Without one, the node fits its label from the shared default. */
   width?: number;
+  /** A compact label and sockets; the expanded width and all node values stay intact. */
+  collapsed?: boolean;
   position: XY;
   values: Record<string, unknown>;
   properties: Record<string, unknown>;
@@ -52,6 +54,7 @@ export function readGraph(stored: Record<string, unknown>): Graph {
         ...(typeof node.width === "number" && Number.isFinite(node.width)
           ? { width: nodeWidth(node.width) }
           : {}),
+        ...(node.collapsed === true ? { collapsed: true } : {}),
         position: { x: Number(position.x ?? 0), y: Number(position.y ?? 0) },
         values: object(node.values),
         properties: object(node.properties),
@@ -94,6 +97,22 @@ export function renameNode(graph: Graph, id: string, value: string): Graph {
   return {
     ...graph,
     nodes: graph.nodes.map((node) => (node.id === id ? renamed : node)),
+  };
+}
+
+/** Collapse a mixed selection together, or expand it when every selected node is collapsed. */
+export function toggleCollapsed(graph: Graph, ids: ReadonlySet<string>): Graph {
+  const selected = graph.nodes.filter((node) => ids.has(node.id));
+  if (selected.length === 0) return graph;
+  const collapse = selected.some((node) => !node.collapsed);
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => {
+      if (!ids.has(node.id) || Boolean(node.collapsed) === collapse)
+        return node;
+      const { collapsed: _, ...expanded } = node;
+      return collapse ? { ...node, collapsed: true } : expanded;
+    }),
   };
 }
 

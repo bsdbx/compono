@@ -316,6 +316,7 @@ def test_node_display_names_survive_saving_and_reopening(
                 "type": "component-output",
                 "name": "Final output",
                 "width": 320,
+                "collapsed": True,
             }
         ]
     }

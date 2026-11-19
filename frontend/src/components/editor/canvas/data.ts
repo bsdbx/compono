@@ -25,7 +25,13 @@ function meaning(graph: Graph) {
   return {
     ...graph,
     nodes: graph.nodes.map(
-      ({ position: _, name: _name, width: _width, ...node }) => node,
+      ({
+        position: _,
+        name: _name,
+        width: _width,
+        collapsed: _collapsed,
+        ...node
+      }) => node,
     ),
   };
 }

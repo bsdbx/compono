@@ -104,6 +104,47 @@ test("A selects every node and Alt+A clears selection without changing the graph
   expect(canvas.graph().nodes).toHaveLength(2);
 });
 
+test("H collapses and expands a whole selection with one-step undo and retained sockets", async () => {
+  const canvas = selectionCanvas();
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+  );
+  const handles = document.querySelectorAll(".react-flow__handle").length;
+  const fields = document.querySelectorAll(".react-flow__node input").length;
+  fireEvent.keyDown(window, { key: "h" });
+  expect(canvas.change).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: "a" });
+  fireEvent.keyDown(window, { key: "h" });
+  expect(canvas.change).toHaveBeenCalledOnce();
+  expect(canvas.graph().nodes.every((node) => node.collapsed)).toBe(true);
+  for (const modifier of [
+    { ctrlKey: true },
+    { metaKey: true },
+    { altKey: true },
+    { shiftKey: true },
+    { repeat: true },
+  ])
+    fireEvent.keyDown(window, { key: "h", ...modifier });
+  expect(canvas.change).toHaveBeenCalledOnce();
+  expect(
+    document.querySelectorAll('[data-node-collapsed="true"]'),
+  ).toHaveLength(2);
+  expect(document.querySelectorAll(".react-flow__node input")).toHaveLength(0);
+  expect(document.querySelectorAll(".react-flow__handle")).toHaveLength(
+    handles,
+  );
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(canvas.graph().nodes.some((node) => node.collapsed)).toBe(false);
+  expect(document.querySelectorAll(".react-flow__node input")).toHaveLength(
+    fields,
+  );
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
+  expect(canvas.graph().nodes.every((node) => node.collapsed)).toBe(true);
+  fireEvent.keyDown(window, { key: "h" });
+  expect(canvas.graph().nodes.some((node) => node.collapsed)).toBe(false);
+  expect(canvas.graph().wires).toHaveLength(1);
+});
+
 test("Ctrl+A and Meta+A no longer select canvas nodes", async () => {
   selectionCanvas();
   await waitFor(() =>
@@ -316,6 +357,7 @@ test("the shortcuts leave focused text fields alone", async () => {
   fireEvent.keyDown(window, { key: "a" });
   for (const keys of [
     { key: "a", altKey: true },
+    { key: "h" },
     { key: "D", shiftKey: true },
     { key: "d", altKey: true },
     { key: "Delete" },
@@ -338,6 +380,7 @@ test("a hidden canvas ignores selection shortcuts", async () => {
   for (const keys of [
     { key: "a" },
     { key: "a", altKey: true },
+    { key: "h" },
     { key: "Delete" },
     { key: "D", shiftKey: true },
     { key: "x", ctrlKey: true },

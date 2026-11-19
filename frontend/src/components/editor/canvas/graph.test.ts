@@ -23,6 +23,7 @@ import {
   setNodeWidth,
   setProperty,
   setValue,
+  toggleCollapsed,
   unexpose,
 } from "./graph";
 
@@ -239,6 +240,45 @@ test("node width persists, duplicates independently, and resizing only changes l
   expect(
     renameNode(start, "card", "x".repeat(200)).nodes[1]?.name,
   ).toHaveLength(128);
+});
+
+test("collapsed nodes retain their content, wires and expanded widths through saves and duplication", () => {
+  const start = setNodeWidth(graph(), "card", 320);
+  const ids = new Set(["title", "card"]);
+  const collapsed = toggleCollapsed(start, ids);
+  expect(collapsed.nodes.map((node) => node.collapsed)).toEqual([
+    true,
+    true,
+    undefined,
+  ]);
+  expect(collapsed.wires).toBe(start.wires);
+  expect(collapsed.props).toBe(start.props);
+  expect(collapsed.nodes[2]).toBe(start.nodes[2]);
+  expect(start.nodes[0]?.collapsed).toBeUndefined();
+  expect(readGraph(collapsed as unknown as Record<string, unknown>)).toEqual(
+    collapsed,
+  );
+  const copy = duplicateNodes(collapsed, ["card"], {
+    newId: () => "copy",
+  }).graph.nodes.at(-1);
+  expect(copy?.collapsed).toBe(true);
+  expect(copy?.width).toBe(320);
+  expect(toggleCollapsed(collapsed, ids)).toEqual(start);
+  expect(toggleCollapsed(start, new Set(["missing"]))).toBe(start);
+});
+
+test("a mixed selection collapses together before expanding together", () => {
+  const mixed = toggleCollapsed(graph(), new Set(["card"]));
+  const collapsed = toggleCollapsed(mixed, new Set(["title", "card"]));
+  expect(collapsed.nodes.map((node) => node.collapsed)).toEqual([
+    true,
+    true,
+    undefined,
+  ]);
+  expect(collapsed.nodes[1]).toBe(mixed.nodes[1]);
+  expect(toggleCollapsed(collapsed, new Set(["title", "card"]))).toEqual(
+    graph(),
+  );
 });
 
 test("linked duplication leaves external consumers connected to the original", () => {

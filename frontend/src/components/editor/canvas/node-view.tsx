@@ -17,8 +17,8 @@ import {
   setProperty,
   setValue,
 } from "./graph";
-
 import { NodeFrame } from "./node-frame";
+import { collapsedHeight, collapsedSocket } from "./node-size";
 
 export type CanvasNode = Node<Record<string, never>, "graph">;
 
@@ -38,22 +38,28 @@ function SocketHandle({
   socket,
   side,
   offset = 0,
+  top,
+  label,
 }: {
   type: "source" | "target";
   id: string;
   socket: SocketType | undefined;
   side: "left" | "right";
   offset?: number;
+  top?: number;
+  label?: string;
 }) {
   const kind = socket?.kind ?? "any";
   return (
     <Handle
       type={type}
       id={id}
+      title={label}
       position={side === "left" ? Position.Left : Position.Right}
       // Inline, over React Flow's own handle style
       style={{
         ...(side === "left" ? { left: offset } : { right: offset }),
+        ...(top === undefined ? {} : { top }),
         // A Slot is a ring: the place an element goes. So is a socket that has no type until it's wired
         ...(kind === "slot" || kind === "any"
           ? {
@@ -64,6 +70,101 @@ function SocketHandle({
       }}
       className={HANDLE}
     />
+  );
+}
+
+function AddSocket({
+  group,
+  offset = -11,
+  top,
+  label,
+}: {
+  group: string;
+  offset?: number;
+  top?: number;
+  label?: string;
+}) {
+  return (
+    <Handle
+      type="target"
+      id={addRow(group)}
+      title={label ?? `Add ${group}`}
+      position={Position.Left}
+      style={{ left: offset, ...(top === undefined ? {} : { top }) }}
+      className="z-10! size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 14 14"
+        className="pointer-events-none block size-full"
+      >
+        <circle
+          cx="7"
+          cy="7"
+          r="6.5"
+          fill="var(--card)"
+          stroke="var(--muted-foreground)"
+        />
+        <path
+          d="M4.5 7h5M7 4.5v5"
+          stroke="var(--foreground)"
+          strokeLinecap="round"
+        />
+      </svg>
+    </Handle>
+  );
+}
+
+type CompactSocket = {
+  id: string;
+  label: string;
+  type: SocketType;
+  add?: string;
+};
+
+/** Every socket stays available around the rounded ends, including group rows and Add. */
+function CollapsedSockets({
+  inputs,
+  outputs,
+  height,
+}: {
+  inputs: readonly CompactSocket[];
+  outputs: readonly CompactSocket[];
+  height: number;
+}) {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {(
+        [
+          ["left", inputs],
+          ["right", outputs],
+        ] as const
+      ).flatMap(([side, sockets]) =>
+        sockets.map((socket, index) => {
+          const { top, inset } = collapsedSocket(index, sockets.length, height);
+          return socket.add ? (
+            <AddSocket
+              key={`${side}:${socket.id}`}
+              group={socket.add}
+              label={socket.label}
+              offset={inset}
+              top={top}
+            />
+          ) : (
+            <SocketHandle
+              key={`${side}:${socket.id}`}
+              id={socket.id}
+              label={socket.label}
+              socket={socket.type}
+              type={side === "left" ? "target" : "source"}
+              side={side}
+              offset={inset}
+              top={top}
+            />
+          );
+        }),
+      )}
+    </div>
   );
 }
 
@@ -228,32 +329,7 @@ function GroupRows({ node, group }: { node: GraphNode; group: GroupSocket }) {
         );
       })}
       <div className="relative flex h-5.5 items-center border-node-group-line border-t px-2 text-subtle-foreground">
-        <Handle
-          type="target"
-          id={addRow(group.id)}
-          position={Position.Left}
-          style={{ left: -11 }}
-          className="z-10! size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
-        >
-          <svg
-            aria-hidden
-            viewBox="0 0 14 14"
-            className="pointer-events-none block size-full"
-          >
-            <circle
-              cx="7"
-              cy="7"
-              r="6.5"
-              fill="var(--card)"
-              stroke="var(--muted-foreground)"
-            />
-            <path
-              d="M4.5 7h5M7 4.5v5"
-              stroke="var(--foreground)"
-              strokeLinecap="round"
-            />
-          </svg>
-        </Handle>
+        <AddSocket group={group.id} />
         Add
       </div>
     </div>
@@ -322,13 +398,30 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const error = evaluated?.error;
   // Groups sit before the input they name, the rest after the inputs
   const rows: ReactNode[] = [];
+  const compactInputs: CompactSocket[] = [];
+  const groupRows = (group: GroupSocket) => {
+    rows.push(
+      <GroupRows key={`group:${group.id}`} node={node} group={group} />,
+    );
+    compactInputs.push(
+      ...(node.groups[group.id] ?? []).map((row, index) => ({
+        id: `${group.id}/${row}`,
+        label: `${group.label} ${index + 1}`,
+        type: group.type,
+      })),
+      {
+        id: addRow(group.id),
+        label: `Add ${group.label}`,
+        type: group.type,
+        add: group.id,
+      },
+    );
+  };
   for (const input of inputs) {
     for (const group of sockets.groups.filter(
       (each) => each.before === input.id,
     )) {
-      rows.push(
-        <GroupRows key={`group:${group.id}`} node={node} group={group} />,
-      );
+      groupRows(group);
     }
     rows.push(
       <InputRow
@@ -338,14 +431,17 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
         wired={wired.has(input.id)}
       />,
     );
+    compactInputs.push(input);
   }
   for (const group of sockets.groups.filter(
     (each) => !inputs.some((input) => input.id === each.before),
   )) {
-    rows.push(
-      <GroupRows key={`group:${group.id}`} node={node} group={group} />,
-    );
+    groupRows(group);
   }
+  const compactHeight = collapsedHeight(
+    compactInputs.length,
+    sockets.outputs.length,
+  );
 
   return (
     <NodeFrame
@@ -354,49 +450,58 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       selected={selected}
       error={Boolean(error)}
       skipped={evaluated?.skipped ?? false}
+      collapsedHeight={compactHeight}
     >
-      <div className="flex flex-col gap-1 pt-2 pb-2.5">
-        {sockets.outputs.map((output, index) => (
-          <div
-            key={output.id}
-            className={cn(
-              "relative flex items-center justify-end gap-2",
-              index === 0 && onNode.length > 0
-                ? "min-h-6.5 px-2.5"
-                : "min-h-5.5 px-3.5",
-            )}
-          >
-            {index === 0 && onNode.length > 0 ? (
-              onNode.map((property) => (
-                <OnNodeValue
-                  key={property.id}
-                  node={node}
-                  property={property}
-                />
-              ))
-            ) : (
-              <span className="truncate text-muted-foreground">
-                {output.label}
-              </span>
-            )}
-            <SocketHandle
-              type="source"
-              id={output.id}
-              socket={output.type}
-              side="right"
-            />
-          </div>
-        ))}
-        {rows}
-        {error ? (
-          <p
-            role="alert"
-            className="mx-2.5 mt-1 rounded-md bg-error/8 px-2.5 py-0.5 text-error"
-          >
-            {error}
-          </p>
-        ) : null}
-      </div>
+      {node.collapsed ? (
+        <CollapsedSockets
+          inputs={compactInputs}
+          outputs={sockets.outputs}
+          height={compactHeight}
+        />
+      ) : (
+        <div className="flex flex-col gap-1 pt-2 pb-2.5">
+          {sockets.outputs.map((output, index) => (
+            <div
+              key={output.id}
+              className={cn(
+                "relative flex items-center justify-end gap-2",
+                index === 0 && onNode.length > 0
+                  ? "min-h-6.5 px-2.5"
+                  : "min-h-5.5 px-3.5",
+              )}
+            >
+              {index === 0 && onNode.length > 0 ? (
+                onNode.map((property) => (
+                  <OnNodeValue
+                    key={property.id}
+                    node={node}
+                    property={property}
+                  />
+                ))
+              ) : (
+                <span className="truncate text-muted-foreground">
+                  {output.label}
+                </span>
+              )}
+              <SocketHandle
+                type="source"
+                id={output.id}
+                socket={output.type}
+                side="right"
+              />
+            </div>
+          ))}
+          {rows}
+          {error ? (
+            <p
+              role="alert"
+              className="mx-2.5 mt-1 rounded-md bg-error/8 px-2.5 py-0.5 text-error"
+            >
+              {error}
+            </p>
+          ) : null}
+        </div>
+      )}
     </NodeFrame>
   );
 }
