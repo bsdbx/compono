@@ -161,7 +161,7 @@ export function AllProjects({ team }: { team: Team }) {
                   <ChevronDown className="text-muted-foreground" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuContent align="end" className="min-w-0">
                 {(Object.keys(SORTS) as Sort[]).map((name) => (
                   <DropdownMenuItem
                     key={name}
