@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { NODE_NAME_LIMIT, nodeName } from "./node-size";
 
 /** A node's inline display label: Enter or blur saves, Escape cancels. */
 export function NodeNameInput({
@@ -12,12 +13,12 @@ export function NodeNameInput({
   onDone: () => void;
   onValueChange?: (value: string) => void;
 }) {
-  const [value, setValue] = useState(name.trim());
+  const [value, setValue] = useState(() => nodeName(name));
   const finished = useRef(false);
   function finish(save: boolean) {
     if (finished.current) return;
     finished.current = true;
-    if (save) onSave(value.trim());
+    if (save) onSave(nodeName(value));
     onDone();
   }
   return (
@@ -27,6 +28,7 @@ export function NodeNameInput({
       aria-label="Node name"
       autoComplete="off"
       spellCheck={false}
+      maxLength={NODE_NAME_LIMIT}
       value={value}
       onFocus={(event) => event.currentTarget.select()}
       onChange={(event) => {

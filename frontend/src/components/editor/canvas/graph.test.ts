@@ -20,6 +20,7 @@ import {
   removeProp,
   removeRow,
   renameNode,
+  setNodeWidth,
   setProperty,
   setValue,
   unexpose,
@@ -214,6 +215,30 @@ test("node labels survive reading and duplication without changing type or socke
   expect(cleared.nodes).toEqual(start.nodes);
   expect(renameNode(start, "card", "")).toBe(start);
   expect(renameNode(start, "missing", "Label")).toBe(start);
+});
+
+test("node width persists, duplicates independently, and resizing only changes layout", () => {
+  const start = graph();
+  const resized = setNodeWidth(start, "card", 320, { x: 250, y: 0 });
+  expect(resized.nodes[1]).toEqual({
+    ...start.nodes[1],
+    width: 320,
+    position: { x: 250, y: 0 },
+  });
+  expect(resized.wires).toBe(start.wires);
+  expect(readGraph(resized as unknown as Record<string, unknown>)).toEqual(
+    resized,
+  );
+  const copy = duplicateNodes(resized, ["card"], {
+    newId: () => "copy",
+  }).graph.nodes.at(-1);
+  expect(copy?.width).toBe(320);
+  expect(setNodeWidth(resized, "card", 320)).toBe(resized);
+  expect(setNodeWidth(resized, "missing", 320)).toBe(resized);
+  expect(setNodeWidth(resized, "card", 1).nodes[1]?.width).toBe(168);
+  expect(
+    renameNode(start, "card", "x".repeat(200)).nodes[1]?.name,
+  ).toHaveLength(128);
 });
 
 test("linked duplication leaves external consumers connected to the original", () => {

@@ -64,9 +64,11 @@ import {
   removeNodes,
   removeRow,
   type SocketType,
+  setNodeWidth,
   type XY,
 } from "./graph";
 import { History } from "./history";
+import type { NodeSize } from "./node-size";
 import { type CanvasNode, NodeView } from "./node-view";
 import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
 import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
@@ -171,6 +173,7 @@ function Flow({
   const wrapper = useRef<HTMLDivElement>(null);
   const pointer = useRef<XY>(undefined);
   const [placement, setPlacement] = useState<Placement>();
+  const [resizing, setResizing] = useState<NodeSize & { node: string }>();
   const savedGraph = useMemo(() => readGraph(content.graph), [content.graph]);
   const graph = useMemo(
     () =>
@@ -195,8 +198,15 @@ function Flow({
                 ]),
             ),
           )
-        : savedGraph,
-    [placement, savedGraph],
+        : resizing
+          ? setNodeWidth(
+              savedGraph,
+              resizing.node,
+              resizing.width,
+              resizing.position,
+            )
+          : savedGraph,
+    [placement, savedGraph, resizing],
   );
   const evaluation = useEvaluation(graph);
   const evaluated = useMemo(
@@ -329,6 +339,26 @@ function Flow({
     [nodes, hidden, placement],
   );
   const finishRename = useCallback(() => setRenaming(undefined), []);
+  const resizeNode = useCallback(
+    (id: string, size: NodeSize | undefined, commit = false) => {
+      if (size && commit)
+        edit((current) => setNodeWidth(current, id, size.width, size.position));
+      setResizing(size && !commit ? { ...size, node: id } : undefined);
+      if (size)
+        setNodes((current) =>
+          current.some((node) => node.id === id && node.selected)
+            ? current
+            : current.map((node) => ({ ...node, selected: node.id === id })),
+        );
+    },
+    [edit],
+  );
+
+  useEffect(() => {
+    if (resizing && !savedGraph.nodes.some((node) => node.id === resizing.node))
+      setResizing(undefined);
+  }, [resizing, savedGraph.nodes]);
+
   const duplicate = useCallback(
     (ids: string[], linked = false) => {
       const current = latest();
@@ -490,7 +520,7 @@ function Flow({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (hidden || editing(event.target)) {
+      if (hidden || editing(event.target) || resizing) {
         return;
       }
       const key = event.key.toLowerCase();
@@ -579,6 +609,7 @@ function Flow({
     hidden,
     fitToView,
     placement,
+    resizing,
     flow,
   ]);
 
@@ -615,6 +646,7 @@ function Flow({
       renaming,
       startRename,
       finishRename,
+      resizeNode,
     }),
     [
       graph,
@@ -625,6 +657,7 @@ function Flow({
       renaming,
       startRename,
       finishRename,
+      resizeNode,
     ],
   );
 

@@ -108,6 +108,20 @@ test("F2 renames one selected node and the rename supports undo and redo", async
   expect(canvas.graph().nodes[0]?.name).toBe("Price");
 });
 
+test("node side borders resize width with the keyboard and support undo", async () => {
+  const canvas = selectionCanvas(false, 1);
+  await waitFor(() =>
+    expect(document.querySelector("[data-node-type]")).not.toBeNull(),
+  );
+  const border = screen.getByLabelText("Resize node width from left");
+  fireEvent.keyDown(border, { key: "ArrowLeft" });
+  expect(canvas.graph().nodes[0]?.width).toBe(610);
+  expect(canvas.graph().nodes[0]?.position).toEqual({ x: 0, y: 20 });
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(canvas.graph().nodes[0]?.width).toBeUndefined();
+  expect(canvas.graph().nodes[0]?.position).toEqual({ x: 10, y: 20 });
+});
+
 test("double-clicking one node header starts renaming, and an unchanged name does not save", async () => {
   const canvas = selectionCanvas(false, 1);
   await waitFor(() =>

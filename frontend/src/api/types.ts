@@ -191,6 +191,7 @@ export type NameTakenError = {
 
 export type NewComponent = {
   name?: string | null;
+  width?: number | null;
 };
 
 export type NewName = {

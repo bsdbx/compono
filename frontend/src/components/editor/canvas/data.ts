@@ -24,7 +24,9 @@ export const EVALUATE_DELAY = 120;
 function meaning(graph: Graph) {
   return {
     ...graph,
-    nodes: graph.nodes.map(({ position: _, name: _name, ...node }) => node),
+    nodes: graph.nodes.map(
+      ({ position: _, name: _name, width: _width, ...node }) => node,
+    ),
   };
 }
 
