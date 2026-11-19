@@ -1,4 +1,4 @@
-import { fireEvent, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { renderWithClient, stubApi } from "@/test-utils";
 import type { Content, Draft } from "../draft";
@@ -85,6 +85,64 @@ function selectionCanvas(hidden = false, count = 2) {
   renderWithClient(<Canvas draft={draft} hidden={hidden} />);
   return { change, graph: () => readGraph(snapshot.content.graph) };
 }
+
+test("F2 renames one selected node and the rename supports undo and redo", async () => {
+  const canvas = selectionCanvas(false, 1);
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(1),
+  );
+  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "F2" });
+  const field = await screen.findByLabelText("Node name");
+  expect(field).toHaveFocus();
+  fireEvent.change(field, { target: { value: "  Price  " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(canvas.change).toHaveBeenCalledOnce();
+  expect(canvas.graph().nodes[0]?.name).toBe("Price");
+  expect(document.querySelector("[data-node-header]")).toHaveTextContent(
+    "Price",
+  );
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(canvas.graph().nodes[0]?.name).toBeUndefined();
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
+  expect(canvas.graph().nodes[0]?.name).toBe("Price");
+});
+
+test("double-clicking one node header starts renaming, and an unchanged name does not save", async () => {
+  const canvas = selectionCanvas(false, 1);
+  await waitFor(() =>
+    expect(document.querySelector("[data-node-header]")).not.toBeNull(),
+  );
+  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.doubleClick(
+    document.querySelector("[data-node-header]") as Element,
+  );
+  fireEvent.keyDown(await screen.findByLabelText("Node name"), {
+    key: "Enter",
+  });
+  expect(screen.queryByLabelText("Node name")).toBeNull();
+  expect(canvas.change).not.toHaveBeenCalled();
+});
+
+test("a multi-node selection cannot be renamed from F2, a double-click, or the menu", async () => {
+  const canvas = selectionCanvas();
+  await waitFor(() =>
+    expect(document.querySelectorAll(".react-flow__node")).toHaveLength(2),
+  );
+  fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+  fireEvent.keyDown(window, { key: "F2" });
+  fireEvent.doubleClick(
+    document.querySelector("[data-node-header]") as Element,
+  );
+  expect(screen.queryByLabelText("Node name")).toBeNull();
+  fireEvent.contextMenu(
+    document.querySelector('.react-flow__node[data-id="first"]') as Element,
+  );
+  expect(
+    await screen.findByRole("menuitem", { name: "Rename" }),
+  ).toHaveAttribute("data-disabled");
+  expect(canvas.change).not.toHaveBeenCalled();
+});
 
 test.each([false, true])(
   "duplicate shortcuts place the selection together and undo in one step (linked: %s)",

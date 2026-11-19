@@ -305,6 +305,27 @@ def test_saving_and_opening_a_component(client: TestClient, session: Session) ->
     )
 
 
+def test_node_display_names_survive_saving_and_reopening(
+    client: TestClient, session: Session
+) -> None:
+    acme_ = acme(client, session)
+    named: dict[str, object] = {
+        "nodes": [
+            {
+                "id": "output",
+                "type": "component-output",
+                "name": "Final output",
+            }
+        ]
+    }
+
+    assert save(client, acme_.card.id, content(1, named)).status_code == 200
+    opened = Component.model_validate_json(
+        client.get(f"{COMPONENTS}/{acme_.card.id}").text
+    )
+    assert opened.graph == named
+
+
 def test_a_save_from_an_old_version_is_a_conflict(
     client: TestClient, session: Session
 ) -> None:

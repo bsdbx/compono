@@ -30,6 +30,9 @@ export type CanvasState = {
   /** Changes the graph. Changes with one key in a row undo together, like typing in a field */
   edit: (change: (graph: Graph) => Graph, key?: string) => void;
   openMenu: (menu: Menu) => void;
+  renaming: string | undefined;
+  startRename: (node: string) => void;
+  finishRename: () => void;
 };
 
 export const CanvasContext = createContext<CanvasState | null>(null);

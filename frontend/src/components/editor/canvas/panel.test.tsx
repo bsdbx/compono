@@ -96,6 +96,9 @@ function show(selected: string[], current = graph()) {
     refused: new Set(),
     edit,
     openMenu: () => {},
+    renaming: undefined,
+    startRename: () => {},
+    finishRename: () => {},
   };
   render(
     <Toasts>

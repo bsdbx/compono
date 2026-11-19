@@ -8,6 +8,8 @@ export type XY = { x: number; y: number };
 export type GraphNode = {
   id: string;
   type: string;
+  /** An optional display label; the node's type and socket IDs stay unchanged. */
+  name?: string;
   position: XY;
   values: Record<string, unknown>;
   properties: Record<string, unknown>;
@@ -41,6 +43,9 @@ export function readGraph(stored: Record<string, unknown>): Graph {
       return {
         id: String(node.id),
         type: String(node.type),
+        ...(typeof node.name === "string" && node.name.trim() !== ""
+          ? { name: node.name.trim() }
+          : {}),
         position: { x: Number(position.x ?? 0), y: Number(position.y ?? 0) },
         values: object(node.values),
         properties: object(node.properties),
@@ -71,6 +76,19 @@ const replace = (
 
 export function addNode(graph: Graph, node: GraphNode): Graph {
   return { ...graph, nodes: [...graph.nodes, node] };
+}
+
+/** Sets the display label, or restores the type's name when the label is empty. */
+export function renameNode(graph: Graph, id: string, value: string): Graph {
+  const name = value.trim();
+  const current = graph.nodes.find((node) => node.id === id);
+  if (!current || (current.name ?? "") === name) return graph;
+  const { name: _, ...rest } = current;
+  const renamed = name === "" ? rest : { ...rest, name };
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => (node.id === id ? renamed : node)),
+  };
 }
 
 /** A new node of the type at the place, with nothing set. */

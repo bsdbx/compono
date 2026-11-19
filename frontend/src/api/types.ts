@@ -210,6 +210,7 @@ export type NewTeam = {
 export type Node = {
   id: string;
   type: string;
+  name?: string | null;
   position?: Position;
   values?: {
     [key: string]: JsonValue;

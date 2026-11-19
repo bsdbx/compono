@@ -19,6 +19,7 @@ import {
   removeNodes,
   removeProp,
   removeRow,
+  renameNode,
   setProperty,
   setValue,
   unexpose,
@@ -191,6 +192,28 @@ test("linked duplicates reuse external inputs and remap internal inputs without 
 test("an empty duplication is a no-op", () => {
   const start = graph();
   expect(duplicateNodes(start, ["missing"]).graph).toBe(start);
+});
+
+test("node labels survive reading and duplication without changing type or sockets", () => {
+  const start = graph();
+  const renamed = renameNode(start, "card", "  Pricing card  ");
+  const card = renamed.nodes.find((node) => node.id === "card");
+  expect(card).toEqual({ ...start.nodes[1], name: "Pricing card" });
+  expect(renamed.wires).toBe(start.wires);
+  expect(readGraph(renamed as unknown as Record<string, unknown>)).toEqual(
+    renamed,
+  );
+  expect(
+    duplicateNodes(renamed, ["card"], { newId: () => "copy" }).graph.nodes.at(
+      -1,
+    )?.name,
+  ).toBe("Pricing card");
+  expect(start.nodes[1]?.name).toBeUndefined();
+  expect(renameNode(renamed, "card", "Pricing card")).toBe(renamed);
+  const cleared = renameNode(renamed, "card", "  ");
+  expect(cleared.nodes).toEqual(start.nodes);
+  expect(renameNode(start, "card", "")).toBe(start);
+  expect(renameNode(start, "missing", "Label")).toBe(start);
 });
 
 test("linked duplication leaves external consumers connected to the original", () => {
