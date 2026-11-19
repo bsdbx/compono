@@ -146,7 +146,7 @@ test("Escape cancels a duplicate and restores the original selection without sav
   expect(canvas.change).not.toHaveBeenCalled();
 });
 
-test.each(["Delete", "Backspace", "Control+x"])(
+test.each(["Delete", "Backspace", "Control+x", "Alt+d"])(
   "%s acts on the whole selection and can be undone",
   async (shortcut) => {
     const canvas = selectionCanvas();
@@ -182,6 +182,7 @@ test("the shortcuts leave focused text fields alone", async () => {
   fireEvent.keyDown(window, { key: "a", ctrlKey: true });
   for (const keys of [
     { key: "D", shiftKey: true },
+    { key: "d", altKey: true },
     { key: "Delete" },
     { key: "Backspace" },
     { key: "x", ctrlKey: true },

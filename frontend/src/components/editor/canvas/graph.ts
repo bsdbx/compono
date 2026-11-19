@@ -152,12 +152,15 @@ export function disconnect(graph: Graph, ids: ReadonlySet<string>): Graph {
 
 /** Takes away every wire into and out of the node. */
 export function disconnectNode(graph: Graph, id: string): Graph {
-  return {
-    ...graph,
-    wires: graph.wires.filter(
-      (wire) => wire.from.node !== id && wire.to.node !== id,
-    ),
-  };
+  return disconnectNodes(graph, new Set([id]));
+}
+
+/** Takes away every wire touching the selection, keeping its nodes and socket rows. */
+export function disconnectNodes(graph: Graph, ids: ReadonlySet<string>): Graph {
+  const wires = graph.wires.filter(
+    (wire) => !ids.has(wire.from.node) && !ids.has(wire.to.node),
+  );
+  return wires.length === graph.wires.length ? graph : { ...graph, wires };
 }
 
 /** Copies a selection and its internal wires. */
