@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 import type { ListedProject } from "@/api/types";
 import { Avatar } from "@/components/avatar";
 import { Highlight } from "@/components/highlight";
@@ -35,6 +35,7 @@ export function ProjectCard({
   now,
   actions,
   query = "",
+  onContextMenu,
 }: {
   teamUrl: string;
   project: ListedProject;
@@ -42,9 +43,10 @@ export function ProjectCard({
   /** Shown over the cover when the card is hovered, like the settings button */
   actions?: ReactNode;
   query?: string;
+  onContextMenu?: MouseEventHandler<HTMLElement>;
 }) {
   return (
-    <article className="group relative">
+    <article className="group relative" onContextMenu={onContextMenu}>
       <Link href={`/${teamUrl}/${project.url}`} className="block">
         <div className="flex aspect-[1.6] items-center justify-center rounded-xl border border-border bg-card px-4 text-center text-lg text-muted-foreground transition-colors group-hover:border-input">
           <span>

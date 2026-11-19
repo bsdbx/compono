@@ -9,8 +9,6 @@ import {
 import { type ReactNode, type Ref, useId, useRef, useState } from "react";
 import { updateProject } from "@/api/client";
 import {
-  deleteProjectMutation,
-  leaveProjectMutation,
   projectMembersOptions,
   projectMembersQueryKey,
   projectOptions,
@@ -29,16 +27,11 @@ import type {
 } from "@/api/types";
 import { useSignedInAccount } from "@/components/account";
 import { Avatar } from "@/components/avatar";
-import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  DeleteProjectDialog,
+  LeaveProjectDialog,
+} from "@/components/projects/project-dialogs";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -439,169 +432,6 @@ function DangerRow({
   );
 }
 
-function DeleteProjectDialog({
-  team,
-  project,
-  open,
-  onOpenChange,
-  onDeleted,
-}: {
-  team: Team;
-  project: Project;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDeleted: () => void;
-}) {
-  const id = useId();
-  const [typed, setTyped] = useState("");
-  const confirm = `${team.url}/${project.url}`;
-  const remove = useMutation({
-    ...deleteProjectMutation(),
-    onSuccess: onDeleted,
-  });
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setTyped("");
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete {project.name}?</DialogTitle>
-          <DialogDescription>
-            This permanently deletes the project and all of its components, and
-            removes access for every member.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          <label
-            htmlFor={`${id}-confirm`}
-            className="text-muted-foreground text-sm"
-          >
-            Type{" "}
-            <span className="font-semibold text-foreground">{confirm}</span> to
-            confirm
-          </label>
-          <Input
-            id={`${id}-confirm`}
-            autoComplete="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-          />
-        </div>
-        {remove.isError ? (
-          <p role="alert" className="text-error text-sm">
-            That didn’t work. Try again.
-          </p>
-        ) : null}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
-          </DialogClose>
-          <Button
-            variant="destructive"
-            disabled={typed !== confirm || remove.isPending}
-            onClick={() =>
-              remove.mutate({
-                path: { team_url: team.url, project_url: project.url },
-              })
-            }
-          >
-            Delete project
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-/** Leaves the project, or, for its only lead, says to make someone else a lead first. */
-function LeaveProjectDialog({
-  team,
-  project,
-  onlyLead,
-  open,
-  onOpenChange,
-  onLeft,
-  onGoToMembers,
-}: {
-  team: Team;
-  project: Project;
-  onlyLead: boolean;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onLeft: () => void;
-  onGoToMembers: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const [lastLead, setLastLead] = useState(false);
-  const path = { team_url: team.url, project_url: project.url };
-  const leave = useMutation({
-    ...leaveProjectMutation(),
-    onSuccess: onLeft,
-    onError: (error) => {
-      // Another lead may have left since the panel opened, so the members catch up
-      setLastLead(error.detail === "last_lead");
-      void queryClient.invalidateQueries({
-        queryKey: projectMembersQueryKey({ path }),
-      });
-    },
-  });
-  const handOver = onlyLead || lastLead;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setLastLead(false);
-        leave.reset();
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {handOver
-              ? `Hand over ${project.name} first`
-              : `Leave ${project.name}?`}
-          </DialogTitle>
-          <DialogDescription>
-            {handOver
-              ? `You’re the only lead of ${project.name}. Make another member a lead, then you can leave.`
-              : team.role === "OWNER"
-                ? `You’ll still manage it as an owner of ${team.name}.`
-                : "You’ll lose access to its components until someone adds you again."}
-          </DialogDescription>
-        </DialogHeader>
-        {leave.isError && !handOver ? (
-          <p role="alert" className="text-error text-sm">
-            That didn’t work. Try again.
-          </p>
-        ) : null}
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Cancel</Button>
-          </DialogClose>
-          {handOver ? (
-            <Button onClick={onGoToMembers}>Go to members</Button>
-          ) : (
-            <Button
-              variant="destructive"
-              disabled={leave.isPending}
-              onClick={() => leave.mutate({ path })}
-            >
-              Leave project
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function Settings({
   team,
   listed,
@@ -720,9 +550,6 @@ function Settings({
       <LeaveProjectDialog
         team={team}
         project={project}
-        onlyLead={
-          project.role === "LEAD" && leads.length === 1 && members.length > 1
-        }
         open={dialog === "leave"}
         onOpenChange={(open) => setDialog(open ? "leave" : undefined)}
         onLeft={() => void gone()}
