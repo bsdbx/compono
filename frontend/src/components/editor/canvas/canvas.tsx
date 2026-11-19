@@ -322,6 +322,13 @@ function Flow({
     [],
   );
 
+  const deselectAll = useCallback(() => {
+    setNodes((current) =>
+      current.map((node) => ({ ...node, selected: false })),
+    );
+    setSelectedWires(new Set());
+  }, []);
+
   const startRename = useCallback(
     (id: string) => {
       const selection = nodes.filter((node) => node.selected);
@@ -554,6 +561,10 @@ function Flow({
           nodes.filter((node) => node.selected).map((node) => node.id),
           key !== "delete",
         );
+      } else if (key === "a" && !command && !event.shiftKey) {
+        event.preventDefault();
+        if (event.altKey) deselectAll();
+        else selectAll();
       } else if (event.altKey) {
         return;
       } else if (key === "a" && event.shiftKey && !command) {
@@ -590,9 +601,6 @@ function Flow({
       } else if ((key === "z" && event.shiftKey) || key === "y") {
         event.preventDefault();
         redo();
-      } else if (key === "a") {
-        event.preventDefault();
-        selectAll();
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -601,6 +609,7 @@ function Flow({
     undo,
     redo,
     selectAll,
+    deselectAll,
     duplicate,
     removeSelection,
     disconnectSelection,
@@ -873,10 +882,18 @@ function Flow({
             <DropdownMenuItem
               className={MENU_ITEM}
               onSelect={selectAll}
-              aria-keyshortcuts="Control+A Meta+A"
+              aria-keyshortcuts="A"
             >
               Select all
-              <DropdownMenuShortcut keys={["Ctrl", "A"]} />
+              <DropdownMenuShortcut keys={["A"]} />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              onSelect={deselectAll}
+              aria-keyshortcuts="Alt+A"
+            >
+              Deselect all
+              <DropdownMenuShortcut keys={["Alt", "A"]} />
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
