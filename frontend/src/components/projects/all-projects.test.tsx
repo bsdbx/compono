@@ -85,6 +85,9 @@ test("sorting by name and searching narrow the grid", async () => {
     target: { value: "MARKETING" },
   });
   expect(cardNames()).toEqual(["Marketing site"]);
+  const heading = screen.getByRole("heading", { level: 2 });
+  expect(heading.querySelector("mark")).toHaveTextContent("Marketing");
+  expect(heading).toHaveTextContent("Marketing site");
 
   fireEvent.change(screen.getByLabelText("Search projects"), {
     target: { value: "nothing" },

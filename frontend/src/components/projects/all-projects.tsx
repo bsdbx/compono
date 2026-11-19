@@ -108,6 +108,7 @@ export function AllProjects({ team }: { team: Team }) {
             teamUrl={team.url}
             project={project}
             now={now}
+            query={query}
             actions={
               <Button
                 variant="secondary"
