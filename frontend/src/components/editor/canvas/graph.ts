@@ -1,4 +1,5 @@
 import type { Prop, SocketTypeOutput, Wire } from "@/api/types";
+import { nodeName, nodeWidth } from "./node-size";
 
 export type SocketType = SocketTypeOutput;
 
@@ -10,6 +11,8 @@ export type GraphNode = {
   type: string;
   /** An optional display label; the node's type and socket IDs stay unchanged. */
   name?: string;
+  /** A manually chosen width. Without one, the node fits its label from the shared default. */
+  width?: number;
   position: XY;
   values: Record<string, unknown>;
   properties: Record<string, unknown>;
@@ -44,7 +47,10 @@ export function readGraph(stored: Record<string, unknown>): Graph {
         id: String(node.id),
         type: String(node.type),
         ...(typeof node.name === "string" && node.name.trim() !== ""
-          ? { name: node.name.trim() }
+          ? { name: nodeName(node.name) }
+          : {}),
+        ...(typeof node.width === "number" && Number.isFinite(node.width)
+          ? { width: nodeWidth(node.width) }
           : {}),
         position: { x: Number(position.x ?? 0), y: Number(position.y ?? 0) },
         values: object(node.values),
@@ -80,7 +86,7 @@ export function addNode(graph: Graph, node: GraphNode): Graph {
 
 /** Sets the display label, or restores the type's name when the label is empty. */
 export function renameNode(graph: Graph, id: string, value: string): Graph {
-  const name = value.trim();
+  const name = nodeName(value);
   const current = graph.nodes.find((node) => node.id === id);
   if (!current || (current.name ?? "") === name) return graph;
   const { name: _, ...rest } = current;
@@ -88,6 +94,31 @@ export function renameNode(graph: Graph, id: string, value: string): Graph {
   return {
     ...graph,
     nodes: graph.nodes.map((node) => (node.id === id ? renamed : node)),
+  };
+}
+
+/** Commits a horizontal resize; resizing from the left also moves the node. */
+export function setNodeWidth(
+  graph: Graph,
+  id: string,
+  requested: number,
+  position?: XY,
+): Graph {
+  const current = graph.nodes.find((node) => node.id === id);
+  const width = nodeWidth(requested);
+  if (!current) return graph;
+  const at = position ?? current.position;
+  if (
+    current.width === width &&
+    current.position.x === at.x &&
+    current.position.y === at.y
+  )
+    return graph;
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) =>
+      node.id === id ? { ...node, width, position: at } : node,
+    ),
   };
 }
 

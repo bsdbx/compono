@@ -285,6 +285,7 @@ def test_node_display_names_do_not_change_evaluation() -> None:
                 "id": "price",
                 "type": "number",
                 "name": "Price",
+                "width": 320,
                 "properties": {"value": 24},
             }
         ]
@@ -296,8 +297,21 @@ def test_node_display_names_do_not_change_evaluation() -> None:
     unnamed = Graph.model_validate(unnamed_stored)
 
     assert named.nodes[0].name == "Price"
+    assert named.nodes[0].width == 320
     assert Graph.model_validate_json(named.model_dump_json()).nodes[0].name == "Price"
     assert evaluate(named, NODE_TYPES) == evaluate(unnamed, NODE_TYPES)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"), [("name", "x" * 129), ("width", 167), ("width", 1025)]
+)
+def test_node_display_metadata_respects_its_limits(
+    field: str, value: JsonValue
+) -> None:
+    stored_node: dict[str, JsonValue] = {"id": "price", "type": "number", field: value}
+    stored: dict[str, JsonValue] = {"nodes": [stored_node]}
+    with pytest.raises(ValidationError):
+        Graph.model_validate(stored)
 
 
 def test_the_stored_format_keeps_from_and_its_version() -> None:

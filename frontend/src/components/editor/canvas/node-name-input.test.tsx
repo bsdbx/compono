@@ -20,6 +20,7 @@ test("renaming focuses and selects the existing label, and Enter saves once", ()
   expect(field).toHaveFocus();
   expect(field.selectionStart).toBe(0);
   expect(field.selectionEnd).toBe(4);
+  expect(field).toHaveAttribute("maxLength", "128");
   fireEvent.change(field, { target: { value: "Card title" } });
   fireEvent.keyDown(field, { key: "Enter" });
   fireEvent.blur(field);
@@ -49,4 +50,20 @@ test("Enter during text composition does not end renaming", () => {
   fireEvent.keyDown(field, { key: "Enter", isComposing: true });
   expect(onSave).not.toHaveBeenCalled();
   expect(onDone).not.toHaveBeenCalled();
+});
+
+test("renaming starts with normalized spacing and saves a normalized label", () => {
+  const onSave = vi.fn();
+  render(
+    <NodeNameInput
+      name="  Component      Output  "
+      onSave={onSave}
+      onDone={() => {}}
+    />,
+  );
+  const field = screen.getByRole("textbox", { name: "Node name" });
+  expect(field).toHaveValue("Component Output");
+  fireEvent.change(field, { target: { value: "  Card      title  " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(onSave).toHaveBeenCalledExactlyOnceWith("Card title");
 });

@@ -99,6 +99,7 @@ function show(selected: string[], current = graph()) {
     renaming: undefined,
     startRename: () => {},
     finishRename: () => {},
+    resizeNode: () => {},
   };
   render(
     <Toasts>

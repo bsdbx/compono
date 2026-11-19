@@ -6,6 +6,7 @@ import type {
   NodeTypeInfo,
 } from "@/api/types";
 import type { Graph, GraphNode, SocketType } from "./graph";
+import type { NodeSize } from "./node-size";
 
 /** A menu opened at the pointer, with what it's for. */
 export type Menu =
@@ -33,6 +34,12 @@ export type CanvasState = {
   renaming: string | undefined;
   startRename: (node: string) => void;
   finishRename: () => void;
+  /** Preview a resize, commit it once, or cancel it with undefined. */
+  resizeNode: (
+    node: string,
+    size: NodeSize | undefined,
+    commit?: boolean,
+  ) => void;
 };
 
 export const CanvasContext = createContext<CanvasState | null>(null);

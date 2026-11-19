@@ -13,17 +13,16 @@ import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addRow,
   type GraphNode,
-  renameNode,
   type SocketType,
   setProperty,
   setValue,
 } from "./graph";
 
-import { NodeNameInput } from "./node-name-input";
+import { NodeFrame } from "./node-frame";
 
 export type CanvasNode = Node<Record<string, never>, "graph">;
 
-const HANDLE = "size-2.5! min-h-0! min-w-0! rounded-full!";
+const HANDLE = "z-10! size-2.5! min-h-0! min-w-0! rounded-full!";
 
 /** The kinds of input that are typed in a field on the node, when nothing is wired in. */
 export const TYPED: ReadonlySet<string> = new Set([
@@ -166,7 +165,7 @@ function InputRow({
         side="left"
       />
       {wired ? (
-        <span className="text-foreground/90">{input.label}</span>
+        <span className="truncate text-foreground/90">{input.label}</span>
       ) : (
         <Field
           label={input.label}
@@ -234,7 +233,7 @@ function GroupRows({ node, group }: { node: GraphNode; group: GroupSocket }) {
           id={addRow(group.id)}
           position={Position.Left}
           style={{ left: -11 }}
-          className="size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
+          className="z-10! size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
         >
           <svg
             aria-hidden
@@ -320,11 +319,6 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       .filter((wire) => wire.to.node === id && !canvas.refused.has(wire.id))
       .map((wire) => wire.to.socket),
   );
-  // Nodes with fields have one width; the rest fit their labels
-  const fields =
-    onNode.length > 0 ||
-    sockets.groups.length > 0 ||
-    inputs.some((input) => TYPED.has(input.type.kind ?? "any"));
   const error = evaluated?.error;
   // Groups sit before the input they name, the rest after the inputs
   const rows: ReactNode[] = [];
@@ -354,51 +348,13 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   }
 
   return (
-    <div
-      data-node-type={node.type}
-      className={cn(
-        "rounded-xl border bg-card text-foreground text-xs shadow-black/40 shadow-xl",
-        fields ? "w-47" : "w-max min-w-42 max-w-60",
-        error
-          ? "border-error/45"
-          : selected
-            ? "border-selection/40"
-            : "border-input",
-        evaluated?.skipped ? "opacity-70" : "",
-      )}
+    <NodeFrame
+      node={node}
+      typeName={nodeType?.name ?? node.type}
+      selected={selected}
+      error={Boolean(error)}
+      skipped={evaluated?.skipped ?? false}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: F2 and the context menu provide keyboard access to renaming. */}
-      <div
-        data-node-header
-        className="flex h-8 min-w-0 items-center border-border border-b px-3.5 font-medium text-sm"
-        onDoubleClick={(event) => {
-          event.stopPropagation();
-          canvas.startRename(node.id);
-        }}
-      >
-        {canvas.renaming === node.id ? (
-          <NodeNameInput
-            name={node.name ?? nodeType?.name ?? node.type}
-            onSave={(value) =>
-              canvas.edit((graph) =>
-                renameNode(
-                  graph,
-                  node.id,
-                  value.trim() === (nodeType?.name ?? node.type) ? "" : value,
-                ),
-              )
-            }
-            onDone={canvas.finishRename}
-          />
-        ) : (
-          <span
-            className="truncate"
-            title={node.name ?? nodeType?.name ?? node.type}
-          >
-            {node.name ?? nodeType?.name ?? node.type}
-          </span>
-        )}
-      </div>
       <div className="flex flex-col gap-1 pt-2 pb-2.5">
         {sockets.outputs.map((output, index) => (
           <div
@@ -441,7 +397,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
           </p>
         ) : null}
       </div>
-    </div>
+    </NodeFrame>
   );
 }
 
