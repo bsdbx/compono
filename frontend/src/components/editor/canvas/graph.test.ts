@@ -6,6 +6,7 @@ import {
   connect,
   disconnect,
   disconnectNode,
+  disconnectNodes,
   duplicateNodes,
   duplicateProp,
   expose,
@@ -169,6 +170,15 @@ test("duplicates keep internal connections without copying external inputs", () 
 test("an empty duplication is a no-op", () => {
   const start = graph();
   expect(duplicateNodes(start, ["missing"]).graph).toBe(start);
+});
+
+test("disconnecting a selection removes all touching wires and preserves socket rows", () => {
+  const start = graph();
+  const done = disconnectNodes(start, new Set(["title", "badge"]));
+  expect(done.wires).toEqual([]);
+  expect(done.nodes).toBe(start.nodes);
+  expect(done.nodes[1]?.groups.children).toEqual(["r1"]);
+  expect(disconnectNodes(start, new Set())).toBe(start);
 });
 
 test("typing a value in, and clearing it back to the default", () => {

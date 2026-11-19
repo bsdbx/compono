@@ -54,7 +54,7 @@ import {
   addNode,
   connect,
   disconnect,
-  disconnectNode,
+  disconnectNodes,
   duplicateNodes,
   type Graph,
   moveNodes,
@@ -379,6 +379,14 @@ function Flow({
     [edit, selectedWires, evaluated, nodeTypes, evaluation?.wires],
   );
 
+  const disconnectSelection = useCallback(
+    (ids: readonly string[]) => {
+      edit((current) => disconnectNodes(current, new Set(ids)));
+      setSelectedWires(new Set());
+    },
+    [edit],
+  );
+
   const fitToView = useCallback(() => {
     const all = flow.getNodes();
     const selected = all.filter((node) => node.selected);
@@ -475,9 +483,13 @@ function Flow({
         setPlacement(undefined);
       } else if (placement) {
         return;
-      } else if (key === "d" && !command && event.shiftKey && !event.altKey) {
+      } else if (key === "d" && !command && event.shiftKey !== event.altKey) {
         event.preventDefault();
-        duplicate(nodes.filter((node) => node.selected).map((node) => node.id));
+        const ids = nodes
+          .filter((node) => node.selected)
+          .map((node) => node.id);
+        if (event.shiftKey) duplicate(ids);
+        else disconnectSelection(ids);
       } else if (
         (key === "delete" || key === "backspace" || (key === "x" && command)) &&
         !event.altKey &&
@@ -538,6 +550,7 @@ function Flow({
     selectAll,
     duplicate,
     removeSelection,
+    disconnectSelection,
     nodes,
     hidden,
     fitToView,
@@ -825,11 +838,11 @@ function Flow({
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
-              onSelect={() =>
-                edit((current) => ids.reduce(disconnectNode, current))
-              }
+              onSelect={() => disconnectSelection(ids)}
+              aria-keyshortcuts="Alt+D"
             >
               Disconnect all
+              <DropdownMenuShortcut keys={["Alt", "D"]} />
             </DropdownMenuItem>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
