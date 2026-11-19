@@ -479,7 +479,7 @@ export function ComponentsPanel({
                 setSearch("");
               }
             }}
-            className="h-7.5 w-full rounded-md border border-input bg-field pr-8 pl-8 text-sm outline-none focus-visible:border-primary focus-visible:outline-none"
+            className="h-7.5 w-full rounded-md border border-input bg-field pr-8 pl-8 text-sm outline-none"
           />
           {search !== "" ? (
             <button
