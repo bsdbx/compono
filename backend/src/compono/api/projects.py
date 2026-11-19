@@ -351,7 +351,7 @@ def remove_project_member(
     responses=answers(NOT_SIGNED_IN, NOT_IN_PROJECT, LAST_LEAD),
 )
 def leave_project(access: InProject, account: SignedIn, database: Database) -> None:
-    """Takes the signed-in account out of a project. Its only lead makes someone else a lead first."""
+    """Leaves a project. Its only lead must hand over if other members remain."""
     require_in_project(access, ProjectAction.LEAVE)
 
     try:

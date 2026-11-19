@@ -33,7 +33,7 @@ class NotInProject(Exception):
 
 
 class LastLead(Exception):
-    """The project's only lead must hand over before leaving."""
+    """The project's only lead must hand over before leaving other members behind."""
 
 
 class LeadCannotBeChanged(Exception):
@@ -215,25 +215,6 @@ def members_of(
     return [(account, role) for account, role in rows]
 
 
-def _require_another_lead(
-    database: orm.Session, project: Project, account_id: UUID
-) -> None:
-    """Raises LastLead if the account is the project's only lead."""
-    # Lock the leads' rows until the transaction ends, so that two leads can't both step down at once
-    leads = database.scalars(
-        select(ProjectMember.account_id)
-        .where(
-            ProjectMember.project_id == project.id,
-            ProjectMember.role == ProjectRole.LEAD,
-        )
-        .with_for_update()
-    ).all()
-
-    # If the account is the only lead, the project would have none
-    if list(leads) == [account_id]:
-        raise LastLead
-
-
 def _lock_members(database: orm.Session, project: Project) -> None:
     """Serializes membership changes, including simultaneous promotions and departures."""
     database.execute(
@@ -314,7 +295,14 @@ def remove_member(database: orm.Session, project: Project, account_id: UUID) -> 
 def leave(database: orm.Session, project: Project, account: Account) -> None:
     """Takes the account out of the project. Does nothing if it isn't in it. Raises LastLead."""
     _lock_members(database, project)
-    _require_another_lead(database, project, account.id)
+    members = database.execute(
+        select(ProjectMember.account_id, ProjectMember.role).where(
+            ProjectMember.project_id == project.id
+        )
+    ).all()
+    leads = [account_id for account_id, role in members if role == ProjectRole.LEAD]
+    if len(members) > 1 and leads == [account.id]:
+        raise LastLead
 
     database.execute(
         delete(ProjectMember).where(

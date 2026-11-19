@@ -164,6 +164,30 @@ test.each(["OWNER", "MEMBER"] as const)(
   },
 );
 
+test("the sole project member can leave as lead", async () => {
+  const fetch = answer(
+    { teamRole: "MEMBER", role: "LEAD" },
+    {
+      [`GET ${BASE}/members`]: () => Response.json([MIRA_IN]),
+      [`DELETE ${BASE}/membership`]: () => new Response(null, { status: 204 }),
+    },
+  );
+  const onClose = renderPanel("MEMBER");
+
+  await screen.findByText("Mira Kovalenko");
+  fireEvent.click(screen.getByRole("button", { name: "Leave" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Leave Marketing site?",
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Leave project" }),
+  );
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(requests(fetch, "DELETE")[0]?.url).toBe(
+    `http://localhost:3000${BASE}/membership`,
+  );
+});
+
 test("the only lead makes someone else a lead before leaving", async () => {
   const fetch = answer({ teamRole: "MEMBER", role: "LEAD" });
   renderPanel("MEMBER");
