@@ -270,10 +270,11 @@ def test_setting_a_member_adds_them_or_changes_their_role(session: Session) -> N
     projects.set_member(session, project, jonas.id, ProjectRole.LEAD)
     assert role_in(session, project, jonas) == ProjectRole.LEAD
 
-    projects.set_member(session, project, mira.id, ProjectRole.DEVELOPER)
+    with pytest.raises(projects.LeadCannotBeChanged):
+        projects.set_member(session, project, mira.id, ProjectRole.DEVELOPER)
     assert members(session, project) == [
         ("Jonas Lind", ProjectRole.LEAD),
-        ("Mira Kovalenko", ProjectRole.DEVELOPER),
+        ("Mira Kovalenko", ProjectRole.LEAD),
     ]
 
 
@@ -295,13 +296,13 @@ def test_only_members_of_the_team_can_be_in_its_projects(session: Session) -> No
 def test_removing_a_member(session: Session) -> None:
     team, mira, jonas = acme(session)
     project = create_project(session, team, mira, "Marketing site")
-    projects.set_member(session, project, jonas.id, ProjectRole.LEAD)
+    projects.set_member(session, project, jonas.id, ProjectRole.DEVELOPER)
 
-    projects.remove_member(session, project, mira.id)
+    projects.remove_member(session, project, jonas.id)
 
-    assert members(session, project) == [("Jonas Lind", ProjectRole.LEAD)]
+    assert members(session, project) == [("Mira Kovalenko", ProjectRole.LEAD)]
     with pytest.raises(projects.NotInProject):
-        projects.remove_member(session, project, mira.id)
+        projects.remove_member(session, project, jonas.id)
 
 
 def test_leaving_a_project(session: Session) -> None:
@@ -323,9 +324,9 @@ def test_the_only_lead_stays_until_someone_else_is_a_lead(session: Session) -> N
 
     with pytest.raises(projects.LastLead):
         projects.leave(session, project, mira)
-    with pytest.raises(projects.LastLead):
+    with pytest.raises(projects.LeadCannotBeChanged):
         projects.remove_member(session, project, mira.id)
-    with pytest.raises(projects.LastLead):
+    with pytest.raises(projects.LeadCannotBeChanged):
         projects.set_member(session, project, mira.id, ProjectRole.DEVELOPER)
     assert set(members(session, project)) == {
         ("Mira Kovalenko", ProjectRole.LEAD),

@@ -148,6 +148,22 @@ test("a lead adds a team member as a developer, and changes roles", async () => 
 
 const TWO_LEADS = [MIRA_IN, { ...JONAS, role: "LEAD" as const }];
 
+test.each(["OWNER", "MEMBER"] as const)(
+  "%s cannot change a fellow project lead",
+  async (teamRole) => {
+    answer(
+      { teamRole, role: "LEAD" },
+      { [`GET ${BASE}/members`]: () => Response.json(TWO_LEADS) },
+    );
+    renderPanel(teamRole);
+
+    await screen.findByText("Jonas Lind");
+    expect(
+      screen.queryByRole("button", { name: "Change Jonas Lind" }),
+    ).toBeNull();
+  },
+);
+
 test("the only lead makes someone else a lead before leaving", async () => {
   const fetch = answer({ teamRole: "MEMBER", role: "LEAD" });
   renderPanel("MEMBER");
@@ -187,10 +203,10 @@ test("a lead leaves once another member is a lead", async () => {
   );
   const onClose = renderPanel("MEMBER");
 
-  // The other lead can be made a developer, as Mira stays a lead, but not Mira herself
+  await screen.findByText("Jonas Lind");
   expect(
-    await screen.findByRole("button", { name: "Change Jonas Lind" }),
-  ).toBeInTheDocument();
+    screen.queryByRole("button", { name: "Change Jonas Lind" }),
+  ).toBeNull();
   expect(
     screen.queryByRole("button", { name: "Change Mira Kovalenko" }),
   ).toBeNull();
@@ -215,7 +231,10 @@ test("when the other lead left first, leaving says to hand over", async () => {
     {
       // Jonas left in another browser, which the panel finds out on leaving
       [`GET ${BASE}/members`]: () =>
-        Response.json(left ? [MIRA_IN] : TWO_LEADS),
+        Response.json([
+          ...(left ? [MIRA_IN] : TWO_LEADS),
+          { ...SOFIA, role: "DEVELOPER" },
+        ]),
       [`DELETE ${BASE}/membership`]: () => {
         left = true;
         return Response.json({ detail: "last_lead" }, { status: 409 });
@@ -224,7 +243,7 @@ test("when the other lead left first, leaving says to hand over", async () => {
   );
   const onClose = renderPanel("MEMBER");
 
-  await screen.findByRole("button", { name: "Change Jonas Lind" });
+  await screen.findByText("Jonas Lind");
   fireEvent.click(screen.getByRole("button", { name: "Leave" }));
   const dialog = await screen.findByRole("dialog", {
     name: "Leave Marketing site?",
@@ -252,9 +271,8 @@ test("a refused role change says why", async () => {
   answer(
     { teamRole: "MEMBER", role: "LEAD" },
     {
-      [`GET ${BASE}/members`]: () => Response.json(TWO_LEADS),
       [`PUT ${BASE}/members/j2`]: () =>
-        Response.json({ detail: "last_lead" }, { status: 409 }),
+        Response.json({ detail: "lead_cannot_be_changed" }, { status: 409 }),
     },
   );
   renderPanel("MEMBER");
@@ -263,12 +281,10 @@ test("a refused role change says why", async () => {
     await screen.findByRole("button", { name: "Change Jonas Lind" }),
     { key: "Enter" },
   );
-  fireEvent.click(
-    await screen.findByRole("menuitem", { name: "Make developer" }),
-  );
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Make lead" }));
 
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "A project needs a lead. Make someone else a lead first.",
+    "Leads can’t be demoted or removed. They can leave the project.",
   );
 });
 
