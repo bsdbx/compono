@@ -13,10 +13,13 @@ import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addRow,
   type GraphNode,
+  renameNode,
   type SocketType,
   setProperty,
   setValue,
 } from "./graph";
+
+import { NodeNameInput } from "./node-name-input";
 
 export type CanvasNode = Node<Record<string, never>, "graph">;
 
@@ -364,8 +367,37 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
         evaluated?.skipped ? "opacity-70" : "",
       )}
     >
-      <div className="flex h-8 items-center border-border border-b px-3.5 font-medium text-sm">
-        {nodeType?.name ?? node.type}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: F2 and the context menu provide keyboard access to renaming. */}
+      <div
+        data-node-header
+        className="flex h-8 min-w-0 items-center border-border border-b px-3.5 font-medium text-sm"
+        onDoubleClick={(event) => {
+          event.stopPropagation();
+          canvas.startRename(node.id);
+        }}
+      >
+        {canvas.renaming === node.id ? (
+          <NodeNameInput
+            name={node.name ?? nodeType?.name ?? node.type}
+            onSave={(value) =>
+              canvas.edit((graph) =>
+                renameNode(
+                  graph,
+                  node.id,
+                  value.trim() === (nodeType?.name ?? node.type) ? "" : value,
+                ),
+              )
+            }
+            onDone={canvas.finishRename}
+          />
+        ) : (
+          <span
+            className="truncate"
+            title={node.name ?? nodeType?.name ?? node.type}
+          >
+            {node.name ?? nodeType?.name ?? node.type}
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-1 pt-2 pb-2.5">
         {sockets.outputs.map((output, index) => (

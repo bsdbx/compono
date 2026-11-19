@@ -580,7 +580,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
 
   return (
     <div ref={root} className="flex min-h-0 flex-1 flex-col">
-      <Header>{nodeType.name}</Header>
+      <Header>
+        <span className="truncate" title={node.name ?? nodeType.name}>
+          {node.name ?? nodeType.name}
+        </span>
+      </Header>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {onNode.length > 0 ? (
           <Section title="Output">

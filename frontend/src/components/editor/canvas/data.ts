@@ -20,11 +20,11 @@ export function useNodeTypes(): ReadonlyMap<string, NodeTypeInfo> | undefined {
 /** How long a graph has to stay the same before it's evaluated, so that typing asks once. */
 export const EVALUATE_DELAY = 120;
 
-/** What the graph's evaluation depends on: everything but where the nodes are. */
+/** Display labels and layout do not change the graph's evaluation or generated code. */
 function meaning(graph: Graph) {
   return {
     ...graph,
-    nodes: graph.nodes.map(({ position: _, ...node }) => node),
+    nodes: graph.nodes.map(({ position: _, name: _name, ...node }) => node),
   };
 }
 

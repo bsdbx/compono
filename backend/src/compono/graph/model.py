@@ -19,6 +19,8 @@ class Node(BaseModel):
 
     id: str
     type: str
+    # An optional display label; it does not affect sockets, evaluation or code.
+    name: str | None = None
     position: Position = Position()
     # Typed into inputs on the node, by input
     values: dict[str, JsonValue] = {}

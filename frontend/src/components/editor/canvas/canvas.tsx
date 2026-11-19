@@ -212,6 +212,7 @@ function Flow({
   );
   const [menu, setMenu] = useState<Menu>();
   const [adding, setAdding] = useState<Adding>();
+  const [renaming, setRenaming] = useState<string>();
   const boxSelection = useBoxSelection(
     flow,
     wrapper,
@@ -311,6 +312,23 @@ function Flow({
     [],
   );
 
+  const startRename = useCallback(
+    (id: string) => {
+      const selection = nodes.filter((node) => node.selected);
+      if (
+        hidden ||
+        placement ||
+        selection.length !== 1 ||
+        selection[0]?.id !== id
+      )
+        return;
+      setMenu(undefined);
+      setAdding(undefined);
+      setRenaming(id);
+    },
+    [nodes, hidden, placement],
+  );
+  const finishRename = useCallback(() => setRenaming(undefined), []);
   const duplicate = useCallback(
     (ids: string[], linked = false) => {
       const current = latest();
@@ -483,6 +501,11 @@ function Flow({
         setPlacement(undefined);
       } else if (placement) {
         return;
+      } else if (key === "f2" && !command && !event.shiftKey && !event.altKey) {
+        event.preventDefault();
+        const selection = nodes.filter((node) => node.selected);
+        if (selection.length === 1 && selection[0])
+          startRename(selection[0].id);
       } else if (key === "d" && !command && (event.shiftKey || event.altKey)) {
         event.preventDefault();
         const ids = nodes
@@ -551,6 +574,7 @@ function Flow({
     duplicate,
     removeSelection,
     disconnectSelection,
+    startRename,
     nodes,
     hidden,
     fitToView,
@@ -588,8 +612,20 @@ function Flow({
       refused,
       edit,
       openMenu: setMenu,
+      renaming,
+      startRename,
+      finishRename,
     }),
-    [graph, nodeTypes, evaluated, refused, edit],
+    [
+      graph,
+      nodeTypes,
+      evaluated,
+      refused,
+      edit,
+      renaming,
+      startRename,
+      finishRename,
+    ],
   );
 
   // The input a wire is being dragged onto: a wire already in it is the one it replaces
@@ -844,6 +880,15 @@ function Flow({
             >
               Duplicate linked
               <DropdownMenuShortcut keys={["Shift", "Alt", "D"]} />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              disabled={ids.length !== 1}
+              onSelect={() => startRename(open.node)}
+              aria-keyshortcuts="F2"
+            >
+              Rename
+              <DropdownMenuShortcut keys={["F2"]} />
             </DropdownMenuItem>
             <DropdownMenuItem
               className={MENU_ITEM}
@@ -1117,6 +1162,13 @@ function Flow({
             x={menu.x}
             y={menu.y}
             className={menu.kind === "node" ? "w-64" : ""}
+            onCloseAutoFocus={(event) => {
+              // Keep the inline field focused after its context menu closes.
+              if (
+                wrapper.current?.querySelector('input[aria-label="Node name"]')
+              )
+                event.preventDefault();
+            }}
             onClose={() => {
               setMenu(undefined);
               setAdding((current) => (current?.embedded ? undefined : current));

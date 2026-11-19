@@ -278,6 +278,28 @@ def test_a_new_components_graph_is_empty() -> None:
     assert evaluate(graph, NODE_TYPES) == Evaluation(nodes={}, wires={})
 
 
+def test_node_display_names_do_not_change_evaluation() -> None:
+    stored: dict[str, JsonValue] = {
+        "nodes": [
+            {
+                "id": "price",
+                "type": "number",
+                "name": "Price",
+                "properties": {"value": 24},
+            }
+        ]
+    }
+    named = Graph.model_validate(stored)
+    unnamed_stored: dict[str, JsonValue] = {
+        "nodes": [{"id": "price", "type": "number", "properties": {"value": 24}}]
+    }
+    unnamed = Graph.model_validate(unnamed_stored)
+
+    assert named.nodes[0].name == "Price"
+    assert Graph.model_validate_json(named.model_dump_json()).nodes[0].name == "Price"
+    assert evaluate(named, NODE_TYPES) == evaluate(unnamed, NODE_TYPES)
+
+
 def test_the_stored_format_keeps_from_and_its_version() -> None:
     stored: dict[str, JsonValue] = {
         "format": 1,

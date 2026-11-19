@@ -13,12 +13,14 @@ export function PointerMenu({
   onClose,
   children,
   className,
+  onCloseAutoFocus,
 }: {
   x: number;
   y: number;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DropdownMenu
@@ -37,6 +39,7 @@ export function PointerMenu({
         align="start"
         sideOffset={0}
         className={cn("w-47", className)}
+        {...(onCloseAutoFocus ? { onCloseAutoFocus } : {})}
         // Letting go of the right button that opened the menu doesn't choose the item under it
         onPointerUpCapture={(event) => {
           if (event.button === 2) {
