@@ -118,7 +118,7 @@ test("a lead adds a team member as a developer, and changes roles", async () => 
   // Only team members who aren't in the project
   const options = await screen.findAllByRole("menuitem");
   expect(options.map((o) => o.textContent)).toEqual([
-    "SRSofia Reyes sofia@acme.dev",
+    "SRSofia Reyessofia@acme.dev",
   ]);
   expect(screen.getByRole("button", { name: "Add" })).toBeDisabled();
   fireEvent.click(options[0] as HTMLElement);
