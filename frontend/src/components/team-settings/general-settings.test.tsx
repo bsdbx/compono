@@ -125,24 +125,6 @@ test("a taken URL says so", async () => {
   ).toBeInTheDocument();
 });
 
-test("a member sees the name, URL and owners, and can only leave", async () => {
-  answer("MEMBER", [
-    { ...MIRA_MEMBER, role: "MEMBER" },
-    { ...JONAS, role: "OWNER" },
-  ]);
-  renderPage();
-
-  expect(
-    await screen.findByText("Only owners can change these."),
-  ).toBeInTheDocument();
-  expect(screen.queryByLabelText("Team name")).toBeNull();
-  expect(await screen.findByText("Jonas Lind")).toBeInTheDocument();
-  expect(
-    screen.getByRole("button", { name: "Leave team" }),
-  ).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Delete team" })).toBeNull();
-});
-
 test("the only owner is asked to hand the team over first", async () => {
   answer("OWNER", [MIRA_MEMBER, JONAS]);
   renderPage();
@@ -155,30 +137,6 @@ test("the only owner is asked to hand the team over first", async () => {
   expect(
     within(dialog).getByRole("link", { name: "Go to members" }),
   ).toHaveAttribute("href", "/acme/settings/members");
-});
-
-test("a member leaves, and goes to their other teams", async () => {
-  const fetch = answer(
-    "MEMBER",
-    [
-      { ...MIRA_MEMBER, role: "MEMBER" },
-      { ...JONAS, role: "OWNER" },
-    ],
-    {
-      "DELETE /api/teams/acme/membership": () =>
-        new Response(null, { status: 204 }),
-    },
-  );
-  renderPage();
-
-  fireEvent.click(await screen.findByRole("button", { name: "Leave team" }));
-  const dialog = await screen.findByRole("dialog", { name: "Leave Acme?" });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Leave team" }));
-
-  await waitFor(() =>
-    expect(navigation.router.replace).toHaveBeenCalledWith("/"),
-  );
-  expect(fetch.mock.calls.some(([r]) => r.method === "DELETE")).toBe(true);
 });
 
 test("deleting the team takes typing its URL", async () => {

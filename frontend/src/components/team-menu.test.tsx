@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import type { Team } from "@/api/types";
 import { navigation } from "@/test-navigation";
 import { renderWithClient, stubApi } from "@/test-utils";
 import { TeamMenu } from "./team-menu";
@@ -33,13 +34,19 @@ function answer() {
     if (request.method === "POST" && pathname === "/api/invite-links/abc123") {
       return Response.json(NORTHWIND);
     }
+    if (
+      request.method === "DELETE" &&
+      pathname === "/api/teams/northwind/membership"
+    ) {
+      return new Response(null, { status: 204 });
+    }
     return undefined;
   });
 }
 
-async function openMenu() {
-  renderWithClient(<TeamMenu team={ACME} />);
-  fireEvent.keyDown(screen.getByRole("button", { name: "Acme" }), {
+async function openMenu(team: Team = ACME) {
+  renderWithClient(<TeamMenu team={team} />);
+  fireEvent.keyDown(screen.getByRole("button", { name: team.name }), {
     key: "Enter",
   });
   return await screen.findByRole("menu");
@@ -57,6 +64,23 @@ test("the menu lists the teams, with the current one checked, and its settings",
   expect(
     within(menu).getByRole("menuitem", { name: "Team settings" }),
   ).toHaveAttribute("href", "/acme/settings");
+});
+
+test("a member can leave from the team menu without access to settings", async () => {
+  const fetch = answer();
+  const menu = await openMenu({ ...NORTHWIND, role: "MEMBER" });
+  expect(
+    within(menu).queryByRole("menuitem", { name: "Team settings" }),
+  ).toBeNull();
+  fireEvent.click(within(menu).getByRole("menuitem", { name: "Leave team" }));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Leave Northwind?",
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Leave team" }));
+  await waitFor(() =>
+    expect(navigation.router.replace).toHaveBeenCalledWith("/"),
+  );
+  expect(fetch.mock.calls.some(([r]) => r.method === "DELETE")).toBe(true);
 });
 
 test("Create team opens a dialog, and opens the new team", async () => {

@@ -60,7 +60,7 @@ test("the members route wins over the dynamic editor route", async () => {
         id: "t1",
         name: "Acme",
         url: "acme",
-        role: "MEMBER",
+        role: "OWNER",
       });
     if (path.endsWith("/members"))
       return Response.json([{ ...MIRA, role: "MEMBER" }]);
@@ -79,6 +79,35 @@ test("switching components preserves the editor's selected view", async () => {
   expect(await screen.findByText("Open: c2")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Code" })).toBeInTheDocument();
 });
+
+test.each(["/acme/settings", "/acme/settings/members"])(
+  "a member cannot open %s directly",
+  async (path) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetch = stubApi((request) => {
+      const pathname = new URL(request.url).pathname;
+      if (pathname === "/api/account") return Response.json(MIRA);
+      if (pathname === "/api/teams/acme")
+        return Response.json({
+          id: "t1",
+          name: "Acme",
+          url: "acme",
+          role: "MEMBER",
+        });
+      if (pathname.endsWith("/members")) return Response.json([MIRA]);
+    });
+    open(path);
+    expect(
+      await screen.findByRole("heading", { name: "Page not found" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("navigation", { name: "Team settings" }),
+    ).toBeNull();
+    expect(fetch.mock.calls.some(([r]) => r.url.endsWith("/members"))).toBe(
+      false,
+    );
+  },
+);
 
 test("an inaccessible team shows the existing not-found page and can be left", async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});

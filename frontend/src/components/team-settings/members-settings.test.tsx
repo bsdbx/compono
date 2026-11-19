@@ -143,20 +143,3 @@ test("searching narrows the list by name or email", async () => {
   fireEvent.change(search, { target: { value: "nobody" } });
   expect(screen.getByText("No members match “nobody”.")).toBeInTheDocument();
 });
-
-test("a member sees the list, without the invite link or changes", async () => {
-  const fetch = answer("MEMBER");
-  renderPage();
-
-  expect(await screen.findByText("3 members")).toBeInTheDocument();
-  expect(
-    screen.getByText(
-      "Everyone in Acme. Only owners can invite or remove people.",
-    ),
-  ).toBeInTheDocument();
-  expect(screen.queryByLabelText("Invite link")).toBeNull();
-  expect(screen.queryByRole("button", { name: /Change/ })).toBeNull();
-  expect(fetch.mock.calls.some(([r]) => r.url.endsWith("/invite-link"))).toBe(
-    false,
-  );
-});
