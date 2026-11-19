@@ -1,12 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowUpDown,
-  Check,
-  ChevronDown,
-  Plus,
-  Search,
-  Settings,
-} from "lucide-react";
+import { ArrowUpDown, ChevronDown, Plus, Search, Settings } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { teamProjectsOptions, teamProjectsQueryKey } from "@/api/queries";
 import type { ListedProject, Team } from "@/api/types";
@@ -18,22 +11,19 @@ import {
   LeaveProjectDialog,
 } from "@/components/projects/project-dialogs";
 import { ProjectSettings } from "@/components/projects/project-settings";
+import {
+  PROJECT_SORTS,
+  type ProjectSort,
+  ProjectSortItems,
+} from "@/components/projects/project-sort";
+import { ProjectsBackgroundMenu } from "@/components/projects/projects-background-menu";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-
-const SORTS = {
-  "Last edited": (a: ListedProject, b: ListedProject) =>
-    b.edited_at.localeCompare(a.edited_at),
-  Name: (a: ListedProject, b: ListedProject) => a.name.localeCompare(b.name),
-} as const;
-
-type Sort = keyof typeof SORTS;
 
 function Message({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -51,13 +41,13 @@ export function AllProjects({ team }: { team: Team }) {
     teamProjectsOptions({ path: { team_url: team.url } }),
   );
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<Sort>("Last edited");
+  const [sort, setSort] = useState<ProjectSort>("Last edited");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ListedProject>();
   const [menu, setMenu] = useState<{
     x: number;
     y: number;
-    project: ListedProject;
+    project?: ListedProject;
   }>();
   const [action, setAction] = useState<{
     kind: "delete" | "leave";
@@ -71,7 +61,7 @@ export function AllProjects({ team }: { team: Team }) {
   const query = search.trim().toLowerCase();
   const shown = all
     .filter((project) => project.name.toLowerCase().includes(query))
-    .toSorted(SORTS[sort]);
+    .toSorted(PROJECT_SORTS[sort]);
   const closeMenu = () => setMenu(undefined);
   const gone = async () => {
     await queryClient.invalidateQueries({
@@ -189,16 +179,7 @@ export function AllProjects({ team }: { team: Team }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="min-w-0">
-                {(Object.keys(SORTS) as Sort[]).map((name) => (
-                  <DropdownMenuItem
-                    key={name}
-                    className="h-8 text-sm"
-                    onSelect={() => setSort(name)}
-                  >
-                    <span className="flex-1">{name}</span>
-                    {name === sort ? <Check className="size-3.5" /> : null}
-                  </DropdownMenuItem>
-                ))}
+                <ProjectSortItems sort={sort} onSort={setSort} />
               </DropdownMenuContent>
             </DropdownMenu>
           </>
@@ -210,24 +191,45 @@ export function AllProjects({ team }: { team: Team }) {
           </Button>
         ) : null}
       </header>
-      {content}
+      <section
+        aria-label="Projects"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenu({ x: event.clientX, y: event.clientY });
+        }}
+      >
+        {content}
+      </section>
       {menu ? (
-        <ProjectContextMenu
-          team={team}
-          project={menu.project}
-          x={menu.x}
-          y={menu.y}
-          onClose={closeMenu}
-          onSettings={() => setEditing(menu.project)}
-          onDelete={() => {
-            if (menu.project)
-              setAction({ kind: "delete", project: menu.project });
-          }}
-          onLeave={() => {
-            if (menu.project)
-              setAction({ kind: "leave", project: menu.project });
-          }}
-        />
+        menu.project ? (
+          <ProjectContextMenu
+            team={team}
+            project={menu.project}
+            x={menu.x}
+            y={menu.y}
+            onClose={closeMenu}
+            onSettings={() => setEditing(menu.project)}
+            onDelete={() => {
+              if (menu.project)
+                setAction({ kind: "delete", project: menu.project });
+            }}
+            onLeave={() => {
+              if (menu.project)
+                setAction({ kind: "leave", project: menu.project });
+            }}
+          />
+        ) : (
+          <ProjectsBackgroundMenu
+            x={menu.x}
+            y={menu.y}
+            owner={owner}
+            sort={sort}
+            onSort={setSort}
+            onCreate={() => setCreating(true)}
+            onClose={closeMenu}
+          />
+        )
       ) : null}
       {owner ? (
         <NewProjectDialog
