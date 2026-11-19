@@ -720,7 +720,9 @@ function Settings({
       <LeaveProjectDialog
         team={team}
         project={project}
-        onlyLead={project.role === "LEAD" && leads.length === 1}
+        onlyLead={
+          project.role === "LEAD" && leads.length === 1 && members.length > 1
+        }
         open={dialog === "leave"}
         onOpenChange={(open) => setDialog(open ? "leave" : undefined)}
         onLeft={() => void gone()}

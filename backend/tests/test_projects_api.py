@@ -570,6 +570,22 @@ def test_leads_cannot_be_demoted_or_removed(
 
     assert response.status_code == 409
     assert error(response) == "lead_cannot_be_changed"
+    assert ("Jonas Lind", ProjectRole.LEAD) in members(client)
+
+
+def test_a_lead_who_is_the_only_member_can_leave(
+    client: TestClient, session: Session
+) -> None:
+    acme = acme_with_marketing(client, session)
+    projects.remove_member(session, acme.marketing, acme.jonas.id)
+    sign_in_as(client, session, acme.sofia)
+
+    response = client.delete("/api/teams/acme/projects/marketing-site/membership")
+
+    assert response.status_code == 204
+    sign_in_as(client, session, acme.mira)
+    assert members(client) == []
+    assert project_at(client, "marketing-site").status_code == 200
 
 
 def test_leaving_a_project(client: TestClient, session: Session) -> None:

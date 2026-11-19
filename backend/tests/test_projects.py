@@ -396,11 +396,28 @@ def committed_project(engine: Engine) -> Iterator[tuple[UUID, UUID, UUID, UUID]]
             cleanup.commit()
 
 
-def test_two_leads_leaving_at_once_cannot_both_leave(engine: Engine) -> None:
+@pytest.mark.parametrize("developer_remains", [False, True])
+def test_simultaneous_departures_do_not_leave_developers_without_a_lead(
+    engine: Engine, developer_remains: bool
+) -> None:
     with committed_project(engine) as (_, project_id, mira_id, jonas_id):
         with Session(engine) as setup:
             project = setup.get_one(Project, project_id)
             projects.set_member(setup, project, jonas_id, ProjectRole.LEAD)
+            developer_id: UUID | None = None
+            if developer_remains:
+                developer = auth.create_account(
+                    setup, "Developer", f"developer-{uuid4()}@acme.dev", PASSWORD
+                )
+                developer_id = developer.id
+                setup.add(
+                    TeamMember(
+                        team_id=project.team_id,
+                        account_id=developer.id,
+                        role=TeamRole.MEMBER,
+                    )
+                )
+                projects.set_member(setup, project, developer.id, ProjectRole.DEVELOPER)
             setup.commit()
         outcome: list[str] = []
 
@@ -431,7 +448,14 @@ def test_two_leads_leaving_at_once_cannot_both_leave(engine: Engine) -> None:
             first.commit()
         jonas.join(timeout=5)
 
-        assert outcome == ["last lead"]
+        assert outcome == ["last lead" if developer_remains else "left"]
+        if developer_id is not None:
+            with Session(engine) as cleanup:
+                cleanup.execute(
+                    delete(TeamMember).where(TeamMember.account_id == developer_id)
+                )
+                cleanup.execute(delete(Account).where(Account.id == developer_id))
+                cleanup.commit()
 
 
 def test_adding_someone_who_is_leaving_the_team_at_once_does_not_add_them(
