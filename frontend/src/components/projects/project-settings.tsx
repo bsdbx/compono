@@ -347,7 +347,7 @@ function Members({
               {addable.map((member) => (
                 <DropdownMenuItem
                   key={member.id}
-                  className="h-10 text-base"
+                  className="min-h-12 text-base"
                   onSelect={() => setAdding(member.id)}
                 >
                   <Avatar
@@ -355,9 +355,11 @@ function Members({
                     name={member.name}
                     className="size-6"
                   />
-                  <span className="min-w-0 flex-1 truncate">
-                    {member.name}{" "}
-                    <span className="text-muted-foreground text-sm">
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium leading-tight">
+                      {member.name}
+                    </span>
+                    <span className="block truncate text-muted-foreground text-sm">
                       {member.email}
                     </span>
                   </span>
