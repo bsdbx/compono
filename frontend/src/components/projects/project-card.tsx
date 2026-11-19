@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { ListedProject } from "@/api/types";
 import { Avatar } from "@/components/avatar";
+import { Highlight } from "@/components/highlight";
 import { editedAgo } from "@/lib/edited-ago";
 import { Link } from "@/lib/navigation";
 
@@ -33,21 +34,27 @@ export function ProjectCard({
   project,
   now,
   actions,
+  query = "",
 }: {
   teamUrl: string;
   project: ListedProject;
   now: Date;
   /** Shown over the cover when the card is hovered, like the settings button */
   actions?: ReactNode;
+  query?: string;
 }) {
   return (
     <article className="group relative">
       <Link href={`/${teamUrl}/${project.url}`} className="block">
         <div className="flex aspect-[1.6] items-center justify-center rounded-xl border border-border bg-card px-4 text-center text-lg text-muted-foreground transition-colors group-hover:border-input">
-          {project.name}
+          <span>
+            <Highlight text={project.name} query={query} />
+          </span>
         </div>
         <div className="mt-3 flex items-center gap-2 px-0.5">
-          <h2 className="truncate font-medium text-base">{project.name}</h2>
+          <h2 className="truncate font-medium text-base">
+            <Highlight text={project.name} query={query} />
+          </h2>
           {project.role === "LEAD" ? (
             <span className="rounded-sm bg-muted px-1.5 py-0.5 text-2xs text-muted-foreground">
               Lead

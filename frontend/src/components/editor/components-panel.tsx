@@ -21,6 +21,7 @@ import {
 import type { ListedComponent, Project, Team } from "@/api/types";
 import { PointerMenu } from "@/components/editor/canvas/pointer-menu";
 import { NameInput } from "@/components/editor/name-input";
+import { Highlight } from "@/components/highlight";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -69,23 +70,6 @@ function PanelIcon({ open }: { open: boolean }) {
 
 /** Widths of the loading rows, like names of different lengths */
 const LOADING = [118, 91, 133, 105, 125, 84];
-
-/** The name, with the part that matches the search marked. */
-function Highlight({ text, query }: { text: string; query: string }) {
-  const at = query === "" ? -1 : text.toLowerCase().indexOf(query);
-  if (at === -1) {
-    return text;
-  }
-  return (
-    <>
-      {text.slice(0, at)}
-      <mark className="rounded-xs bg-primary/30 text-inherit">
-        {text.slice(at, at + query.length)}
-      </mark>
-      {text.slice(at + query.length)}
-    </>
-  );
-}
 
 function Message({ title, children }: { title: string; children: ReactNode }) {
   return (
