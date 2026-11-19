@@ -1,9 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronsUpDown, Link2, Plus, Settings } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Link2,
+  LogOut,
+  Plus,
+  Settings,
+} from "lucide-react";
 import { useState } from "react";
 import { myTeamsOptions } from "@/api/queries";
 import type { Team } from "@/api/types";
 import { CreateTeamDialog, JoinTeamDialog } from "@/components/team-dialogs";
+import { LeaveTeamDialog } from "@/components/team-settings/team-dialogs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +25,7 @@ import { Link } from "@/lib/navigation";
 /** The team at the top of the sidebar, with a menu to switch teams, open their settings, or create and join one. */
 export function TeamMenu({ team }: { team: Team }) {
   const { data: teams = [] } = useQuery(myTeamsOptions());
-  const [dialog, setDialog] = useState<"create" | "join">();
+  const [dialog, setDialog] = useState<"create" | "join" | "leave">();
   const onOpenChange = (open: boolean) => {
     if (!open) {
       setDialog(undefined);
@@ -52,12 +60,22 @@ export function TeamMenu({ team }: { team: Team }) {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem asChild className="h-9 text-base">
-            <Link href={`/${team.url}/settings`}>
-              <Settings className="size-4" />
-              Team settings
-            </Link>
-          </DropdownMenuItem>
+          {team.role === "OWNER" ? (
+            <DropdownMenuItem asChild className="h-9 text-base">
+              <Link href={`/${team.url}/settings`}>
+                <Settings className="size-4" />
+                Team settings
+              </Link>
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              className="h-9 text-base"
+              onSelect={() => setDialog("leave")}
+            >
+              <LogOut className="size-4" />
+              Leave team
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             className="h-9 text-base"
             onSelect={() => setDialog("create")}
@@ -79,6 +97,14 @@ export function TeamMenu({ team }: { team: Team }) {
         onOpenChange={onOpenChange}
       />
       <JoinTeamDialog open={dialog === "join"} onOpenChange={onOpenChange} />
+      {team.role !== "OWNER" ? (
+        <LeaveTeamDialog
+          team={team}
+          onlyOwner={false}
+          open={dialog === "leave"}
+          onOpenChange={onOpenChange}
+        />
+      ) : null}
     </>
   );
 }

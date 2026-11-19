@@ -9,7 +9,6 @@ import {
 } from "@/api/queries";
 import type { Team } from "@/api/types";
 import { useSignedInAccount } from "@/components/account";
-import { Avatar } from "@/components/avatar";
 import { Field } from "@/components/field";
 import {
   DangerRow,
@@ -19,7 +18,7 @@ import {
   DeleteTeamDialog,
   LeaveTeamDialog,
 } from "@/components/team-settings/team-dialogs";
-import { useTeam } from "@/components/team-settings/use-team";
+import { useOwnedTeam } from "@/components/team-settings/use-team";
 import { TeamUrlInput } from "@/components/team-url-input";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,55 +116,18 @@ function TeamForm({ team }: { team: Team }) {
   );
 }
 
-/** What a member sees instead of the form: the name and URL, and who the owners are. */
-function TeamFacts({ team }: { team: Team }) {
-  const { data: members = [] } = useQuery(
-    teamMembersOptions({ path: { team_url: team.url } }),
-  );
-  const owners = members.filter((member) => member.role === "OWNER");
-  return (
-    <dl className="flex flex-col gap-5 text-base">
-      <div>
-        <dt className="font-medium text-sm">Team name</dt>
-        <dd className="mt-1.5 text-muted-foreground">{team.name}</dd>
-      </div>
-      <div>
-        <dt className="font-medium text-sm">Team URL</dt>
-        <dd className="mt-1.5 text-muted-foreground">
-          {window.location.host}/{team.url}
-        </dd>
-      </div>
-      <div>
-        <dt className="font-medium text-sm">
-          {owners.length === 1 ? "Owner" : "Owners"}
-        </dt>
-        {owners.map((owner) => (
-          <dd key={owner.id} className="mt-2 flex items-center gap-2.5">
-            <Avatar id={owner.id} name={owner.name} className="size-6" />
-            {owner.name}
-          </dd>
-        ))}
-      </div>
-    </dl>
-  );
-}
-
 function General({ team }: { team: Team }) {
   const account = useSignedInAccount();
-  const owner = team.role === "OWNER";
   const [dialog, setDialog] = useState<"leave" | "delete">();
   const { data: members = [] } = useQuery(
     teamMembersOptions({ path: { team_url: team.url } }),
   );
-  const { data: projects = [] } = useQuery({
-    ...teamProjectsOptions({ path: { team_url: team.url } }),
-    enabled: owner,
-  });
-  const onlyOwner =
-    owner &&
-    !members.some(
-      (member) => member.role === "OWNER" && member.id !== account.id,
-    );
+  const { data: projects = [] } = useQuery(
+    teamProjectsOptions({ path: { team_url: team.url } }),
+  );
+  const onlyOwner = !members.some(
+    (member) => member.role === "OWNER" && member.id !== account.id,
+  );
   const onOpenChange = (open: boolean) => {
     if (!open) {
       setDialog(undefined);
@@ -176,13 +138,9 @@ function General({ team }: { team: Team }) {
     <SettingsShell
       team={team}
       section="General"
-      description={
-        owner
-          ? `Manage how ${team.name} appears across Compono.`
-          : "Only owners can change these."
-      }
+      description={`Manage how ${team.name} appears across Compono.`}
     >
-      {owner ? <TeamForm team={team} /> : <TeamFacts team={team} />}
+      <TeamForm team={team} />
       <hr className="my-8" />
       <h2 className="mb-5 font-medium text-base">Danger zone</h2>
       <div className="flex flex-col gap-6">
@@ -198,20 +156,18 @@ function General({ team }: { team: Team }) {
             Leave team
           </Button>
         </DangerRow>
-        {owner ? (
-          <DangerRow
-            title="Delete team"
-            description={`Removes ${team.name}, its projects and components for every member.`}
+        <DangerRow
+          title="Delete team"
+          description={`Removes ${team.name}, its projects and components for every member.`}
+        >
+          <Button
+            variant="secondary"
+            className="text-error"
+            onClick={() => setDialog("delete")}
           >
-            <Button
-              variant="secondary"
-              className="text-error"
-              onClick={() => setDialog("delete")}
-            >
-              Delete team
-            </Button>
-          </DangerRow>
-        ) : null}
+            Delete team
+          </Button>
+        </DangerRow>
       </div>
       <LeaveTeamDialog
         team={team}
@@ -219,19 +175,17 @@ function General({ team }: { team: Team }) {
         open={dialog === "leave"}
         onOpenChange={onOpenChange}
       />
-      {owner ? (
-        <DeleteTeamDialog
-          team={team}
-          projects={projects.length}
-          open={dialog === "delete"}
-          onOpenChange={onOpenChange}
-        />
-      ) : null}
+      <DeleteTeamDialog
+        team={team}
+        projects={projects.length}
+        open={dialog === "delete"}
+        onOpenChange={onOpenChange}
+      />
     </SettingsShell>
   );
 }
 
 export function GeneralSettings() {
-  const team = useTeam();
+  const team = useOwnedTeam();
   return team ? <General team={team} /> : null;
 }

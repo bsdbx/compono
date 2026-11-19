@@ -10,7 +10,7 @@ import {
   MakeOwnerDialog,
   RemoveMemberDialog,
 } from "@/components/team-settings/team-dialogs";
-import { useTeam } from "@/components/team-settings/use-team";
+import { useOwnedTeam } from "@/components/team-settings/use-team";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/copy-button";
 import {
@@ -123,7 +123,6 @@ function MemberRow({
 
 function Members({ team }: { team: Team }) {
   const account = useSignedInAccount();
-  const owner = team.role === "OWNER";
   const [search, setSearch] = useState("");
   const [action, setAction] = useState<Action>();
   const { data: members = [] } = useQuery(
@@ -145,18 +144,10 @@ function Members({ team }: { team: Team }) {
     <SettingsShell
       team={team}
       section="Members"
-      description={
-        owner
-          ? `Everyone in ${team.name}. Project access is set in each project.`
-          : `Everyone in ${team.name}. Only owners can invite or remove people.`
-      }
+      description={`Everyone in ${team.name}. Project access is set in each project.`}
     >
-      {owner ? (
-        <>
-          <InviteLink team={team} />
-          <hr className="my-8" />
-        </>
-      ) : null}
+      <InviteLink team={team} />
+      <hr className="my-8" />
       <div className="mb-3 flex items-center justify-between gap-4">
         <h2 className="font-medium text-base">
           {members.length} {members.length === 1 ? "member" : "members"}
@@ -184,7 +175,7 @@ function Members({ team }: { team: Team }) {
               key={member.id}
               member={member}
               you={member.id === account.id}
-              manage={owner && member.role !== "OWNER"}
+              manage={member.role !== "OWNER"}
               onAction={setAction}
             />
           ))}
@@ -211,6 +202,6 @@ function Members({ team }: { team: Team }) {
 }
 
 export function MembersSettings() {
-  const team = useTeam();
+  const team = useOwnedTeam();
   return team ? <Members team={team} /> : null;
 }
