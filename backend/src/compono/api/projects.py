@@ -109,12 +109,17 @@ class LastLeadError(BaseModel):
     detail: Literal["last_lead"]
 
 
+class LeadCannotBeChangedError(BaseModel):
+    detail: Literal["lead_cannot_be_changed"]
+
+
 # Responses as tuples of status code and error
 NOT_IN_PROJECT: Final = (status.HTTP_404_NOT_FOUND, ProjectNotFoundError)
 LEADS_ONLY: Final = (status.HTTP_403_FORBIDDEN, LeadsOnlyError)
 NAME_TAKEN: Final = (status.HTTP_409_CONFLICT, NameTakenError)
 MEMBER_NOT_FOUND: Final = (status.HTTP_404_NOT_FOUND, ProjectMemberNotFoundError)
 LAST_LEAD: Final = (status.HTTP_409_CONFLICT, LastLeadError)
+LEAD_CANNOT_BE_CHANGED: Final = (status.HTTP_409_CONFLICT, LeadCannotBeChangedError)
 
 
 class ProjectAccess(NamedTuple):
@@ -288,7 +293,9 @@ class MemberRole(BaseModel):
 
 @router.put(
     "/api/teams/{team_url}/projects/{project_url}/members/{account_id}",
-    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LAST_LEAD),
+    responses=answers(
+        NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LEAD_CANNOT_BE_CHANGED
+    ),
 )
 def set_project_member(
     account_id: UUID, body: MemberRole, access: InProject, database: Database
@@ -300,8 +307,10 @@ def set_project_member(
         account = projects.set_member(database, access.project, account_id, body.role)
     except projects.NotInTeam as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "member_not_found") from error
-    except projects.LastLead as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "last_lead") from error
+    except projects.LeadCannotBeChanged as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "lead_cannot_be_changed"
+        ) from error
 
     member = ProjectMember(
         id=account.id, name=account.name, email=account.email, role=body.role
@@ -314,7 +323,9 @@ def set_project_member(
 @router.delete(
     "/api/teams/{team_url}/projects/{project_url}/members/{account_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=answers(NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LAST_LEAD),
+    responses=answers(
+        NOT_SIGNED_IN, MEMBER_NOT_FOUND, LEADS_ONLY, LEAD_CANNOT_BE_CHANGED
+    ),
 )
 def remove_project_member(
     account_id: UUID, access: InProject, database: Database
@@ -326,8 +337,10 @@ def remove_project_member(
         projects.remove_member(database, access.project, account_id)
     except projects.NotInProject as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "member_not_found") from error
-    except projects.LastLead as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "last_lead") from error
+    except projects.LeadCannotBeChanged as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "lead_cannot_be_changed"
+        ) from error
 
     database.commit()
 

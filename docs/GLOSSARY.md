@@ -35,7 +35,7 @@ A set of components that some of a team's members build together.
 _Avoid_: Workspace, library, repository
 
 **Lead**:
-A project role that manages the project: its name and description, who is in it and with which role, and deleting it. A project can have several. A lead doesn't change their own role, and the only lead makes someone else a lead before they leave.
+A project role that manages the project: its name and description, its developers and their promotion to lead, and deleting it. Leads cannot be demoted or removed; they leave voluntarily, handing over to another lead before they leave.
 
 **Developer**:
 The project role of those who build a project's components.

@@ -543,6 +543,35 @@ def test_removing_a_member_from_a_project(client: TestClient, session: Session) 
     assert error(project_at(client, "marketing-site")) == "project_not_found"
 
 
+@pytest.mark.parametrize("method", ["PUT", "DELETE"])
+@pytest.mark.parametrize("actor", ["owner", "owner-lead", "lead", "self"])
+def test_leads_cannot_be_demoted_or_removed(
+    client: TestClient, session: Session, method: str, actor: str
+) -> None:
+    acme = acme_with_marketing(client, session)
+    projects.set_member(session, acme.marketing, acme.jonas.id, ProjectRole.LEAD)
+    if actor == "owner-lead":
+        projects.set_member(session, acme.marketing, acme.mira.id, ProjectRole.LEAD)
+    acting = (
+        acme.mira
+        if actor in {"owner", "owner-lead"}
+        else acme.jonas
+        if actor == "self"
+        else acme.sofia
+    )
+    sign_in_as(client, session, acting)
+    body: dict[str, str] | None = {"role": "DEVELOPER"} if method == "PUT" else None
+
+    response = client.request(
+        method,
+        f"/api/teams/acme/projects/marketing-site/members/{acme.jonas.id}",
+        json=body,
+    )
+
+    assert response.status_code == 409
+    assert error(response) == "lead_cannot_be_changed"
+
+
 def test_leaving_a_project(client: TestClient, session: Session) -> None:
     acme = acme_with_marketing(client, session)
     leave = "/api/teams/acme/projects/marketing-site/membership"
@@ -572,7 +601,7 @@ def test_the_only_lead_stays_until_someone_else_is_a_lead(
         client.delete(sofia),
     ]:
         assert response.status_code == 409
-        assert error(response) == "last_lead"
+        assert error(response) == "lead_cannot_be_changed"
     sign_in_as(client, session, acme.sofia)
     response = client.delete(leave)
     assert response.status_code == 409

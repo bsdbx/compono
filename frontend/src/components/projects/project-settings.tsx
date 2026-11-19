@@ -202,7 +202,7 @@ function MemberRow({
   member: ProjectMember;
   you: boolean;
   canManage: boolean;
-  /** Whether the menu shows: not for yourself, nor for the only lead */
+  /** Leads keep their role and leave voluntarily. */
   changeable: boolean;
   onRole: (role: ProjectRole) => void;
   onRemove: () => void;
@@ -300,8 +300,8 @@ function Members({
     onError: (error: { detail?: unknown }) => {
       // Someone else may have changed the leads since the list loaded
       setProblem(
-        error.detail === "last_lead"
-          ? "A project needs a lead. Make someone else a lead first."
+        error.detail === "lead_cannot_be_changed"
+          ? "Leads can’t be demoted or removed. They can leave the project."
           : "That didn’t work. Try again.",
       );
       return refresh();
@@ -312,8 +312,6 @@ function Members({
     ...removeProjectMemberMutation(),
     ...changed,
   });
-  const leads = members.filter((member) => member.role === "LEAD");
-  const onlyLead = leads.length === 1 ? leads[0]?.id : undefined;
   const inProject = new Set(members.map((member) => member.id));
   const addable = teamMembers.filter((member) => !inProject.has(member.id));
   const chosen = addable.find((member) => member.id === adding);
@@ -393,7 +391,7 @@ function Members({
             member={member}
             you={member.id === account.id}
             canManage={canManage}
-            changeable={member.id !== account.id && member.id !== onlyLead}
+            changeable={member.id !== account.id && member.role !== "LEAD"}
             onRole={(role) =>
               setRole.mutate({
                 path: { ...path, account_id: member.id },

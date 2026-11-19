@@ -137,6 +137,10 @@ export type LastLeadError = {
   detail: "last_lead";
 };
 
+export type LeadCannotBeChangedError = {
+  detail: "lead_cannot_be_changed";
+};
+
 export type LastOwnerError = {
   detail: "last_owner";
 };
