@@ -43,7 +43,7 @@ export function NodeNameInput({
         }
       }}
       onContextMenu={(event) => event.stopPropagation()}
-      className="nodrag nowheel -mx-1.5 h-6 min-w-0 flex-1 rounded border border-selection/50 bg-field px-1.5 text-sm outline-none focus-visible:outline-none"
+      className="nodrag nowheel h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none focus-visible:outline-none"
     />
   );
 }
