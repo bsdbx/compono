@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowUpDown,
   Check,
@@ -8,10 +8,15 @@ import {
   Settings,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { teamProjectsOptions } from "@/api/queries";
+import { teamProjectsOptions, teamProjectsQueryKey } from "@/api/queries";
 import type { ListedProject, Team } from "@/api/types";
 import { NewProjectDialog } from "@/components/projects/new-project-dialog";
 import { ProjectCard } from "@/components/projects/project-card";
+import { ProjectContextMenu } from "@/components/projects/project-context-menu";
+import {
+  DeleteProjectDialog,
+  LeaveProjectDialog,
+} from "@/components/projects/project-dialogs";
 import { ProjectSettings } from "@/components/projects/project-settings";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +46,7 @@ function Message({ title, children }: { title: string; children: ReactNode }) {
 
 /** The team's projects that the account can see, as cards, with search and sorting. */
 export function AllProjects({ team }: { team: Team }) {
+  const queryClient = useQueryClient();
   const projects = useQuery(
     teamProjectsOptions({ path: { team_url: team.url } }),
   );
@@ -48,6 +54,15 @@ export function AllProjects({ team }: { team: Team }) {
   const [sort, setSort] = useState<Sort>("Last edited");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<ListedProject>();
+  const [menu, setMenu] = useState<{
+    x: number;
+    y: number;
+    project: ListedProject;
+  }>();
+  const [action, setAction] = useState<{
+    kind: "delete" | "leave";
+    project: ListedProject;
+  }>();
   // Owners create projects; leads and developers are added to them
   const owner = team.role === "OWNER";
   const now = new Date();
@@ -57,6 +72,13 @@ export function AllProjects({ team }: { team: Team }) {
   const shown = all
     .filter((project) => project.name.toLowerCase().includes(query))
     .toSorted(SORTS[sort]);
+  const closeMenu = () => setMenu(undefined);
+  const gone = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: teamProjectsQueryKey({ path: { team_url: team.url } }),
+    });
+    setAction(undefined);
+  };
 
   let content: ReactNode;
   if (projects.isPending) {
@@ -109,6 +131,11 @@ export function AllProjects({ team }: { team: Team }) {
             project={project}
             now={now}
             query={query}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              setMenu({ x: event.clientX, y: event.clientY, project });
+            }}
             actions={
               <Button
                 variant="secondary"
@@ -184,6 +211,24 @@ export function AllProjects({ team }: { team: Team }) {
         ) : null}
       </header>
       {content}
+      {menu ? (
+        <ProjectContextMenu
+          team={team}
+          project={menu.project}
+          x={menu.x}
+          y={menu.y}
+          onClose={closeMenu}
+          onSettings={() => setEditing(menu.project)}
+          onDelete={() => {
+            if (menu.project)
+              setAction({ kind: "delete", project: menu.project });
+          }}
+          onLeave={() => {
+            if (menu.project)
+              setAction({ kind: "leave", project: menu.project });
+          }}
+        />
+      ) : null}
       {owner ? (
         <NewProjectDialog
           team={team}
@@ -196,6 +241,27 @@ export function AllProjects({ team }: { team: Team }) {
         project={editing}
         onClose={() => setEditing(undefined)}
       />
+      {action?.kind === "delete" ? (
+        <DeleteProjectDialog
+          team={team}
+          project={action.project}
+          open
+          onOpenChange={(open) => !open && setAction(undefined)}
+          onDeleted={() => void gone()}
+        />
+      ) : action?.kind === "leave" ? (
+        <LeaveProjectDialog
+          team={team}
+          project={action.project}
+          open
+          onOpenChange={(open) => !open && setAction(undefined)}
+          onLeft={() => void gone()}
+          onGoToMembers={() => {
+            setEditing(action.project);
+            setAction(undefined);
+          }}
+        />
+      ) : null}
     </main>
   );
 }

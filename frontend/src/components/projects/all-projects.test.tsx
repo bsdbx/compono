@@ -95,6 +95,122 @@ test("sorting by name and searching narrow the grid", async () => {
   expect(screen.getByText("No projects found")).toBeInTheDocument();
 });
 
+test.each([
+  {
+    team: OWNER,
+    role: "LEAD",
+    actions: [
+      "Open project",
+      "Project settings",
+      "Leave project",
+      "Delete project",
+    ],
+  },
+  {
+    team: OWNER,
+    role: null,
+    actions: ["Open project", "Project settings", "Delete project"],
+  },
+  {
+    team: MEMBER,
+    role: "LEAD",
+    actions: [
+      "Open project",
+      "Project settings",
+      "Leave project",
+      "Delete project",
+    ],
+  },
+  {
+    team: MEMBER,
+    role: "DEVELOPER",
+    actions: ["Open project", "Project details", "Leave project"],
+  },
+])(
+  "$team.role / $role gets the appropriate project actions",
+  async ({ team, role, actions }) => {
+    answer([{ ...PROJECTS[0], role }]);
+    renderWithClient(<AllProjects team={team} />);
+    const card = await screen.findByRole("link", { name: /^Checkout flow/ });
+    fireEvent.contextMenu(card, { clientX: 400, clientY: 250 });
+    const menu = await screen.findByRole("menu");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(actions);
+    expect(
+      within(menu).getByRole("menuitem", { name: "Open project" }),
+    ).toHaveAttribute("href", "/acme/checkout-flow");
+    fireEvent.keyDown(menu, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).toBeNull());
+  },
+);
+
+test("deleting from the project menu still requires confirmation", async () => {
+  let listed = [PROJECTS[0]];
+  const fetch = stubTeam({
+    "GET /api/teams/acme/projects": () => Response.json(listed),
+    "DELETE /api/teams/acme/projects/checkout-flow": () => {
+      listed = [];
+      return new Response(null, { status: 204 });
+    },
+  });
+  renderWithClient(<AllProjects team={OWNER} />);
+  fireEvent.contextMenu(
+    await screen.findByRole("link", { name: /^Checkout flow/ }),
+  );
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Delete project" }),
+  );
+  const dialog = await screen.findByRole("dialog", {
+    name: "Delete Checkout flow?",
+  });
+  expect(
+    within(dialog).getByRole("button", { name: "Delete project" }),
+  ).toBeDisabled();
+  expect(fetch.mock.calls.filter(([r]) => r.method === "DELETE")).toHaveLength(
+    0,
+  );
+  fireEvent.change(within(dialog).getByLabelText(/to confirm/), {
+    target: { value: "acme/checkout-flow" },
+  });
+  fireEvent.click(
+    within(dialog).getByRole("button", { name: "Delete project" }),
+  );
+  expect(await screen.findByText("No projects yet")).toBeInTheDocument();
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+test("a sole lead can leave from the project menu", async () => {
+  let listed = [PROJECTS[0]];
+  stubTeam({
+    "GET /api/teams/acme/projects": () => Response.json(listed),
+    "GET /api/teams/acme/projects/checkout-flow/members": () =>
+      Response.json([
+        { id: "a1", name: "Person 1", email: "one@acme.dev", role: "LEAD" },
+      ]),
+    "DELETE /api/teams/acme/projects/checkout-flow/membership": () => {
+      listed = [];
+      return new Response(null, { status: 204 });
+    },
+  });
+  renderWithClient(<AllProjects team={MEMBER} />);
+  fireEvent.contextMenu(
+    await screen.findByRole("link", { name: /^Checkout flow/ }),
+  );
+  fireEvent.click(
+    await screen.findByRole("menuitem", { name: "Leave project" }),
+  );
+  const dialog = await screen.findByRole("dialog", {
+    name: "Leave Checkout flow?",
+  });
+  const leave = within(dialog).getByRole("button", { name: "Leave project" });
+  await waitFor(() => expect(leave).toBeEnabled());
+  fireEvent.click(leave);
+  expect(await screen.findByText("No projects yet")).toBeInTheDocument();
+});
+
 test("with no projects, owners are asked to create one and members told to wait", async () => {
   answer([]);
   renderWithClient(<AllProjects team={OWNER} />);
