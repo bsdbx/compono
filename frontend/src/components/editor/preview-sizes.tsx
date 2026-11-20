@@ -29,7 +29,7 @@ function SizeForm({
 }) {
   const [name, setName] = useState(size?.name ?? "");
   const [width, setWidth] = useState(size ? String(size.width) : "");
-  const [height, setHeight] = useState(String(size ? screenHeight(size) : 720));
+  const [height, setHeight] = useState(size ? String(screenHeight(size)) : "");
   const pixels = Number(width);
   const rows = Number(height);
   const valid =

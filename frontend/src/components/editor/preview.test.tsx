@@ -367,6 +367,7 @@ test("a screen size picks, adds and goes", async () => {
     within(await openSizes()).getByRole("menuitem", { name: /Add size/ }),
   );
   const add = screen.getByRole("button", { name: "Add" });
+  expect(screen.getByLabelText("Height")).toHaveValue("");
   fireEvent.change(screen.getByLabelText("Size name"), {
     target: { value: "Tablet" },
   });
@@ -377,6 +378,10 @@ test("a screen size picks, adds and goes", async () => {
   expect(add).toBeDisabled();
   fireEvent.change(screen.getByLabelText("Size name"), {
     target: { value: "Wide" },
+  });
+  expect(add).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Height"), {
+    target: { value: "720" },
   });
   fireEvent.click(add);
   expect(change).toHaveBeenLastCalledWith({
