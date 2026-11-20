@@ -3,7 +3,7 @@ export type Point = { x: number; y: number };
 export type Size = { width: number; height: number };
 export type Bounds = Point & Size;
 
-const PAN_MARGIN = 24;
+const PAN_MARGIN = 40;
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
@@ -25,7 +25,7 @@ export const previewZoom = (scale: number, delta: number) =>
     clamp(scale * Math.exp(-clamp(delta, -500, 500) * 0.002), 0.01, 4) * 1000,
   ) / 1000;
 
-/** One screen-space pan, allowing content to move only 24px past the visible area. */
+/** One screen-space pan, allowing content to move only 40px past the visible area. */
 export function previewView(
   box: Size,
   size: Size,
