@@ -3,12 +3,6 @@ import { useRef, useState } from "react";
 import type { ScreenSize } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -115,14 +109,14 @@ export function SizePicker({
   const [open, setOpen] = useState(false);
   const isOpen = useRef(open);
   isOpen.current = open;
-  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState<ScreenSize | "add">();
   const [menu, setMenu] = useState<{
     size: ScreenSize;
     x: number;
     y: number;
   }>();
-  const [editing, setEditing] = useState<ScreenSize>();
-  const openingDialog = useRef(false);
+  const editing = form && form !== "add" ? form : undefined;
+  const focusForm = useRef(false);
   const row = useRef<HTMLElement | null>(null);
   const list = useRef<HTMLDivElement | null>(null);
 
@@ -145,7 +139,8 @@ export function SizePicker({
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
-          setAdding(false);
+          setForm(undefined);
+          if (!next) setMenu(undefined);
         }}
       >
         <DropdownMenuTrigger asChild>
@@ -178,10 +173,7 @@ export function SizePicker({
               event.preventDefault();
           }}
           onCloseAutoFocus={(event) => {
-            if (openingDialog.current) {
-              event.preventDefault();
-              openingDialog.current = false;
-            } else if (isOpen.current) event.preventDefault();
+            if (isOpen.current) event.preventDefault();
           }}
         >
           {sizes.map((size) => (
@@ -210,17 +202,36 @@ export function SizePicker({
               </span>
             </DropdownMenuItem>
           ))}
-          {sizes.length < 10 ? (
+          {form || sizes.length < 10 ? (
             <>
               <DropdownMenuSeparator />
-              {adding ? (
+              {form ? (
                 <SizeForm
-                  taken={sizes.map((size) => size.name)}
+                  key={editing ? `edit:${editing.name}` : "add"}
+                  {...(editing ? { size: editing } : {})}
+                  taken={sizes
+                    .filter((size) => size.name !== editing?.name)
+                    .map((size) => size.name)}
                   onSave={(size) => {
-                    onChange([...sizes, size]);
-                    onPick(size);
+                    if (editing) {
+                      if (
+                        size.name !== editing.name ||
+                        size.width !== editing.width ||
+                        screenHeight(size) !== screenHeight(editing)
+                      ) {
+                        onChange(
+                          sizes.map((each) =>
+                            each.name === editing.name ? size : each,
+                          ),
+                        );
+                        if (current.name === editing.name) onPick(size);
+                      }
+                    } else {
+                      onChange([...sizes, size]);
+                      onPick(size);
+                    }
                     setOpen(false);
-                    setAdding(false);
+                    setForm(undefined);
                   }}
                 />
               ) : (
@@ -228,7 +239,7 @@ export function SizePicker({
                   className="h-8 gap-2 text-sm"
                   onSelect={(event) => {
                     event.preventDefault();
-                    setAdding(true);
+                    setForm("add");
                   }}
                 >
                   <Plus className="size-3.5 text-muted-foreground" />
@@ -246,7 +257,15 @@ export function SizePicker({
           onClose={() => setMenu(undefined)}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (openingDialog.current) return;
+            if (focusForm.current) {
+              focusForm.current = false;
+              list.current
+                ?.querySelector<HTMLInputElement>(
+                  'input[aria-label="Size name"]',
+                )
+                ?.focus({ preventScroll: true });
+              return;
+            }
             const active = document.activeElement;
             if (
               active instanceof HTMLElement &&
@@ -263,10 +282,9 @@ export function SizePicker({
           <DropdownMenuItem
             className="text-sm"
             onSelect={() => {
-              openingDialog.current = true;
-              setEditing(menu.size);
+              focusForm.current = true;
+              setForm(menu.size);
               setMenu(undefined);
-              setOpen(false);
             }}
           >
             Edit
@@ -277,47 +295,13 @@ export function SizePicker({
             disabled={sizes.length <= 1}
             onSelect={() => {
               remove(menu.size);
+              if (editing?.name === menu.size.name) setForm(undefined);
               setMenu(undefined);
             }}
           >
             Delete
           </DropdownMenuItem>
         </PointerMenu>
-      ) : null}
-      {editing ? (
-        <Dialog
-          open
-          onOpenChange={(next) => {
-            if (!next) setEditing(undefined);
-          }}
-        >
-          <DialogContent className="gap-3" aria-describedby={undefined}>
-            <DialogHeader>
-              <DialogTitle>Edit preview size</DialogTitle>
-            </DialogHeader>
-            <SizeForm
-              size={editing}
-              taken={sizes
-                .filter((size) => size.name !== editing.name)
-                .map((size) => size.name)}
-              onSave={(size) => {
-                if (
-                  size.name !== editing.name ||
-                  size.width !== editing.width ||
-                  screenHeight(size) !== screenHeight(editing)
-                ) {
-                  onChange(
-                    sizes.map((each) =>
-                      each.name === editing.name ? size : each,
-                    ),
-                  );
-                  if (current.name === editing.name) onPick(size);
-                }
-                setEditing(undefined);
-              }}
-            />
-          </DialogContent>
-        </Dialog>
       ) : null}
     </>
   );
