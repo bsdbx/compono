@@ -1,32 +1,15 @@
 import {
-  Check,
-  ChevronDown,
-  Monitor,
-  Plus,
-  Smartphone,
-  Tablet,
-  X,
-} from "lucide-react";
-import {
   useEffect,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import type { ScreenSize } from "@/api/types";
 import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { SizePicker } from "./preview-sizes";
 
 const VOID = new Set([
   "area",
@@ -185,164 +168,6 @@ function Frame({ html, width }: { html: string; width: number }) {
   );
 }
 
-function SizeIcon({ width }: { width: number }) {
-  const Icon = width >= 1024 ? Monitor : width >= 600 ? Tablet : Smartphone;
-  return <Icon className="size-3.5 text-muted-foreground" />;
-}
-
-/** A new size: its name, and a width a screen can have. */
-function AddSize({
-  taken,
-  onAdd,
-}: {
-  taken: readonly string[];
-  onAdd: (size: ScreenSize) => void;
-}) {
-  const [name, setName] = useState("");
-  const [width, setWidth] = useState("");
-  const pixels = Number(width);
-  const valid =
-    name.trim() !== "" &&
-    name.trim().length <= 30 &&
-    !taken.includes(name.trim()) &&
-    Number.isInteger(pixels) &&
-    pixels >= 200 &&
-    pixels <= 3840;
-  const field =
-    "flex h-7.5 w-full items-center rounded-md border border-input bg-card px-2 text-sm";
-  return (
-    <form
-      className="flex flex-col gap-1.5 p-1"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (valid) {
-          onAdd({ name: name.trim(), width: pixels });
-        }
-      }}
-      // The menu's typing to find an item would take the focus from the fields
-      onKeyDown={(event) => event.stopPropagation()}
-    >
-      <input
-        // biome-ignore lint/a11y/noAutofocus: the form opens to type the name
-        autoFocus
-        aria-label="Size name"
-        placeholder="Name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        className={cn(field, "outline-none focus:border-selection/50")}
-      />
-      <label className={cn(field, "gap-1 focus-within:border-selection/50")}>
-        <input
-          aria-label="Width"
-          inputMode="numeric"
-          placeholder="Width"
-          value={width}
-          onChange={(event) => setWidth(event.target.value)}
-          className="min-w-0 flex-1 bg-transparent outline-none"
-        />
-        <span className="text-subtle-foreground">px</span>
-      </label>
-      <Button type="submit" size="sm" disabled={!valid} className="w-full">
-        Add
-      </Button>
-    </form>
-  );
-}
-
-/** The screen sizes to render at: pick one, add one, or take one away. */
-function SizePicker({
-  sizes,
-  current,
-  onPick,
-  onChange,
-}: {
-  sizes: readonly ScreenSize[];
-  current: ScreenSize;
-  onPick: (size: ScreenSize) => void;
-  onChange: (sizes: ScreenSize[]) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  return (
-    <DropdownMenu
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        setAdding(false);
-      }}
-    >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Screen size: ${current.name} ${current.width}`}
-          className="flex h-7.5 items-center gap-1.5 rounded-md border border-border px-2 text-sm"
-        >
-          <SizeIcon width={current.width} />
-          <span>{current.name}</span>
-          <span className="text-subtle-foreground">{current.width}</span>
-          <ChevronDown className="ml-1 size-3.5 text-muted-foreground" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
-        {sizes.map((size) => (
-          <DropdownMenuItem
-            key={size.name}
-            className="group/size h-8 gap-2 text-sm"
-            onSelect={() => onPick(size)}
-          >
-            <SizeIcon width={size.width} />
-            <span>{size.name}</span>
-            <span className="flex-1 text-subtle-foreground">{size.width}</span>
-            {size.name === current.name ? (
-              <Check className="size-3.5" />
-            ) : sizes.length > 1 ? (
-              <button
-                type="button"
-                aria-label={`Remove ${size.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onChange(sizes.filter((each) => each !== size));
-                }}
-                className="rounded-sm p-0.5 text-muted-foreground opacity-0 hover:text-foreground group-hover/size:opacity-100 group-focus/size:opacity-100"
-              >
-                <X className="size-3.5" />
-              </button>
-            ) : null}
-          </DropdownMenuItem>
-        ))}
-        {sizes.length < 10 ? (
-          <>
-            <DropdownMenuSeparator />
-            {adding ? (
-              <AddSize
-                taken={sizes.map((size) => size.name)}
-                onAdd={(size) => {
-                  onChange([...sizes, size]);
-                  onPick(size);
-                  setOpen(false);
-                  setAdding(false);
-                }}
-              />
-            ) : (
-              <DropdownMenuItem
-                className="h-8 gap-2 text-sm"
-                onSelect={(event) => {
-                  // The menu stays open for the new size
-                  event.preventDefault();
-                  setAdding(true);
-                }}
-              >
-                <Plus className="size-3.5 text-muted-foreground" />
-                Add size
-              </DropdownMenuItem>
-            )}
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function Box({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative mt-0.5 flex min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-card px-4 text-center">
@@ -443,6 +268,7 @@ export function Preview({
         <h2 className="font-semibold text-sm">Preview</h2>
         {current ? (
           <SizePicker
+            key={componentId}
             sizes={sizes}
             current={current}
             onPick={(size) => pick(size.name)}
