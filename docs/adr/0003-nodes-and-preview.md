@@ -106,9 +106,10 @@ A wire that brings Nothing counts as no wire: the input uses the value typed in 
 
 ### Preview
 
-- The editor renders the Element wired into Component Output into an iframe on the same page, through a React portal.
-- The iframe is as wide as the chosen screen size, and scaled down to fit the preview panel. Tailwind's responsive classes, such as `md:`, then respond to the screen size rather than the editor's window, and the preview's styles stay apart from the editor's.
-- The preview's CSS is built in the browser by Tailwind's own compiler, `compile` from the `tailwindcss` package, from the class names in the graph. It's built again when they change.
+- The editor converts the Element wired into Component Output to escaped HTML in a sandboxed iframe. The frame accepts updates through messages from the editor and has its own origin.
+- The iframe keeps the chosen screen size's width and height when the preview panel resizes. Tailwind's responsive classes, such as `md:`, and viewport units respond to these dimensions rather than the editor's window. A dashed outline shows the screen's bounds.
+- Preview zoom starts at 100%; Fit scales the entire screen into the panel. Ctrl+wheel zooms the preview without changing browser zoom. Middle-drag pans within the rendered content's bounds, with a 24-pixel allowance. F centers the content in the panel. Neither the panel nor the iframe scrolls.
+- The preview's CSS is built by Tailwind's browser compiler inside the iframe when its HTML changes. The preview's styles stay apart from the editor's.
 - With nothing wired to Component Output, the preview says **Nothing to render yet**.
 - Nodes produce data, never code. Element's tags and attributes come from fixed lists, and it refuses a link that runs code, such as `javascript:`. Share links will show this same preview to anyone, so this has to hold.
 

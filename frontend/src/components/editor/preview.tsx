@@ -1,5 +1,12 @@
 import { ChevronDown } from "lucide-react";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
@@ -12,7 +19,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PreviewFrame, type PreviewZoom } from "./preview-frame";
+import { screenHeight } from "./preview-size";
 import { SizePicker } from "./preview-sizes";
+import { previewZoom } from "./preview-view";
 
 const VOID = new Set([
   "area",
@@ -96,7 +105,7 @@ export function toHtml(value: unknown): string {
 
 function Box({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative mt-0.5 flex min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-border bg-card px-4 text-center">
+    <div className="relative mt-0.5 flex min-h-0 flex-1 flex-col items-center justify-center gap-1 overflow-clip rounded-lg border border-border bg-card px-4 text-center">
       {children}
     </div>
   );
@@ -114,15 +123,15 @@ function ZoomPicker({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          aria-label={`Preview zoom: ${zoom === "fit" ? "Fit" : `${zoom * 100}%`}`}
-          title="Preview zoom · Middle-drag to pan"
+          aria-label={`Preview zoom: ${zoom === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}`}
+          title="Ctrl+wheel to zoom · Middle-drag to pan · F to center"
           className="flex h-7.5 shrink-0 items-center gap-1 rounded-md border border-border px-1.5 text-sm"
         >
-          <span>{zoom === "fit" ? "Fit" : `${zoom * 100}%`}</span>
+          <span>{zoom === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}</span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-32">
+      <DropdownMenuContent align="end" className="w-32" data-preview-controls>
         <DropdownMenuItem
           className={zoom === "fit" ? "bg-accent text-sm" : "text-sm"}
           aria-current={zoom === "fit" ? "true" : undefined}
@@ -131,7 +140,7 @@ function ZoomPicker({
           Fit
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        {[0.25, 0.5, 1, 1.5, 2].map((scale) => (
+        {[0.25, 0.5, 1, 1.5, 2, 4].map((scale) => (
           <DropdownMenuItem
             key={scale}
             className={zoom === scale ? "bg-accent text-sm" : "text-sm"}
@@ -185,6 +194,74 @@ export function Preview({
   const evaluated = useEvaluation(graph);
   const nodeTypes = useNodeTypes();
   const [zoom, setZoom] = useState<PreviewZoom>(1);
+  const region = useRef<HTMLElement>(null);
+  const actualScale = useRef(1);
+  const [centerRequest, setCenterRequest] = useState(0);
+  const reportScale = useCallback((scale: number) => {
+    actualScale.current = scale;
+  }, []);
+
+  useEffect(() => {
+    function wheel(event: WheelEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const controls = target.closest(
+        "[data-preview-controls], .preview-size-actions",
+      );
+      if (!region.current?.contains(target) && !controls) return;
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        const delta =
+          event.deltaY *
+          (event.deltaMode === 1
+            ? 16
+            : event.deltaMode === 2
+              ? (region.current?.clientHeight ?? 200)
+              : 1);
+        setZoom((current) =>
+          previewZoom(current === "fit" ? actualScale.current : current, delta),
+        );
+      } else if (!controls) event.preventDefault();
+    }
+    function key(event: KeyboardEvent) {
+      if (
+        event.defaultPrevented ||
+        event.key.toLowerCase() !== "f" ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.closest(
+            'input,textarea,select,[role="combobox"],[role="menu"],[role="dialog"]',
+          ))
+      )
+        return;
+      if (
+        !region.current ||
+        !(
+          region.current.matches(":hover") ||
+          (target instanceof Node && region.current.contains(target))
+        )
+      )
+        return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setCenterRequest((value) => value + 1);
+    }
+    window.addEventListener("wheel", wheel, { capture: true, passive: false });
+    window.addEventListener("keydown", key, true);
+    return () => {
+      window.removeEventListener("wheel", wheel, true);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, []);
   const remembered = useMemo(() => {
     try {
       return componentId
@@ -232,6 +309,7 @@ export function Preview({
 
   return (
     <section
+      ref={region}
       aria-label="Preview"
       className="flex h-full min-h-0 flex-col px-3 pb-3"
     >
@@ -260,8 +338,12 @@ export function Preview({
           <PreviewFrame
             html={html}
             width={current.width}
+            height={screenHeight(current)}
             zoom={zoom}
             componentId={componentId}
+            centerRequest={centerRequest}
+            onZoomChange={setZoom}
+            onScaleChange={reportScale}
           />
         ) : first ? (
           <>

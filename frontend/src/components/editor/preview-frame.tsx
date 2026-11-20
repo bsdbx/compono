@@ -1,130 +1,203 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  type Bounds,
+  type Point,
+  type PreviewZoom,
+  previewScale,
+  previewView,
+  previewZoom,
+} from "./preview-view";
 
-export type PreviewZoom = number | "fit";
+export type { PreviewZoom } from "./preview-view";
 
 const FRAME = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
+<html><head><meta charset="utf-8">
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
 <style>
-html { color-scheme: dark; background: transparent; }
-body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; }
+html, body { margin: 0; width: 100%; height: 100%; overflow: clip; color-scheme: dark; background: transparent; }
+#preview-content { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#preview-content > * { flex-shrink: 0; }
 html[data-panning], html[data-panning] * { cursor: grabbing !important; user-select: none !important; }
-</style>
+</style></head><body><div id="preview-content"></div>
 <script>
-let pan;
+const root = document.getElementById("preview-content");
+let pan, revision = 0, shift = { x: 0, y: 0 }, scheduled = false, previous = "";
+function send(action, data = {}) { parent.postMessage({ type: "compono:preview-" + action, ...data }, "*"); }
+function measure() {
+  scheduled = false;
+  const rects = [...root.querySelectorAll("*")].flatMap(element =>
+    getComputedStyle(element).visibility === "hidden" ? [] : [...element.getClientRects()]);
+  for (const node of root.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+      const range = document.createRange(); range.selectNodeContents(node); rects.push(...range.getClientRects());
+    }
+  }
+  const visible = rects.filter(rect => rect.width || rect.height);
+  const x = visible.length ? Math.min(...visible.map(rect => rect.left)) - shift.x : innerWidth / 2;
+  const y = visible.length ? Math.min(...visible.map(rect => rect.top)) - shift.y : innerHeight / 2;
+  const width = visible.length ? Math.max(...visible.map(rect => rect.right)) - shift.x - x : 0;
+  const height = visible.length ? Math.max(...visible.map(rect => rect.bottom)) - shift.y - y : 0;
+  const bounds = Object.fromEntries(Object.entries({ x, y, width, height }).map(([key, value]) => [key, Math.round(value * 1000) / 1000]));
+  const data = { revision, width: innerWidth, height: innerHeight, bounds };
+  const key = JSON.stringify(data);
+  if (key !== previous) { previous = key; send("bounds", data); }
+}
+function schedule() { if (!scheduled) { scheduled = true; requestAnimationFrame(measure); } }
+const resize = new ResizeObserver(schedule);
+function observe() { resize.disconnect(); resize.observe(root); for (const child of root.querySelectorAll("*")) resize.observe(child); }
+new MutationObserver(records => {
+  if (records.some(record => record.type === "childList")) observe();
+  if (records.some(record => record.target !== root || record.type !== "attributes")) schedule();
+}).observe(root, { childList: true, subtree: true, attributes: true });
+new MutationObserver(schedule).observe(document.head, { childList: true, subtree: true, characterData: true });
 function finishPan() {
-  if (!pan) return;
+  const current = pan; if (!current) return;
   pan = undefined;
   document.documentElement.removeAttribute("data-panning");
-  parent.postMessage({ type: "compono:preview-pan", phase: "end" }, "*");
+  if (document.documentElement.hasPointerCapture(current.pointer)) document.documentElement.releasePointerCapture(current.pointer);
+  send("pan", { phase: "end" });
 }
-addEventListener("message", (event) => {
+addEventListener("message", event => {
   if (event.source !== parent) return;
-  if (typeof event.data === "string") {
-    finishPan();
-    document.body.innerHTML = event.data;
-  } else if (event.data?.type === "compono:preview-scroll" &&
-      Number.isFinite(event.data.x) && Number.isFinite(event.data.y)) {
-    scrollBy(event.data.x, event.data.y);
-  } else if (event.data?.type === "compono:preview-reset") {
-    finishPan();
-    scrollTo(0, 0);
+  const data = event.data;
+  if (data?.type === "compono:preview-html" && typeof data.html === "string") {
+    finishPan(); revision = data.revision; root.innerHTML = data.html; observe(); schedule();
+  } else if (data?.type === "compono:preview-view" && Number.isFinite(data.x) && Number.isFinite(data.y)) {
+    shift = { x: data.x, y: data.y };
+    root.style.transform = "translate(" + shift.x + "px," + shift.y + "px)";
   }
 });
-addEventListener("pointerdown", (event) => {
+addEventListener("pointerdown", event => {
   if (event.button !== 1) return;
-  event.preventDefault();
-  pan = { pointer: event.pointerId, x: event.clientX, y: event.clientY };
+  event.preventDefault(); pan = { pointer: event.pointerId, x: event.screenX, y: event.screenY };
   document.documentElement.setPointerCapture(event.pointerId);
-  document.documentElement.setAttribute("data-panning", "");
-  parent.postMessage({ type: "compono:preview-pan", phase: "start" }, "*");
+  document.documentElement.setAttribute("data-panning", ""); send("pan", { phase: "start" });
 });
-addEventListener("pointermove", (event) => {
+addEventListener("pointermove", event => {
   if (!pan || event.pointerId !== pan.pointer) return;
   event.preventDefault();
-  const x = pan.x - event.clientX, y = pan.y - event.clientY;
-  pan.x = event.clientX; pan.y = event.clientY;
-  const beforeX = scrollX, beforeY = scrollY;
-  scrollBy(x, y);
-  parent.postMessage({ type: "compono:preview-pan", phase: "move",
-    x: x - (scrollX - beforeX), y: y - (scrollY - beforeY) }, "*");
+  const x = event.screenX - pan.x, y = event.screenY - pan.y;
+  pan.x = event.screenX; pan.y = event.screenY; send("pan", { phase: "move", x, y });
 });
 addEventListener("pointerup", finishPan);
 addEventListener("pointercancel", finishPan);
 addEventListener("lostpointercapture", finishPan);
 addEventListener("blur", finishPan);
-addEventListener("auxclick", (event) => { if (event.button === 1) event.preventDefault(); });
-addEventListener("click", (event) => {
-  if (event.target instanceof Element && event.target.closest("a")) event.preventDefault();
-}, true);
-</script>
-</head>
-<body></body>
-</html>`;
+addEventListener("auxclick", event => { if (event.button === 1) event.preventDefault(); });
+addEventListener("click", event => { if (event.target instanceof Element && event.target.closest("a")) event.preventDefault(); }, true);
+addEventListener("wheel", event => {
+  event.preventDefault();
+  if (event.ctrlKey || event.metaKey) send("zoom", { delta: event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? innerHeight : 1) });
+}, { passive: false });
+addEventListener("keydown", event => {
+  const target = event.target;
+  if (event.key.toLowerCase() === "f" && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey &&
+      !(target instanceof HTMLElement && (target.isContentEditable || target.closest('input,textarea,select,[role="textbox"],[role="combobox"]')))) {
+    event.preventDefault(); event.stopPropagation(); send("center");
+  }
+});
+addEventListener("resize", schedule);
+document.fonts.ready.then(schedule);
+document.fonts.addEventListener("loadingdone", schedule);
+observe(); schedule();
+</script></body></html>`;
 
-/** Scroll within real content bounds and return any movement it could not consume. */
-function scrollWithin(element: HTMLElement, x: number, y: number) {
-  const beforeX = element.scrollLeft,
-    beforeY = element.scrollTop;
-  element.scrollLeft = Math.max(
-    0,
-    Math.min(element.scrollWidth - element.clientWidth, beforeX + x),
-  );
-  element.scrollTop = Math.max(
-    0,
-    Math.min(element.scrollHeight - element.clientHeight, beforeY + y),
-  );
-  return {
-    x: x - (element.scrollLeft - beforeX),
-    y: y - (element.scrollTop - beforeY),
-  };
-}
-
-/** The selected width is the iframe viewport; panel size and zoom only affect its visible area. */
+/** A fixed document behind one bounded camera. Neither document nor panel scrolls. */
 export function PreviewFrame({
   html,
   width,
+  height = 720,
   zoom = 1,
   componentId,
+  centerRequest = 0,
+  onZoomChange,
+  onScaleChange,
 }: {
   html: string;
   width: number;
+  height?: number;
   zoom?: PreviewZoom;
   componentId?: string | undefined;
+  centerRequest?: number;
+  onZoomChange?: (zoom: number) => void;
+  onScaleChange?: (scale: number) => void;
 }) {
-  const box = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
+  const revision = useRef(0);
   const drag = useRef<{ pointer: number; x: number; y: number }>(undefined);
-  const [boxSize, setBoxSize] = useState({ width: 0, height: 172 });
+  const [boxSize, setBoxSize] = useState({ width: 0, height: 0 });
+  const [measured, setMeasured] = useState<{ key: string; bounds: Bounds }>();
+  const [position, setPosition] = useState<{ key: string; pan: Point }>();
   const [panning, setPanning] = useState(false);
-  const view = useRef<{
-    component: string | undefined;
-    width: number;
-    height: number;
-    x: number;
-    y: number;
-  }>(undefined);
-  const scale =
-    zoom === "fit"
-      ? boxSize.width > 0
-        ? Math.min(1, boxSize.width / width)
-        : 1
-      : zoom;
-  const stageWidth = Math.max(boxSize.width, width * scale);
-  const stageHeight = Math.max(boxSize.height, boxSize.height * scale);
-  const left = (stageWidth - width * scale) / 2;
-  const top = (stageHeight - boxSize.height * scale) / 2;
+  const sizeKey = `${componentId}:${width}:${height}`;
+  const key = `${sizeKey}:${centerRequest}`;
+  const content =
+    measured?.key === sizeKey ? measured.bounds : { x: 0, y: 0, width, height };
+  const scale = previewScale(zoom, boxSize, { width, height });
+  const view = previewView(
+    boxSize,
+    { width, height },
+    content,
+    position?.key === key ? position.pan : { x: 0, y: 0 },
+    scale,
+  );
+  const live = useRef({
+    box: boxSize,
+    size: { width, height },
+    content,
+    pan: view.pan,
+    scale,
+    key,
+    sizeKey,
+    onZoomChange,
+  });
+  live.current = {
+    box: boxSize,
+    size: { width, height },
+    content,
+    pan: view.pan,
+    scale,
+    key,
+    sizeKey,
+    onZoomChange,
+  };
+
+  const move = useCallback((x: number, y: number, relative = true) => {
+    const now = live.current;
+    const next = previewView(
+      now.box,
+      now.size,
+      now.content,
+      {
+        x: x + (relative ? now.pan.x : 0),
+        y: y + (relative ? now.pan.y : 0),
+      },
+      now.scale,
+    ).pan;
+    now.pan = next;
+    setPosition({ key: now.key, pan: next });
+  }, []);
+
+  const sendHtml = useCallback((value: string) => {
+    revision.current += 1;
+    frame.current?.contentWindow?.postMessage(
+      { type: "compono:preview-html", html: value, revision: revision.current },
+      "*",
+    );
+  }, []);
 
   useLayoutEffect(() => {
     const element = box.current;
     if (!element) return;
     const measure = () => {
-      const next = {
-        width: element.clientWidth,
-        height: element.clientHeight || 172,
-      };
+      const next = { width: element.clientWidth, height: element.clientHeight };
       setBoxSize((before) =>
         before.width === next.width && before.height === next.height
           ? before
@@ -137,85 +210,88 @@ export function PreviewFrame({
     return () => observer.disconnect();
   }, []);
 
-  useLayoutEffect(() => {
-    const element = box.current;
-    if (!element || boxSize.width <= 0) return;
-    const previous = view.current;
-    const reset =
-      !previous ||
-      previous.component !== componentId ||
-      previous.width !== width;
-    const x = reset ? width / 2 : previous.x;
-    const y = reset
-      ? boxSize.height / 2
-      : previous.y + (boxSize.height - previous.height) / 2;
-    scrollWithin(
-      element,
-      x * scale + left - boxSize.width / 2 - element.scrollLeft,
-      y * scale + top - boxSize.height / 2 - element.scrollTop,
-    );
-    view.current = {
-      component: componentId,
-      width,
-      height: boxSize.height,
-      x: (element.scrollLeft + boxSize.width / 2 - left) / scale,
-      y: (element.scrollTop + boxSize.height / 2 - top) / scale,
-    };
-    if (reset)
-      frame.current?.contentWindow?.postMessage(
-        { type: "compono:preview-reset" },
-        "*",
-      );
-  }, [componentId, width, boxSize.width, boxSize.height, left, top, scale]);
-
+  useEffect(() => sendHtml(html), [html, sendHtml]);
   useEffect(() => {
-    frame.current?.contentWindow?.postMessage(html, "*");
-  }, [html]);
+    onScaleChange?.(scale);
+  }, [scale, onScaleChange]);
+  const contentX = view.content.x;
+  const contentY = view.content.y;
+  useEffect(() => {
+    frame.current?.contentWindow?.postMessage(
+      { type: "compono:preview-view", x: contentX, y: contentY },
+      "*",
+    );
+  }, [contentX, contentY]);
 
   useEffect(() => {
     function receive(event: MessageEvent) {
       if (
-        event.source !== frame.current?.contentWindow ||
-        event.data?.type !== "compono:preview-pan"
+        !frame.current?.contentWindow ||
+        event.source !== frame.current.contentWindow
       )
         return;
-      const { phase, x, y } = event.data;
-      if (phase === "start") setPanning(true);
-      else if (phase === "end") setPanning(false);
-      else if (
-        phase === "move" &&
-        Number.isFinite(x) &&
-        Number.isFinite(y) &&
-        box.current
+      const data = event.data,
+        now = live.current;
+      if (
+        data?.type === "compono:preview-bounds" &&
+        data.revision === revision.current &&
+        data.width === now.size.width &&
+        data.height === now.size.height
       ) {
-        scrollWithin(box.current, x * scale, y * scale);
-      }
+        const bounds = data.bounds;
+        if (
+          !bounds ||
+          ![bounds.x, bounds.y, bounds.width, bounds.height].every(
+            Number.isFinite,
+          ) ||
+          bounds.width < 0 ||
+          bounds.height < 0
+        )
+          return;
+        setMeasured((before) =>
+          before?.key === now.sizeKey &&
+          JSON.stringify(before.bounds) === JSON.stringify(bounds)
+            ? before
+            : { key: now.sizeKey, bounds },
+        );
+      } else if (data?.type === "compono:preview-pan") {
+        if (data.phase === "start") setPanning(true);
+        else if (data.phase === "end") setPanning(false);
+        else if (
+          data.phase === "move" &&
+          Number.isFinite(data.x) &&
+          Number.isFinite(data.y)
+        )
+          move(data.x, data.y);
+      } else if (data?.type === "compono:preview-center") move(0, 0, false);
+      else if (
+        data?.type === "compono:preview-zoom" &&
+        Number.isFinite(data.delta)
+      )
+        now.onZoomChange?.(previewZoom(now.scale, data.delta));
     }
     window.addEventListener("message", receive);
     return () => window.removeEventListener("message", receive);
-  }, [scale]);
+  }, [move]);
 
   function finishPan() {
+    const current = drag.current;
     drag.current = undefined;
     setPanning(false);
+    if (current && box.current?.hasPointerCapture?.(current.pointer))
+      box.current.releasePointerCapture(current.pointer);
   }
 
   return (
     <section
       ref={box}
       aria-label="Preview viewport"
-      // biome-ignore lint/a11y/noNoninteractiveTabindex: the scrollable viewport needs keyboard scrolling.
-      tabIndex={0}
       data-preview-viewport
-      className={`absolute inset-0 overflow-auto overscroll-contain outline-none ${panning ? "cursor-grabbing select-none" : ""}`}
-      onScroll={(event) => {
-        if (!view.current) return;
-        const element = event.currentTarget;
-        view.current.x =
-          (element.scrollLeft + element.clientWidth / 2 - left) / scale;
-        view.current.y =
-          (element.scrollTop + element.clientHeight / 2 - top) / scale;
-      }}
+      data-pan-x={view.pan.x}
+      data-pan-y={view.pan.y}
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: F recenters the preview when it has keyboard focus.
+      tabIndex={0}
+      className={`absolute inset-0 overflow-clip outline-none ${panning ? "cursor-grabbing select-none" : ""}`}
       onPointerDown={(event) => {
         if (event.button !== 1) return;
         event.preventDefault();
@@ -231,32 +307,22 @@ export function PreviewFrame({
         const current = drag.current;
         if (!current || current.pointer !== event.pointerId) return;
         event.preventDefault();
-        const remaining = scrollWithin(
-          event.currentTarget,
-          current.x - event.clientX,
-          current.y - event.clientY,
-        );
+        move(event.clientX - current.x, event.clientY - current.y);
         current.x = event.clientX;
         current.y = event.clientY;
-        if (remaining.x || remaining.y)
-          frame.current?.contentWindow?.postMessage(
-            {
-              type: "compono:preview-scroll",
-              x: remaining.x / scale,
-              y: remaining.y / scale,
-            },
-            "*",
-          );
       }}
       onPointerUp={finishPan}
       onPointerCancel={finishPan}
       onLostPointerCapture={finishPan}
     >
       <div
-        className="relative"
+        className="absolute origin-top-left"
         style={{
-          width: stageWidth,
-          height: stageHeight,
+          left: view.frame.x,
+          top: view.frame.y,
+          width,
+          height,
+          transform: `scale(${scale})`,
         }}
       >
         <iframe
@@ -264,17 +330,28 @@ export function PreviewFrame({
           title="Preview"
           sandbox="allow-scripts"
           srcDoc={FRAME}
-          onLoad={() => frame.current?.contentWindow?.postMessage(html, "*")}
-          className="absolute origin-top-left border-0"
-          style={{
-            width,
-            height: boxSize.height,
-            left,
-            top,
-            transform: `scale(${scale})`,
+          onLoad={() => {
+            sendHtml(html);
+            frame.current?.contentWindow?.postMessage(
+              { type: "compono:preview-view", ...view.content },
+              "*",
+            );
           }}
+          className="absolute inset-0 border-0"
+          style={{ width, height }}
         />
       </div>
+      <div
+        aria-hidden
+        data-preview-bounds
+        className="pointer-events-none absolute border border-foreground/20 border-dashed"
+        style={{
+          left: view.frame.x,
+          top: view.frame.y,
+          width: width * scale,
+          height: height * scale,
+        }}
+      />
     </section>
   );
 }

@@ -60,7 +60,7 @@ The live rendering of the open component, at a chosen screen size.
 _Avoid_: Live Preview, render
 
 **Screen size**:
-A named width that the preview renders at, such as Desktop 1280 or Mobile 390. Each component has its own.
+A named width and height that the preview renders at, such as Desktop 1280 × 720 or Mobile 390 × 844. Each component has its own; resizing the editor's panels keeps these dimensions.
 _Avoid_: Breakpoint, viewport, device
 
 ### Graph

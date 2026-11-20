@@ -12,7 +12,13 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from compono import auth, components, models, projects, teams
-from compono.api.components import MAX_GRAPH_BYTES, Component, ListedComponent, Saved
+from compono.api.components import (
+    MAX_GRAPH_BYTES,
+    Component,
+    ListedComponent,
+    Saved,
+    ScreenSize,
+)
 from compono.api.projects import Project
 from compono.models import ProjectRole, TeamRole
 from compono.nodes.component import new_graph
@@ -23,6 +29,14 @@ GRAPH: dict[str, object] = {"nodes": [{"id": "output", "type": "component-output
 SIZES: list[dict[str, object]] = [{"name": "Wide", "width": 1440}]
 
 listed_components = TypeAdapter(list[ListedComponent])
+
+
+@pytest.mark.parametrize(("width", "height"), [(1280, 720), (768, 1024), (390, 844)])
+def test_legacy_preview_sizes_receive_fixed_heights(width: int, height: int) -> None:
+    data: dict[str, object] = {"name": "Existing", "width": width}
+    size = ScreenSize.model_validate(data)
+    assert size.height == height
+    assert ScreenSize.model_validate_json(size.model_dump_json()).height == height
 
 
 class Error(BaseModel):
@@ -328,6 +342,18 @@ def test_node_display_names_survive_saving_and_reopening(
     assert opened.graph == named
 
 
+def test_preview_height_survives_saving_and_reopening(
+    client: TestClient, session: Session
+) -> None:
+    acme_ = acme(client, session)
+    sizes = [{"name": "Desktop", "width": 1440, "height": 900}]
+    assert save(client, acme_.card.id, content(1, GRAPH, sizes)).status_code == 200
+    opened = Component.model_validate_json(
+        client.get(f"{COMPONENTS}/{acme_.card.id}").text
+    )
+    assert opened.screen_sizes == [ScreenSize(name="Desktop", width=1440, height=900)]
+
+
 def test_a_save_from_an_old_version_is_a_conflict(
     client: TestClient, session: Session
 ) -> None:
@@ -421,6 +447,14 @@ def test_a_graph_just_under_the_limit_is_saved(
         ),
         ([{"name": "Tiny", "width": 199}], ["body", "screen_sizes", 0, "width"]),
         ([{"name": "Huge", "width": 3841}], ["body", "screen_sizes", 0, "width"]),
+        (
+            [{"name": "Short", "width": 1280, "height": 199}],
+            ["body", "screen_sizes", 0, "height"],
+        ),
+        (
+            [{"name": "Tall", "width": 1280, "height": 3841}],
+            ["body", "screen_sizes", 0, "height"],
+        ),
         ([{"name": "  ", "width": 800}], ["body", "screen_sizes", 0, "name"]),
         ([{"name": "Wi\x00de", "width": 800}], ["body", "screen_sizes", 0, "name"]),
     ],
