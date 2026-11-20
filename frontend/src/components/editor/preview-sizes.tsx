@@ -130,14 +130,14 @@ export function SizePicker({
           <button
             type="button"
             aria-label={`Screen size: ${current.name} ${current.width}`}
-            className="flex h-7.5 min-w-0 items-center gap-1.5 rounded-md border border-border px-2 text-sm"
+            className="flex h-7.5 min-w-0 items-center gap-1 rounded-md border border-border px-1.5 text-sm"
           >
             <SizeIcon width={current.width} />
             <span className="truncate">{current.name}</span>
             <span className="shrink-0 text-subtle-foreground">
               {current.width}
             </span>
-            <ChevronDown className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
+            <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
         {!menu ? (

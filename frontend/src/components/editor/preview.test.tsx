@@ -343,3 +343,45 @@ test("a screen size picks, adds and goes", async () => {
     screen_sizes: [SIZES[0], SIZES[1], { name: "Wide", width: 1440 }],
   });
 });
+
+test("preview zoom defaults to 100% and changes scale independently of the selected width and saved content", async () => {
+  answer.rendered = {
+    tag: "button",
+    className: "",
+    attributes: {},
+    children: ["Compono"],
+  };
+  const { draft, change } = fakeDraft(content);
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  const frame = await screen.findByTitle("Preview");
+  expect(frame).toHaveStyle({ width: "1280px", transform: "scale(1)" });
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: "Preview zoom: 100%" }),
+    { button: 0, ctrlKey: false },
+  );
+  const zooms = await screen.findByRole("menu");
+  expect(within(zooms).getByRole("menuitem", { name: "100%" })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  fireEvent.click(within(zooms).getByRole("menuitem", { name: "200%" }));
+  expect(frame).toHaveStyle({ width: "1280px", transform: "scale(2)" });
+  fireEvent.click(
+    within(await openSizes()).getByRole("menuitem", { name: /Tablet/ }),
+  );
+  expect(frame).toHaveStyle({ width: "768px", transform: "scale(2)" });
+  fireEvent.pointerDown(
+    screen.getByRole("button", { name: "Preview zoom: 200%" }),
+    { button: 0, ctrlKey: false },
+  );
+  fireEvent.click(
+    within(await screen.findByRole("menu")).getByRole("menuitem", {
+      name: "Fit",
+    }),
+  );
+  expect(
+    screen.getByRole("button", { name: "Preview zoom: Fit" }),
+  ).toBeInTheDocument();
+  expect(frame).toHaveStyle({ width: "768px" });
+  expect(change).not.toHaveBeenCalled();
+});
