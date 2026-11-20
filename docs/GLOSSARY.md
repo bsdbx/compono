@@ -101,11 +101,11 @@ A connection from one output to one input.
 _Avoid_: Link, edge, connection
 
 **Socket group**:
-A numbered, reorderable list of inputs on a node that grows a row at a time, such as an Element's Children.
+A reorderable list of inputs on a node, such as an Element's Children, represented by one capsule with values ordered top-to-bottom. Wired rows disappear with their wire; intentionally empty rows can exist independently.
 _Avoid_: Multi-input, dynamic sockets
 
 **Add socket**:
-The last socket of a node whose inputs can grow, such as Join or Merge. Wiring into it, or clicking it, adds one more input.
+The attachment point that accepts an additional wire into a socket group, appending an input or inserting one between existing rows.
 
 **Property**:
 A setting of a node that is set in the properties panel rather than on the node, and that can't take a wire.

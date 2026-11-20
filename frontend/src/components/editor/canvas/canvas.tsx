@@ -5,17 +5,20 @@ import {
   BackgroundVariant,
   type Connection,
   type ConnectionLineComponentProps,
+  ConnectionMode,
   type Edge,
   type EdgeChange,
   type FinalConnectionState,
   getBezierPath,
   type NodeChange,
+  type OnConnectStartParams,
   Position,
   ReactFlow,
   ReactFlowProvider,
   SelectionMode,
   useConnection,
   useReactFlow,
+  useStoreApi,
   ViewportPortal,
 } from "@xyflow/react";
 import {
@@ -27,7 +30,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import type { NodeTypeInfo } from "@/api/types";
+import type { NodeTypeInfo, Wire } from "@/api/types";
 import type { Content, Draft } from "@/components/editor/draft";
 import {
   DropdownMenuItem,
@@ -57,12 +60,12 @@ import {
   disconnectNodes,
   duplicateNodes,
   type Graph,
+  groupDrop,
   moveNodes,
-  moveRow,
   newNode,
+  pruneDisconnectedRows,
   readGraph,
   removeNodes,
-  removeRow,
   type SocketType,
   setNodeWidth,
   toggleCollapsed,
@@ -73,6 +76,12 @@ import type { NodeSize } from "./node-size";
 import { type CanvasNode, NodeView } from "./node-view";
 import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
 import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
+import {
+  connectionEnds,
+  flowHandle,
+  graphHandle,
+  groupDestination,
+} from "./wiring";
 
 const NODE_VIEWS = { graph: NodeView };
 // A stable prop lets queued fit commands keep their own nodes and animation options.
@@ -105,12 +114,52 @@ function ConnectionLine({
   fromPosition,
   toPosition,
   fromHandle,
+  toHandle,
+  pointer,
 }: ConnectionLineComponentProps<CanvasNode>) {
   const canvas = useCanvas();
-  const type =
-    fromHandle.type === "source"
-      ? outputType(canvas.graph, canvas, fromHandle.nodeId, fromHandle.id ?? "")
-      : inputType(canvas.graph, canvas, fromHandle.nodeId, fromHandle.id ?? "");
+  const flow = useReactFlow<CanvasNode>();
+  // Insertion gaps cover the row's width; their center is only a drop target, not a socket.
+  if (groupDrop(graphHandle(toHandle?.id)?.socket ?? "")?.before) {
+    const { x, y, zoom } = flow.getViewport();
+    toX = (pointer.x - x) / zoom;
+    toY = (pointer.y - y) / zoom;
+  }
+  const decoded = graphHandle(fromHandle.id);
+  const type = canvas.rewiring
+    ? outputType(
+        canvas.graph,
+        canvas,
+        canvas.rewiring.from.node,
+        canvas.rewiring.from.socket,
+      )
+    : fromHandle.type === "source"
+      ? outputType(
+          canvas.graph,
+          canvas,
+          fromHandle.nodeId,
+          decoded?.socket ?? "",
+        )
+      : inputType(
+          canvas.graph,
+          canvas,
+          fromHandle.nodeId,
+          decoded?.socket ?? "",
+        );
+  if (canvas.rewiring) {
+    const wire = canvas.rewiring;
+    const source = flow.getInternalNode(wire.from.node);
+    const handle = source?.internals.handleBounds?.source?.find(
+      (each) => each.id === flowHandle("source", wire.from.socket),
+    );
+    if (source && handle) {
+      fromX = source.internals.positionAbsolute.x + handle.x + handle.width / 2;
+      fromY =
+        source.internals.positionAbsolute.y + handle.y + handle.height / 2;
+      fromPosition = Position.Right;
+      toPosition = Position.Left;
+    }
+  }
   const [path] = getBezierPath({
     sourceX: fromX,
     sourceY: fromY,
@@ -171,6 +220,12 @@ function Flow({
   hidden: boolean;
 }) {
   const flow = useReactFlow<CanvasNode>();
+  const store = useStoreApi<CanvasNode>();
+  const [rewiring, setRewiring] = useState<Wire>();
+  const wireDrag = useRef<{ picked: Wire | undefined; cancelled: boolean }>({
+    picked: undefined,
+    cancelled: false,
+  });
   const wrapper = useRef<HTMLDivElement>(null);
   const pointer = useRef<XY>(undefined);
   const [placement, setPlacement] = useState<Placement>();
@@ -292,7 +347,7 @@ function Flow({
   const edit = useCallback(
     (change: (graph: Graph) => Graph, key?: string) => {
       const current = latest();
-      const next = change(current);
+      const next = pruneDisconnectedRows(current, change(current));
       if (next !== current) {
         history.record(current, key);
         save(next);
@@ -669,6 +724,7 @@ function Flow({
       startRename,
       finishRename,
       resizeNode,
+      rewiring,
     }),
     [
       graph,
@@ -680,6 +736,7 @@ function Flow({
       startRename,
       finishRename,
       resizeNode,
+      rewiring,
     ],
   );
 
@@ -687,12 +744,13 @@ function Flow({
   const replacing = useConnection<CanvasNode, string | undefined>(
     (connection) =>
       connection.inProgress && connection.toHandle?.type === "target"
-        ? `${connection.toHandle.nodeId}\n${connection.toHandle.id}`
+        ? `${connection.toHandle.nodeId}\n${graphHandle(connection.toHandle.id)?.socket}`
         : undefined,
   );
 
   // Wires whose sockets are on the canvas
   const edges: Edge[] = graph.wires.flatMap((wire) => {
+    if (wire.id === rewiring?.id) return [];
     const out = outputType(graph, canvas, wire.from.node, wire.from.socket);
     const into = inputType(graph, canvas, wire.to.node, wire.to.socket);
     if (out === undefined || into === undefined) {
@@ -700,15 +758,17 @@ function Flow({
     }
 
     const red = refused.has(wire.id);
-    const replaced = replacing === `${wire.to.node}\n${wire.to.socket}`;
+    const replaced =
+      replacing === `${wire.to.node}\n${wire.to.socket}` &&
+      !wire.to.socket.includes("/");
     const selected = selectedWires.has(wire.id);
     return [
       {
         id: wire.id,
         source: wire.from.node,
-        sourceHandle: wire.from.socket,
+        sourceHandle: flowHandle("source", wire.from.socket),
         target: wire.to.node,
-        targetHandle: wire.to.socket,
+        targetHandle: flowHandle("target", wire.to.socket),
         selected,
         ...(red
           ? {
@@ -748,22 +808,54 @@ function Flow({
   }
 
   function onConnect(connection: Connection) {
-    if (connection.sourceHandle && connection.targetHandle) {
+    const drag = wireDrag.current;
+    if (drag.cancelled || drag.picked) return;
+    const ends = connectionEnds(connection);
+    if (ends) {
       edit((current) =>
-        connect(
-          current,
-          {
-            node: connection.source,
-            socket: connection.sourceHandle as string,
-          },
-          {
-            node: connection.target,
-            socket: connection.targetHandle as string,
-          },
-        ),
+        connect(current, ends.from, groupDestination(current, ends.to)),
       );
     }
   }
+
+  function onConnectStart(
+    _: MouseEvent | TouchEvent,
+    handle: OnConnectStartParams,
+  ) {
+    const socket = graphHandle(handle.handleId);
+    const picked =
+      socket?.type === "target" && socket.socket.includes("/")
+        ? latest().wires.find(
+            (wire) =>
+              wire.to.node === handle.nodeId &&
+              wire.to.socket === socket.socket,
+          )
+        : undefined;
+    wireDrag.current = { picked, cancelled: false };
+    setRewiring(picked);
+    setAdding(undefined);
+    setMenu(undefined);
+  }
+
+  useEffect(() => {
+    function cancel(event: KeyboardEvent | Event) {
+      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
+      if (!store.getState().connection.inProgress) return;
+      wireDrag.current.cancelled = true;
+      setRewiring(undefined);
+      store.getState().cancelConnection();
+      if (event instanceof KeyboardEvent) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    }
+    window.addEventListener("keydown", cancel, true);
+    window.addEventListener("blur", cancel);
+    return () => {
+      window.removeEventListener("keydown", cancel, true);
+      window.removeEventListener("blur", cancel);
+    };
+  }, [store]);
 
   function at(clientX: number, clientY: number) {
     const box = wrapper.current?.getBoundingClientRect();
@@ -779,24 +871,68 @@ function Flow({
     event: MouseEvent | TouchEvent,
     state: FinalConnectionState,
   ) {
+    const { picked, cancelled } = wireDrag.current;
+    wireDrag.current = { picked: undefined, cancelled: false };
+    setRewiring(undefined);
+    if (cancelled) return;
+    if (picked) {
+      const target = state.toHandle;
+      const socket = graphHandle(target?.id);
+      if (
+        state.isValid &&
+        target?.type === "target" &&
+        socket?.type === "target"
+      ) {
+        const destination = { node: target.nodeId, socket: socket.socket };
+        if (
+          destination.node === picked.to.node &&
+          destination.socket === picked.to.socket
+        )
+          return;
+        edit((current) =>
+          current.wires.some((wire) => wire.id === picked.id)
+            ? connect(
+                disconnect(current, new Set([picked.id])),
+                picked.from,
+                groupDestination(current, destination),
+                picked.id,
+              )
+            : current,
+        );
+      } else if (
+        !target &&
+        event.target instanceof Node &&
+        wrapper.current?.contains(event.target) &&
+        !editing(event.target)
+      ) {
+        edit((current) => disconnect(current, new Set([picked.id])));
+      }
+      return;
+    }
     const handle = state.fromHandle;
+    const socket = graphHandle(handle?.id);
     if (
       state.from === null ||
       state.isValid ||
       state.toHandle ||
       handle?.type !== "source" ||
-      !handle.id
+      !socket
     ) {
       return;
     }
-    const type = outputType(graph, canvas, handle.nodeId, handle.id);
+    const type = outputType(graph, canvas, handle.nodeId, socket.socket);
     const point = "changedTouches" in event ? event.changedTouches[0] : event;
     if (type === undefined || point === undefined) {
       return;
     }
     setAdding({
       ...at(point.clientX, point.clientY),
-      from: { node: handle.nodeId, socket: handle.id, type, start: state.from },
+      from: {
+        node: handle.nodeId,
+        socket: socket.socket,
+        type,
+        start: state.from,
+      },
     });
   }
 
@@ -983,51 +1119,6 @@ function Flow({
           </>
         );
       }
-      case "row": {
-        const rows =
-          graph.nodes.find((node) => node.id === open.node)?.groups[
-            open.group
-          ] ?? [];
-        const index = rows.indexOf(open.row);
-        return (
-          <>
-            <DropdownMenuItem
-              className={MENU_ITEM}
-              disabled={index <= 0}
-              onSelect={() =>
-                edit((current) =>
-                  moveRow(current, open.node, open.group, open.row, -1),
-                )
-              }
-            >
-              Move up
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className={MENU_ITEM}
-              disabled={index === -1 || index >= rows.length - 1}
-              onSelect={() =>
-                edit((current) =>
-                  moveRow(current, open.node, open.group, open.row, 1),
-                )
-              }
-            >
-              Move down
-            </DropdownMenuItem>
-            <DropdownMenuSeparator className={MENU_SEPARATOR} />
-            <DropdownMenuItem
-              variant="destructive"
-              className={MENU_ITEM}
-              onSelect={() =>
-                edit((current) =>
-                  removeRow(current, open.node, open.group, open.row),
-                )
-              }
-            >
-              Remove
-            </DropdownMenuItem>
-          </>
-        );
-      }
     }
   }
 
@@ -1077,6 +1168,12 @@ function Flow({
           nodesDraggable={!placement}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onConnectStart={onConnectStart}
+          connectionMode={ConnectionMode.Loose}
+          isValidConnection={(connection) =>
+            !wireDrag.current.cancelled &&
+            Boolean(connectionEnds(connection, wireDrag.current.picked))
+          }
           onConnectEnd={onConnectEnd}
           connectionLineComponent={ConnectionLine}
           // A wire into a socket that just appeared draws once React Flow has measured the socket
@@ -1127,26 +1224,12 @@ function Flow({
               );
               setSelectedWires(new Set());
             }
-            const row = (event.target as HTMLElement).closest<HTMLElement>(
-              "[data-row]",
-            );
-            setMenu(
-              row?.dataset.row && row.dataset.group
-                ? {
-                    kind: "row",
-                    x: event.clientX,
-                    y: event.clientY,
-                    node: node.id,
-                    group: row.dataset.group,
-                    row: row.dataset.row,
-                  }
-                : {
-                    kind: "node",
-                    x: event.clientX,
-                    y: event.clientY,
-                    node: node.id,
-                  },
-            );
+            setMenu({
+              kind: "node",
+              x: event.clientX,
+              y: event.clientY,
+              node: node.id,
+            });
           }}
           colorMode="dark"
           style={{ background: "transparent" }}

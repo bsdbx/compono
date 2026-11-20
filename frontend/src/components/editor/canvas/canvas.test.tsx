@@ -1,9 +1,16 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { renderWithClient, stubApi } from "@/test-utils";
 import type { Content, Draft } from "../draft";
 import { Canvas } from "./canvas";
-import { newNode, readGraph } from "./graph";
+import { type Graph, newNode, readGraph, type SocketType } from "./graph";
+
+const refreshHandles = vi.hoisted(() => vi.fn());
+// JSDOM has no layout; actual handle alignment is checked in the browser.
+vi.mock("@xyflow/react", async (original) => ({
+  ...(await original<typeof import("@xyflow/react")>()),
+  useUpdateNodeInternals: () => refreshHandles,
+}));
 
 const captureMethods = ["setPointerCapture", "releasePointerCapture"] as const;
 const beforeCapture = captureMethods.map((name) =>
@@ -20,7 +27,12 @@ afterEach(() => {
   });
 });
 
-function selectionCanvas(hidden = false, count = 2) {
+function selectionCanvas(
+  hidden = false,
+  count = 2,
+  initialGraph?: Graph,
+  groupType?: SocketType,
+) {
   vi.stubGlobal("PointerEvent", MouseEvent);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(500);
@@ -38,7 +50,16 @@ function selectionCanvas(hidden = false, count = 2) {
               sockets: {
                 inputs: [{ id: "value", label: "Value", type, default: "" }],
                 outputs: [{ id: "value", label: "Value", type }],
-                groups: [],
+                groups: initialGraph
+                  ? [
+                      {
+                        id: "children",
+                        label: "Children",
+                        type: groupType ?? type,
+                        before: null,
+                      },
+                    ]
+                  : [],
               },
             },
           ]
@@ -48,7 +69,7 @@ function selectionCanvas(hidden = false, count = 2) {
   let snapshot = {
     status: "saved",
     content: {
-      graph: {
+      graph: initialGraph ?? {
         format: 1,
         props: [],
         nodes: [
@@ -85,6 +106,225 @@ function selectionCanvas(hidden = false, count = 2) {
   renderWithClient(<Canvas draft={draft} hidden={hidden} />);
   return { change, graph: () => readGraph(snapshot.content.graph) };
 }
+
+function orderedInputs(groupType?: SocketType) {
+  const first = {
+    ...newNode("pass", { x: 0, y: 0 }, "first"),
+    name: "Heading",
+  };
+  const second = {
+    ...newNode("pass", { x: 300, y: 0 }, "second"),
+    groups: { children: ["r1", "r2", "manual"] },
+  };
+  return selectionCanvas(
+    false,
+    2,
+    {
+      format: 1,
+      props: [],
+      nodes: [first, second],
+      wires: ["r1", "r2"].map((row) => ({
+        id: `wire-${row}`,
+        from: { node: "first", socket: "value" },
+        to: { node: "second", socket: `children/${row}` },
+      })),
+    },
+    groupType,
+  );
+}
+
+test.each<[SocketType, string]>([
+  [{ kind: "element" }, "Element"],
+  [{ kind: "number", integer: true }, "Number"],
+])(
+  "group labels describe the accepted type rather than the connected source",
+  async (type, name) => {
+    orderedInputs(type);
+    const list = await screen.findByLabelText("Children inputs");
+    expect(
+      [...list.querySelectorAll("[data-group-row-label]")].map(
+        (element) => element.textContent,
+      ),
+    ).toEqual([name, name, name]);
+    expect(list).not.toHaveTextContent("Heading");
+  },
+);
+
+test("only the drag handle reorders children, showing the row and release slot without saving until drop", async () => {
+  const canvas = orderedInputs();
+  HTMLElement.prototype.setPointerCapture = vi.fn();
+  HTMLElement.prototype.releasePointerCapture = vi.fn();
+  const list = await screen.findByLabelText("Children inputs");
+  const group = list.closest<HTMLElement>("[data-socket-group]") as HTMLElement;
+  const order = () =>
+    [...list.querySelectorAll<HTMLElement>("[data-row]")].map(
+      (element) => element.dataset.row,
+    );
+  const first = list.querySelector<HTMLElement>(
+    '[data-row="r1"]',
+  ) as HTMLElement;
+  vi.spyOn(first, "getBoundingClientRect").mockReturnValue({
+    x: 0,
+    y: 0,
+    top: 0,
+    bottom: 26,
+    left: 0,
+    right: 188,
+    width: 188,
+    height: 26,
+    toJSON: () => ({}),
+  });
+  vi.spyOn(list, "getBoundingClientRect").mockReturnValue({
+    x: 0,
+    y: 0,
+    top: 0,
+    bottom: 78,
+    left: 0,
+    right: 188,
+    width: 188,
+    height: 78,
+    toJSON: () => ({}),
+  });
+  const label = first.querySelector("[data-group-row-label]") as HTMLElement;
+  fireEvent.pointerDown(label, {
+    button: 0,
+    pointerId: 1,
+    clientX: 50,
+    clientY: 13,
+  });
+  fireEvent.pointerMove(group, { pointerId: 1, clientX: 50, clientY: 48 });
+  fireEvent.pointerUp(group, { pointerId: 1, clientX: 50, clientY: 48 });
+  expect(order()).toEqual(["r1", "r2", "manual"]);
+  expect(
+    document.querySelector("[data-row-drag-preview]"),
+  ).not.toBeInTheDocument();
+  expect(canvas.change).not.toHaveBeenCalled();
+  const start = () => {
+    fireEvent.pointerDown(screen.getByLabelText("Reorder Children 1"), {
+      button: 0,
+      pointerId: 1,
+      clientX: 50,
+      clientY: 13,
+    });
+    fireEvent.pointerMove(group, { pointerId: 1, clientX: 50, clientY: 48 });
+  };
+  start();
+  expect(order()).toEqual(["r2", "r1", "manual"]);
+  expect(document.querySelector("[data-row-drag-preview]")).toHaveTextContent(
+    "Text",
+  );
+  expect(list.querySelector('[data-row="r1"]')).toHaveAttribute(
+    "data-row-placeholder",
+    "true",
+  );
+  expect(canvas.change).not.toHaveBeenCalled();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(order()).toEqual(["r1", "r2", "manual"]);
+  expect(
+    document.querySelector("[data-row-drag-preview]"),
+  ).not.toBeInTheDocument();
+  expect(canvas.change).not.toHaveBeenCalled();
+
+  start();
+  fireEvent.pointerUp(group, { pointerId: 1, clientX: 50, clientY: 48 });
+  expect(order()).toEqual(["r2", "r1", "manual"]);
+  expect(canvas.graph().nodes[1]?.groups.children).toEqual([
+    "r2",
+    "r1",
+    "manual",
+  ]);
+  expect(canvas.change).toHaveBeenCalledOnce();
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(order()).toEqual(["r1", "r2", "manual"]);
+});
+
+test("double-clicking child names edits inline; Enter saves, Escape cancels and clearing restores the type", async () => {
+  const canvas = orderedInputs();
+  const list = await screen.findByLabelText("Children inputs");
+  const label = () =>
+    list.querySelector('[data-row="r1"] [data-group-row-label]') as HTMLElement;
+  fireEvent.doubleClick(label());
+  const field = screen.getByLabelText("Child name");
+  expect(field).toHaveFocus();
+  expect(field).toHaveValue("Text");
+  fireEvent.change(field, { target: { value: "  Header   content  " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(label()).toHaveTextContent("Header content");
+  expect(canvas.graph().nodes[1]?.socketNames).toEqual({
+    "children/r1": "Header content",
+  });
+  expect(canvas.graph().wires[0]?.to.socket).toBe("children/r1");
+  fireEvent.doubleClick(label());
+  fireEvent.change(screen.getByLabelText("Child name"), {
+    target: { value: "Discard" },
+  });
+  fireEvent.keyDown(screen.getByLabelText("Child name"), { key: "Escape" });
+  expect(label()).toHaveTextContent("Header content");
+  fireEvent.keyDown(screen.getByLabelText("Reorder Children 1"), {
+    key: "ArrowDown",
+    altKey: true,
+  });
+  expect(
+    list.querySelector('[data-row="r1"] [data-group-row-label]'),
+  ).toHaveTextContent("Header content");
+  fireEvent.doubleClick(label());
+  fireEvent.change(screen.getByLabelText("Child name"), {
+    target: { value: "" },
+  });
+  fireEvent.keyDown(screen.getByLabelText("Child name"), { key: "Enter" });
+  expect(label()).toHaveTextContent("Text");
+  expect(canvas.graph().nodes[1]?.socketNames).toBeUndefined();
+});
+
+test("ordered inputs have direct add/remove and keyboard reordering controls instead of a row menu", async () => {
+  const canvas = orderedInputs();
+  const list = await screen.findByLabelText("Children inputs");
+  expect(within(list).getAllByRole("listitem", { hidden: true })).toHaveLength(
+    3,
+  );
+  fireEvent.keyDown(screen.getByLabelText("Reorder Children 1"), {
+    key: "ArrowDown",
+    altKey: true,
+  });
+  expect(canvas.graph().nodes[1]?.groups.children).toEqual([
+    "r2",
+    "r1",
+    "manual",
+  ]);
+  fireEvent.click(screen.getByLabelText("Remove Children 3"));
+  expect(canvas.graph().nodes[1]?.groups.children).toEqual(["r2", "r1"]);
+  const group = document.querySelector(
+    '.react-flow__node[data-id="second"]',
+  ) as HTMLElement;
+  fireEvent.click(within(group).getByLabelText("Add Children input"));
+  expect(canvas.graph().nodes[1]?.groups.children).toHaveLength(3);
+  fireEvent.contextMenu(
+    within(list).getAllByRole("listitem", { hidden: true })[0] as HTMLElement,
+    { clientX: 100, clientY: 100 },
+  );
+  expect(
+    await screen.findByRole("menuitem", { name: /^Rename/ }),
+  ).toBeInTheDocument();
+  expect(
+    screen.queryByRole("menuitem", { name: "Move up" }),
+  ).not.toBeInTheDocument();
+});
+
+test("disconnecting a selection prunes connected rows, preserves manual empty slots, and undoes atomically", async () => {
+  const canvas = orderedInputs();
+  await screen.findByLabelText("Children inputs");
+  fireEvent.keyDown(window, { key: "a" });
+  fireEvent.keyDown(window, { key: "d", altKey: true });
+  expect(canvas.graph().wires).toHaveLength(0);
+  expect(canvas.graph().nodes[1]?.groups.children).toEqual(["manual"]);
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(canvas.graph().wires).toHaveLength(2);
+  expect(canvas.graph().nodes[1]?.groups.children).toEqual([
+    "r1",
+    "r2",
+    "manual",
+  ]);
+});
 
 test("A selects every node and Alt+A clears selection without changing the graph", async () => {
   const canvas = selectionCanvas();

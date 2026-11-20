@@ -12,14 +12,18 @@ import {
   expose,
   freeName,
   type Graph,
+  insertGroupRow,
   moveNodes,
   moveRow,
   newNode,
+  placeRow,
+  pruneDisconnectedRows,
   readGraph,
   removeNodes,
   removeProp,
   removeRow,
   renameNode,
+  renameSocket,
   setNodeWidth,
   setProperty,
   setValue,
@@ -108,6 +112,114 @@ test("wiring into a group's Add row adds a row for the wire", () => {
   });
   // The first row keeps its wire
   expect(next.wires.map((wire) => wire.id)).toEqual(["w1", "w2", "w3"]);
+});
+
+test("inserting wires between group entries preserves the existing row IDs and connections", () => {
+  const start = graph();
+  const next = connect(
+    start,
+    at("title", "value"),
+    at("card", "children/+/r1"),
+    "inserted",
+  );
+  const rows = next.nodes[1]?.groups.children ?? [];
+  expect(rows).toHaveLength(2);
+  expect(rows[1]).toBe("r1");
+  expect(next.wires.find((wire) => wire.id === "w2")).toEqual(start.wires[1]);
+  expect(next.wires.at(-1)?.to.socket).toBe(`children/${rows[0]}`);
+});
+
+test("removing a wire or its source removes only that wire's group row", () => {
+  const start = insertGroupRow(
+    graph(),
+    "card",
+    "children",
+    undefined,
+    "manual",
+  );
+  for (const changed of [
+    disconnect(start, new Set(["w2"])),
+    removeNodes(start, new Set(["badge"])),
+    disconnectNodes(start, new Set(["card"])),
+  ]) {
+    const next = pruneDisconnectedRows(start, changed);
+    expect(
+      next.nodes.find((node) => node.id === "card")?.groups.children,
+    ).toEqual(["manual"]);
+  }
+  expect(start.nodes[1]?.groups.children).toEqual(["r1", "manual"]);
+});
+
+test("replacing a connection in the same group row does not remove its slot", () => {
+  const start = graph();
+  const changed = connect(
+    start,
+    at("title", "value"),
+    at("card", "children/r1"),
+    "replacement",
+  );
+  expect(
+    pruneDisconnectedRows(start, changed).nodes[1]?.groups.children,
+  ).toEqual(["r1"]);
+});
+
+test("row reordering preserves wires and ignores stale or unchanged destinations", () => {
+  const start = insertGroupRow(
+    insertGroupRow(graph(), "card", "children", undefined, "r2"),
+    "card",
+    "children",
+    undefined,
+    "r3",
+  );
+  const next = placeRow(start, "card", "children", "r3", "r1");
+  expect(next.nodes[1]?.groups.children).toEqual(["r3", "r1", "r2"]);
+  expect(next.wires).toBe(start.wires);
+  expect(placeRow(start, "card", "children", "r1", "r1")).toBe(start);
+  expect(placeRow(start, "card", "children", "r1", "missing")).toBe(start);
+  expect(placeRow(start, "card", "children", "r3")).toBe(start);
+});
+
+test("child names survive reading, duplication and reordering while socket and wire IDs stay fixed", () => {
+  const start = renameSocket(
+    graph(),
+    "card",
+    "children",
+    "r1",
+    "  Header    content  ",
+  );
+  expect(start.nodes[1]?.socketNames).toEqual({
+    "children/r1": "Header content",
+  });
+  expect(readGraph(start as unknown as Record<string, unknown>)).toEqual(start);
+  const copy = duplicateNodes(start, ["card"], { newId: () => "copy" });
+  expect(copy.graph.nodes.at(-1)?.socketNames).toEqual(
+    start.nodes[1]?.socketNames,
+  );
+  const next = placeRow(
+    insertGroupRow(start, "card", "children", undefined, "other"),
+    "card",
+    "children",
+    "r1",
+  );
+  expect(next.nodes[1]?.socketNames).toEqual(start.nodes[1]?.socketNames);
+  expect(next.wires).toBe(start.wires);
+  expect(renameSocket(start, "card", "children", "missing", "Ignored")).toBe(
+    start,
+  );
+});
+
+test("clearing names and deleting their rows removes the saved child-name metadata", () => {
+  const start = renameSocket(graph(), "card", "children", "r1", "Header");
+  expect(
+    renameSocket(start, "card", "children", "r1", "").nodes[1]?.socketNames,
+  ).toBeUndefined();
+  expect(
+    removeRow(start, "card", "children", "r1").nodes[1]?.socketNames,
+  ).toBeUndefined();
+  expect(
+    pruneDisconnectedRows(start, disconnect(start, new Set(["w2"]))).nodes[1]
+      ?.socketNames,
+  ).toBeUndefined();
 });
 
 test("disconnecting wires, or every wire of a node", () => {

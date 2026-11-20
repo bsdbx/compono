@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { cn } from "@/lib/utils";
 import { NODE_NAME_LIMIT, nodeName } from "./node-size";
 
 /** A node's inline display label: Enter or blur saves, Escape cancels. */
@@ -7,11 +8,15 @@ export function NodeNameInput({
   onSave,
   onDone,
   onValueChange,
+  label = "Node name",
+  className,
 }: {
   name: string;
   onSave: (name: string) => void;
   onDone: () => void;
   onValueChange?: (value: string) => void;
+  label?: string;
+  className?: string;
 }) {
   const [value, setValue] = useState(() => nodeName(name));
   const finished = useRef(false);
@@ -25,7 +30,7 @@ export function NodeNameInput({
     <input
       // biome-ignore lint/a11y/noAutofocus: the user explicitly starts renaming a node
       autoFocus
-      aria-label="Node name"
+      aria-label={label}
       autoComplete="off"
       spellCheck={false}
       maxLength={NODE_NAME_LIMIT}
@@ -45,7 +50,10 @@ export function NodeNameInput({
         }
       }}
       onContextMenu={(event) => event.stopPropagation()}
-      className="nodrag nowheel h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none focus-visible:outline-none"
+      className={cn(
+        "nodrag nowheel h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none focus-visible:outline-none",
+        className,
+      )}
     />
   );
 }

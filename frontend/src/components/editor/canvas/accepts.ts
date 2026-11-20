@@ -35,6 +35,24 @@ export function accepts(into: SocketType, out: SocketType): boolean {
 /** The color of a socket and its wires, by type. */
 type Kind = NonNullable<SocketType["kind"]>;
 
+const SOCKET_NAMES: Record<Kind, string> = {
+  boolean: "Boolean",
+  number: "Number",
+  text: "Text",
+  choice: "Choice",
+  object: "Object",
+  date: "Date",
+  element: "Element",
+  slot: "Element",
+  nothing: "Nothing",
+  any: "Any",
+};
+
+/** A group's entries are named for the accepted type, independently of their connected values. */
+export function socketTypeName(type: SocketType): string {
+  return SOCKET_NAMES[type.kind ?? "any"];
+}
+
 export const SOCKET_COLOR: Record<Kind, string> = {
   boolean: "bg-socket-boolean",
   number: "bg-socket-number",
