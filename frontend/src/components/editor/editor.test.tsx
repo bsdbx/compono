@@ -11,6 +11,7 @@ vi.mock("@/lib/navigation", () =>
 let icon: HTMLLinkElement;
 
 beforeEach(() => {
+  localStorage.clear();
   navigation.params = { team: "acme", project: "marketing-site" };
   icon = document.createElement("link");
   icon.rel = "icon";
@@ -19,6 +20,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  localStorage.clear();
   icon.remove();
   vi.unstubAllGlobals();
 });

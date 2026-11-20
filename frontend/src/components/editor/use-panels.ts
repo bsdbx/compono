@@ -6,22 +6,68 @@ const INSPECTOR_MIN = 280;
 const PREVIEW_MIN = 120;
 const CANVAS_MIN = 320;
 const PROPERTIES_MIN = 160;
+const STORAGE_KEY = "compono:editor-layout";
+const DEFAULT_LAYOUT = {
+  library: 224,
+  collapsed: false,
+  inspector: 314,
+  preview: 226,
+};
+
+function readLayout() {
+  try {
+    const saved: unknown = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) ?? "null",
+    );
+    if (!saved || typeof saved !== "object") return DEFAULT_LAYOUT;
+    const dimension = (value: unknown, min: number, fallback: number) =>
+      typeof value === "number" && Number.isFinite(value) && value >= min
+        ? value
+        : fallback;
+    return {
+      library: dimension(
+        "library" in saved ? saved.library : undefined,
+        LIBRARY_MIN,
+        DEFAULT_LAYOUT.library,
+      ),
+      collapsed: "collapsed" in saved && saved.collapsed === true,
+      inspector: dimension(
+        "inspector" in saved ? saved.inspector : undefined,
+        INSPECTOR_MIN,
+        DEFAULT_LAYOUT.inspector,
+      ),
+      preview: dimension(
+        "preview" in saved ? saved.preview : undefined,
+        PREVIEW_MIN,
+        DEFAULT_LAYOUT.preview,
+      ),
+    };
+  } catch {
+    return DEFAULT_LAYOUT;
+  }
+}
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-/** Panel sizes belong to the editor, so they survive switching components. */
+/** One saved editor layout across components, projects, teams and page reloads. */
 export function usePanels() {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [bounds, setBounds] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight - 41,
   }));
-  const [library, setLibrary] = useState(224);
-  const [collapsed, setCollapsed] = useState(false);
+  const [layout, setLayout] = useState(readLayout);
+  const { library, collapsed, inspector, preview } = layout;
   const [animateLibrary, setAnimateLibrary] = useState(false);
-  const [inspector, setInspector] = useState(314);
-  const [preview, setPreview] = useState(226);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
+    } catch {
+      /* Resizing still works when browser storage is unavailable. */
+    }
+  }, [layout]);
 
   useEffect(() => {
     if (!container) return;
@@ -63,25 +109,30 @@ export function usePanels() {
       animate: animateLibrary,
       onCollapsedChange: (next: boolean) => {
         setAnimateLibrary(true);
-        setCollapsed(next);
+        setLayout((before) => ({ ...before, collapsed: next }));
       },
       onChange: (width: number) => {
         setAnimateLibrary(false);
-        setCollapsed(width === LIBRARY_COLLAPSED);
-        if (width !== LIBRARY_COLLAPSED) setLibrary(width);
+        setLayout((before) => ({
+          ...before,
+          collapsed: width === LIBRARY_COLLAPSED,
+          library: width === LIBRARY_COLLAPSED ? before.library : width,
+        }));
       },
     },
     inspector: {
       width: inspectorWidth,
       min: INSPECTOR_MIN,
       max: inspectorMax,
-      onChange: setInspector,
+      onChange: (width: number) =>
+        setLayout((before) => ({ ...before, inspector: width })),
     },
     preview: {
       height: clamp(preview, PREVIEW_MIN, previewMax),
       min: PREVIEW_MIN,
       max: previewMax,
-      onChange: setPreview,
+      onChange: (height: number) =>
+        setLayout((before) => ({ ...before, preview: height })),
     },
   };
 }
