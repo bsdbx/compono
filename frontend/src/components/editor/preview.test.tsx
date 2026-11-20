@@ -217,34 +217,33 @@ test("the current size is highlighted without a checkmark and can be deleted", a
   expect(localStorage.getItem("compono:preview:card")).toBe("Tablet");
 });
 
-test("editing the selected size saves its name and width and remembers the renamed selection", async () => {
+test("editing the selected size uses the inline form and remembers the renamed selection", async () => {
   const { draft, change } = fakeDraft(content);
   renderWithClient(
     <Preview componentId="card" draft={draft} onShowNode={() => {}} />,
   );
   fireEvent.click(await sizeActions("Desktop"));
-  const dialog = await screen.findByRole("dialog", {
-    name: "Edit preview size",
-  });
-  const name = within(dialog).getByLabelText("Size name");
+  const menu = await screen.findByRole("menu", { name: "Screen sizes" });
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  const name = within(menu).getByLabelText("Size name");
   expect(name).toHaveFocus();
   expect(name).toHaveValue("Desktop");
-  expect(within(dialog).getByLabelText("Width")).toHaveValue("1280");
-  expect(within(dialog).getByLabelText("Height")).toHaveValue("720");
+  expect(within(menu).getByLabelText("Width")).toHaveValue("1280");
+  expect(within(menu).getByLabelText("Height")).toHaveValue("720");
   fireEvent.change(name, { target: { value: "tAbLeT" } });
-  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+  expect(within(menu).getByRole("button", { name: "Save" })).toBeDisabled();
   fireEvent.change(name, { target: { value: "  Desktop XL  " } });
-  fireEvent.change(within(dialog).getByLabelText("Width"), {
+  fireEvent.change(within(menu).getByLabelText("Width"), {
     target: { value: "199" },
   });
-  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
-  fireEvent.change(within(dialog).getByLabelText("Width"), {
+  expect(within(menu).getByRole("button", { name: "Save" })).toBeDisabled();
+  fireEvent.change(within(menu).getByLabelText("Width"), {
     target: { value: "1440" },
   });
-  fireEvent.change(within(dialog).getByLabelText("Height"), {
+  fireEvent.change(within(menu).getByLabelText("Height"), {
     target: { value: "900" },
   });
-  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  fireEvent.click(within(menu).getByRole("button", { name: "Save" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
     screen_sizes: [
@@ -301,6 +300,29 @@ test("the final remaining size can be edited and cannot be deleted", async () =>
     graph: content.graph,
     screen_sizes: [{ name: "Desktop", width: 1920, height: 720 }],
   });
+});
+
+test("the preset limit still allows inline editing and Escape discards the edit", async () => {
+  const { draft, change } = fakeDraft({
+    ...content,
+    screen_sizes: Array.from({ length: 10 }, (_, index) => ({
+      name: `Size ${index}`,
+      width: 800,
+      height: 600,
+    })),
+  });
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  await openSizes();
+  expect(
+    screen.queryByRole("menuitem", { name: "Add size" }),
+  ).not.toBeInTheDocument();
+  fireEvent.click(await sizeActions("Size 0"));
+  const input = screen.getByLabelText("Size name");
+  expect(input).toHaveValue("Size 0");
+  fireEvent.change(input, { target: { value: "Changed" } });
+  fireEvent.keyDown(input, { key: "Escape" });
+  expect(change).not.toHaveBeenCalled();
+  expect(screen.queryByLabelText("Size name")).not.toBeInTheDocument();
 });
 
 test("a component keeps its picked preview size after leaving and reopening, independently of other components", async () => {
