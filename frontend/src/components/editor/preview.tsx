@@ -1,14 +1,9 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { Button } from "@/components/ui/button";
+import { PreviewFrame } from "./preview-frame";
 import { SizePicker } from "./preview-sizes";
 
 const VOID = new Set([
@@ -89,83 +84,6 @@ export function toHtml(value: unknown): string {
   return VOID.has(tag)
     ? `<${tag}${className}${attributes}>`
     : `<${tag}${className}${attributes}>${inner}</${tag}>`;
-}
-
-/**
- * The frame's page: Tailwind for the component's classes, and a script that shows the HTML its parent sends.
- * It's see-through on the dark Preview, and its links don't go anywhere, so the frame stays on the component.
- */
-const FRAME = `<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
-<style>html { color-scheme: dark; background: transparent; } body { margin: 0; }</style>
-<script>
-addEventListener("message", (event) => {
-  if (event.source === parent && typeof event.data === "string") {
-    document.body.innerHTML = event.data;
-  }
-});
-addEventListener("click", (event) => {
-  if (event.target instanceof Element && event.target.closest("a")) {
-    event.preventDefault();
-  }
-}, true);
-</script>
-</head>
-<body></body>
-</html>`;
-
-const BOX_HEIGHT = 172;
-
-/** The component, rendered at the width in a sandboxed frame, scaled down to fit. */
-function Frame({ html, width }: { html: string; width: number }) {
-  const box = useRef<HTMLDivElement>(null);
-  const frame = useRef<HTMLIFrameElement>(null);
-  const [boxSize, setBoxSize] = useState({ width: 0, height: BOX_HEIGHT });
-
-  useEffect(() => {
-    const element = box.current;
-    if (element === null) {
-      return;
-    }
-
-    const measure = () =>
-      setBoxSize({
-        width: element.clientWidth,
-        height: element.clientHeight || BOX_HEIGHT,
-      });
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    measure();
-    return () => observer.disconnect();
-  }, []);
-
-  // Each render goes to the frame, which keeps its page, so there's no flash
-  useEffect(() => {
-    frame.current?.contentWindow?.postMessage(html, "*");
-  }, [html]);
-
-  const scale = boxSize.width > 0 ? Math.min(1, boxSize.width / width) : 1;
-  return (
-    <div ref={box} className="absolute inset-0 overflow-hidden">
-      <iframe
-        ref={frame}
-        title="Preview"
-        // Scripts for Tailwind, in a frame of its own origin
-        sandbox="allow-scripts"
-        srcDoc={FRAME}
-        onLoad={() => frame.current?.contentWindow?.postMessage(html, "*")}
-        className="absolute top-0 left-0 origin-top-left border-0"
-        style={{
-          width,
-          height: boxSize.height / scale,
-          transform: `scale(${scale})`,
-        }}
-      />
-    </div>
-  );
 }
 
 function Box({ children }: { children: React.ReactNode }) {
@@ -283,7 +201,7 @@ export function Preview({
       </div>
       <Box>
         {evaluated === undefined ? null : html !== "" && current ? (
-          <Frame html={html} width={current.width} />
+          <PreviewFrame html={html} width={current.width} />
         ) : first ? (
           <>
             <p className="font-medium text-error text-xs">Can’t render</p>
