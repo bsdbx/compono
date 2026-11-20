@@ -171,6 +171,110 @@ async function openSizes() {
   return screen.findByRole("menu");
 }
 
+async function sizeActions(name: string) {
+  fireEvent.contextMenu(
+    within(await openSizes()).getByRole("menuitem", { name: new RegExp(name) }),
+  );
+  return screen.findByRole("menuitem", { name: "Edit" });
+}
+
+test("the current size is highlighted without a checkmark and can be deleted", async () => {
+  const { draft, change } = fakeDraft(content);
+  renderWithClient(
+    <Preview componentId="card" draft={draft} onShowNode={() => {}} />,
+  );
+  const menu = await openSizes();
+  const current = within(menu).getByRole("menuitem", { name: /Desktop/ });
+  expect(current).toHaveAttribute("aria-current", "true");
+  expect(current).toHaveClass("bg-accent");
+  expect(current.querySelector(".lucide-check")).toBeNull();
+  fireEvent.contextMenu(current);
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Delete" }));
+  expect(change).toHaveBeenLastCalledWith({
+    graph: content.graph,
+    screen_sizes: SIZES.slice(1),
+  });
+  expect(
+    screen.getByRole("button", { name: "Screen size: Tablet 768" }),
+  ).toBeInTheDocument();
+  expect(localStorage.getItem("compono:preview:card")).toBe("Tablet");
+});
+
+test("editing the selected size saves its name and width and remembers the renamed selection", async () => {
+  const { draft, change } = fakeDraft(content);
+  renderWithClient(
+    <Preview componentId="card" draft={draft} onShowNode={() => {}} />,
+  );
+  fireEvent.click(await sizeActions("Desktop"));
+  const dialog = await screen.findByRole("dialog", {
+    name: "Edit preview size",
+  });
+  const name = within(dialog).getByLabelText("Size name");
+  expect(name).toHaveFocus();
+  expect(name).toHaveValue("Desktop");
+  expect(within(dialog).getByLabelText("Width")).toHaveValue("1280");
+  fireEvent.change(name, { target: { value: "tAbLeT" } });
+  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+  fireEvent.change(name, { target: { value: "  Desktop XL  " } });
+  fireEvent.change(within(dialog).getByLabelText("Width"), {
+    target: { value: "199" },
+  });
+  expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
+  fireEvent.change(within(dialog).getByLabelText("Width"), {
+    target: { value: "1440" },
+  });
+  fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+  expect(change).toHaveBeenLastCalledWith({
+    graph: content.graph,
+    screen_sizes: [{ name: "Desktop XL", width: 1440 }, ...SIZES.slice(1)],
+  });
+  expect(
+    screen.getByRole("button", { name: "Screen size: Desktop XL 1440" }),
+  ).toBeInTheDocument();
+  expect(localStorage.getItem("compono:preview:card")).toBe("Desktop XL");
+});
+
+test("editing another size preserves the selection and unchanged edits do not save", async () => {
+  const { draft, change } = fakeDraft(content);
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  fireEvent.click(await sizeActions("Tablet"));
+  fireEvent.click(await screen.findByRole("button", { name: "Save" }));
+  expect(change).not.toHaveBeenCalled();
+  fireEvent.click(await sizeActions("Tablet"));
+  fireEvent.change(screen.getByLabelText("Width"), {
+    target: { value: "820" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(change).toHaveBeenLastCalledWith({
+    graph: content.graph,
+    screen_sizes: [SIZES[0], { name: "Tablet", width: 820 }, SIZES[2]],
+  });
+  expect(
+    screen.getByRole("button", { name: "Screen size: Desktop 1280" }),
+  ).toBeInTheDocument();
+});
+
+test("the final remaining size can be edited and cannot be deleted", async () => {
+  const { draft, change } = fakeDraft({
+    ...content,
+    screen_sizes: SIZES.slice(0, 1),
+  });
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  const edit = await sizeActions("Desktop");
+  expect(screen.getByRole("menuitem", { name: "Delete" })).toHaveAttribute(
+    "data-disabled",
+  );
+  fireEvent.click(edit);
+  fireEvent.change(screen.getByLabelText("Width"), {
+    target: { value: "1920" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(change).toHaveBeenLastCalledWith({
+    graph: content.graph,
+    screen_sizes: [{ name: "Desktop", width: 1920 }],
+  });
+});
+
 test("a component keeps its picked preview size after leaving and reopening, independently of other components", async () => {
   const { draft, change } = fakeDraft(content);
   renderWithClient(
@@ -232,9 +336,8 @@ test("a screen size picks, adds and goes", async () => {
   expect(screen.getByTitle("Preview")).toHaveStyle({ width: "1440px" });
 
   // Remove Mobile
-  fireEvent.click(
-    within(await openSizes()).getByRole("button", { name: "Remove Mobile" }),
-  );
+  await sizeActions("Mobile");
+  fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
     screen_sizes: [SIZES[0], SIZES[1], { name: "Wide", width: 1440 }],
