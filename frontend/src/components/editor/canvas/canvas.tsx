@@ -824,7 +824,7 @@ function Flow({
   ) {
     const socket = graphHandle(handle.handleId);
     const picked =
-      socket?.type === "target" && socket.socket.includes("/")
+      socket?.type === "target"
         ? latest().wires.find(
             (wire) =>
               wire.to.node === handle.nodeId &&
