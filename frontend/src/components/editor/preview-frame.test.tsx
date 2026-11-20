@@ -103,3 +103,36 @@ test("left clicks keep interacting with the component instead of starting pannin
   fireEvent.pointerDown(viewport, { button: 0 });
   expect(viewport).not.toHaveClass("cursor-grabbing");
 });
+
+test("changing components resets the preview position without remounting its iframe", () => {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(300);
+  const { rerender } = render(
+    <PreviewFrame
+      componentId="first"
+      html="<button>First</button>"
+      width={1280}
+    />,
+  );
+  const frame = screen.getByTitle("Preview") as HTMLIFrameElement;
+  const post = vi.spyOn(frame.contentWindow as Window, "postMessage");
+  rerender(
+    <PreviewFrame
+      componentId="second"
+      html="<button>Second</button>"
+      width={1280}
+    />,
+  );
+  expect(screen.getByTitle("Preview")).toBe(frame);
+  expect(post).toHaveBeenCalledWith({ type: "compono:preview-reset" }, "*");
+  expect(post).toHaveBeenCalledWith("<button>Second</button>", "*");
+});
+
+test("the initial measurement centers a mobile viewport without losing its center before layout is known", () => {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(300);
+  vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(200);
+  vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(390);
+  render(<PreviewFrame html="<button>Compono</button>" width={390} />);
+  expect(
+    screen.getByRole("region", { name: "Preview viewport" }).scrollLeft,
+  ).toBe(45);
+});

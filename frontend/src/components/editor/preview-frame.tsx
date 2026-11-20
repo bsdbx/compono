@@ -9,7 +9,7 @@ const FRAME = `<!doctype html>
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4.3.3"></script>
 <style>
 html { color-scheme: dark; background: transparent; }
-body { margin: 0; }
+body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: safe center; justify-content: safe center; }
 html[data-panning], html[data-panning] * { cursor: grabbing !important; user-select: none !important; }
 </style>
 <script>
@@ -28,6 +28,9 @@ addEventListener("message", (event) => {
   } else if (event.data?.type === "compono:preview-scroll" &&
       Number.isFinite(event.data.x) && Number.isFinite(event.data.y)) {
     scrollBy(event.data.x, event.data.y);
+  } else if (event.data?.type === "compono:preview-reset") {
+    finishPan();
+    scrollTo(0, 0);
   }
 });
 addEventListener("pointerdown", (event) => {
@@ -84,22 +87,35 @@ export function PreviewFrame({
   html,
   width,
   zoom = 1,
+  componentId,
 }: {
   html: string;
   width: number;
   zoom?: PreviewZoom;
+  componentId?: string | undefined;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const drag = useRef<{ pointer: number; x: number; y: number }>(undefined);
   const [boxSize, setBoxSize] = useState({ width: 0, height: 172 });
   const [panning, setPanning] = useState(false);
+  const view = useRef<{
+    component: string | undefined;
+    width: number;
+    height: number;
+    x: number;
+    y: number;
+  }>(undefined);
   const scale =
     zoom === "fit"
       ? boxSize.width > 0
         ? Math.min(1, boxSize.width / width)
         : 1
       : zoom;
+  const stageWidth = Math.max(boxSize.width, width * scale);
+  const stageHeight = Math.max(boxSize.height, boxSize.height * scale);
+  const left = (stageWidth - width * scale) / 2;
+  const top = (stageHeight - boxSize.height * scale) / 2;
 
   useLayoutEffect(() => {
     const element = box.current;
@@ -120,6 +136,37 @@ export function PreviewFrame({
     measure();
     return () => observer.disconnect();
   }, []);
+
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element || boxSize.width <= 0) return;
+    const previous = view.current;
+    const reset =
+      !previous ||
+      previous.component !== componentId ||
+      previous.width !== width;
+    const x = reset ? width / 2 : previous.x;
+    const y = reset
+      ? boxSize.height / 2
+      : previous.y + (boxSize.height - previous.height) / 2;
+    scrollWithin(
+      element,
+      x * scale + left - boxSize.width / 2 - element.scrollLeft,
+      y * scale + top - boxSize.height / 2 - element.scrollTop,
+    );
+    view.current = {
+      component: componentId,
+      width,
+      height: boxSize.height,
+      x: (element.scrollLeft + boxSize.width / 2 - left) / scale,
+      y: (element.scrollTop + boxSize.height / 2 - top) / scale,
+    };
+    if (reset)
+      frame.current?.contentWindow?.postMessage(
+        { type: "compono:preview-reset" },
+        "*",
+      );
+  }, [componentId, width, boxSize.width, boxSize.height, left, top, scale]);
 
   useEffect(() => {
     frame.current?.contentWindow?.postMessage(html, "*");
@@ -161,6 +208,14 @@ export function PreviewFrame({
       tabIndex={0}
       data-preview-viewport
       className={`absolute inset-0 overflow-auto overscroll-contain outline-none ${panning ? "cursor-grabbing select-none" : ""}`}
+      onScroll={(event) => {
+        if (!view.current) return;
+        const element = event.currentTarget;
+        view.current.x =
+          (element.scrollLeft + element.clientWidth / 2 - left) / scale;
+        view.current.y =
+          (element.scrollTop + element.clientHeight / 2 - top) / scale;
+      }}
       onPointerDown={(event) => {
         if (event.button !== 1) return;
         event.preventDefault();
@@ -200,8 +255,8 @@ export function PreviewFrame({
       <div
         className="relative"
         style={{
-          width: Math.max(boxSize.width, width * scale),
-          height: Math.max(boxSize.height, boxSize.height * scale),
+          width: stageWidth,
+          height: stageHeight,
         }}
       >
         <iframe
@@ -210,10 +265,12 @@ export function PreviewFrame({
           sandbox="allow-scripts"
           srcDoc={FRAME}
           onLoad={() => frame.current?.contentWindow?.postMessage(html, "*")}
-          className="absolute top-0 left-0 origin-top-left border-0"
+          className="absolute origin-top-left border-0"
           style={{
             width,
             height: boxSize.height,
+            left,
+            top,
             transform: `scale(${scale})`,
           }}
         />

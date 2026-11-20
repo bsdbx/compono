@@ -257,7 +257,12 @@ export function Preview({
       </div>
       <Box>
         {evaluated === undefined ? null : html !== "" && current ? (
-          <PreviewFrame html={html} width={current.width} zoom={zoom} />
+          <PreviewFrame
+            html={html}
+            width={current.width}
+            zoom={zoom}
+            componentId={componentId}
+          />
         ) : first ? (
           <>
             <p className="font-medium text-error text-xs">Can’t render</p>
