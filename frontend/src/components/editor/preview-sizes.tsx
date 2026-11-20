@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { PointerMenu } from "@/components/ui/pointer-menu";
 import { cn } from "@/lib/utils";
+import { screenHeight } from "./preview-size";
 
 function SizeIcon({ width }: { width: number }) {
   const Icon = width >= 1024 ? Monitor : width >= 600 ? Tablet : Smartphone;
@@ -34,7 +35,9 @@ function SizeForm({
 }) {
   const [name, setName] = useState(size?.name ?? "");
   const [width, setWidth] = useState(size ? String(size.width) : "");
+  const [height, setHeight] = useState(String(size ? screenHeight(size) : 720));
   const pixels = Number(width);
+  const rows = Number(height);
   const valid =
     name.trim() !== "" &&
     name.trim().length <= 30 &&
@@ -42,7 +45,10 @@ function SizeForm({
     !taken.some((each) => each.toLowerCase() === name.trim().toLowerCase()) &&
     Number.isInteger(pixels) &&
     pixels >= 200 &&
-    pixels <= 3840;
+    pixels <= 3840 &&
+    Number.isInteger(rows) &&
+    rows >= 200 &&
+    rows <= 3840;
   const field =
     "flex h-7.5 w-full items-center rounded-md border border-input bg-card px-2 text-sm";
   return (
@@ -50,7 +56,7 @@ function SizeForm({
       className="flex flex-col gap-1.5 p-1"
       onSubmit={(event) => {
         event.preventDefault();
-        if (valid) onSave({ name: name.trim(), width: pixels });
+        if (valid) onSave({ name: name.trim(), width: pixels, height: rows });
       }}
       onKeyDown={(event) => {
         if (event.key !== "Escape") event.stopPropagation();
@@ -76,6 +82,17 @@ function SizeForm({
         />
         <span className="text-subtle-foreground">px</span>
       </label>
+      <label className={cn(field, "gap-1 focus-within:border-selection/50")}>
+        <input
+          aria-label="Height"
+          inputMode="numeric"
+          placeholder="Height"
+          value={height}
+          onChange={(event) => setHeight(event.target.value)}
+          className="min-w-0 flex-1 bg-transparent outline-none"
+        />
+        <span className="text-subtle-foreground">px</span>
+      </label>
       <Button type="submit" size="sm" disabled={!valid} className="w-full">
         {size ? "Save" : "Add"}
       </Button>
@@ -83,7 +100,7 @@ function SizeForm({
   );
 }
 
-/** Named viewport widths, with the same actions for selected and unselected sizes. */
+/** Named screen sizes, with the same actions for selected and unselected sizes. */
 export function SizePicker({
   sizes,
   current,
@@ -134,13 +151,14 @@ export function SizePicker({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            aria-label={`Screen size: ${current.name} ${current.width}`}
+            aria-label={`Screen size: ${current.name} ${current.width} × ${screenHeight(current)}`}
+            title={`${current.name} ${current.width} × ${screenHeight(current)}`}
             className="flex h-7.5 min-w-0 items-center gap-1 rounded-md border border-border px-1.5 text-sm"
           >
             <SizeIcon width={current.width} />
             <span className="truncate">{current.name}</span>
             <span className="shrink-0 text-subtle-foreground">
-              {current.width}
+              {current.width} × {screenHeight(current)}
             </span>
             <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
@@ -150,6 +168,7 @@ export function SizePicker({
           align="end"
           aria-label="Screen sizes"
           aria-labelledby={undefined}
+          data-preview-controls
           className="w-48"
           onInteractOutside={(event) => {
             if (
@@ -185,9 +204,9 @@ export function SizePicker({
               }}
             >
               <SizeIcon width={size.width} />
-              <span>{size.name}</span>
-              <span className="ml-auto text-subtle-foreground">
-                {size.width}
+              <span className="min-w-0 truncate">{size.name}</span>
+              <span className="ml-auto shrink-0 text-subtle-foreground">
+                {size.width} × {screenHeight(size)}
               </span>
             </DropdownMenuItem>
           ))}
@@ -284,7 +303,8 @@ export function SizePicker({
               onSave={(size) => {
                 if (
                   size.name !== editing.name ||
-                  size.width !== editing.width
+                  size.width !== editing.width ||
+                  screenHeight(size) !== screenHeight(editing)
                 ) {
                   onChange(
                     sizes.map((each) =>

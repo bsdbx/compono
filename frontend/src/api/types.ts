@@ -348,6 +348,7 @@ export type Saved = {
 export type ScreenSize = {
   name: string;
   width: number;
+  height?: number;
 };
 
 export type SignIn = {

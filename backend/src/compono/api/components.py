@@ -3,11 +3,17 @@
 import json
 import math
 from datetime import datetime
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, Self
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import AfterValidator, BaseModel, Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 from compono import components, models
 from compono.api.dependencies import Database
@@ -77,7 +83,7 @@ Graph = Annotated[dict[str, object], AfterValidator(storable)]
 
 
 class ScreenSize(BaseModel):
-    """A named width that the preview renders at, like Desktop 1280."""
+    """A fixed preview viewport; older saved sizes may omit its height."""
 
     name: Annotated[
         str,
@@ -86,6 +92,15 @@ class ScreenSize(BaseModel):
     ]
 
     width: Annotated[int, Field(ge=200, le=3840)]
+    height: Annotated[int, Field(ge=200, le=3840)] = 720
+
+    @model_validator(mode="after")
+    def legacy_height(self) -> Self:
+        if "height" not in self.model_fields_set:
+            self.height = (
+                720 if self.width >= 1024 else 1024 if self.width >= 600 else 844
+            )
+        return self
 
 
 def different_names(sizes: list[ScreenSize]) -> list[ScreenSize]:

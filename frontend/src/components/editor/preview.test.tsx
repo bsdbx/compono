@@ -120,7 +120,7 @@ test("a rendered component shows in a sandboxed frame at the first screen size",
   );
   expect(frame).toHaveStyle({ width: "1280px" });
   expect(
-    screen.getByRole("button", { name: "Screen size: Desktop 1280" }),
+    screen.getByRole("button", { name: "Screen size: Desktop 1280 × 720" }),
   ).toBeInTheDocument();
 });
 
@@ -212,7 +212,7 @@ test("the current size is highlighted without a checkmark and can be deleted", a
     screen_sizes: SIZES.slice(1),
   });
   expect(
-    screen.getByRole("button", { name: "Screen size: Tablet 768" }),
+    screen.getByRole("button", { name: "Screen size: Tablet 768 × 1024" }),
   ).toBeInTheDocument();
   expect(localStorage.getItem("compono:preview:card")).toBe("Tablet");
 });
@@ -230,6 +230,7 @@ test("editing the selected size saves its name and width and remembers the renam
   expect(name).toHaveFocus();
   expect(name).toHaveValue("Desktop");
   expect(within(dialog).getByLabelText("Width")).toHaveValue("1280");
+  expect(within(dialog).getByLabelText("Height")).toHaveValue("720");
   fireEvent.change(name, { target: { value: "tAbLeT" } });
   expect(within(dialog).getByRole("button", { name: "Save" })).toBeDisabled();
   fireEvent.change(name, { target: { value: "  Desktop XL  " } });
@@ -240,13 +241,19 @@ test("editing the selected size saves its name and width and remembers the renam
   fireEvent.change(within(dialog).getByLabelText("Width"), {
     target: { value: "1440" },
   });
+  fireEvent.change(within(dialog).getByLabelText("Height"), {
+    target: { value: "900" },
+  });
   fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
-    screen_sizes: [{ name: "Desktop XL", width: 1440 }, ...SIZES.slice(1)],
+    screen_sizes: [
+      { name: "Desktop XL", width: 1440, height: 900 },
+      ...SIZES.slice(1),
+    ],
   });
   expect(
-    screen.getByRole("button", { name: "Screen size: Desktop XL 1440" }),
+    screen.getByRole("button", { name: "Screen size: Desktop XL 1440 × 900" }),
   ).toBeInTheDocument();
   expect(localStorage.getItem("compono:preview:card")).toBe("Desktop XL");
 });
@@ -264,10 +271,14 @@ test("editing another size preserves the selection and unchanged edits do not sa
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
-    screen_sizes: [SIZES[0], { name: "Tablet", width: 820 }, SIZES[2]],
+    screen_sizes: [
+      SIZES[0],
+      { name: "Tablet", width: 820, height: 1024 },
+      SIZES[2],
+    ],
   });
   expect(
-    screen.getByRole("button", { name: "Screen size: Desktop 1280" }),
+    screen.getByRole("button", { name: "Screen size: Desktop 1280 × 720" }),
   ).toBeInTheDocument();
 });
 
@@ -288,7 +299,7 @@ test("the final remaining size can be edited and cannot be deleted", async () =>
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
-    screen_sizes: [{ name: "Desktop", width: 1920 }],
+    screen_sizes: [{ name: "Desktop", width: 1920, height: 720 }],
   });
 });
 
@@ -305,14 +316,14 @@ test("a component keeps its picked preview size after leaving and reopening, ind
     <Preview componentId="card-b" draft={draft} onShowNode={() => {}} />,
   );
   expect(
-    screen.getByRole("button", { name: "Screen size: Desktop 1280" }),
+    screen.getByRole("button", { name: "Screen size: Desktop 1280 × 720" }),
   ).toBeInTheDocument();
   cleanup();
   renderWithClient(
     <Preview componentId="card-a" draft={draft} onShowNode={() => {}} />,
   );
   expect(
-    screen.getByRole("button", { name: "Screen size: Tablet 768" }),
+    screen.getByRole("button", { name: "Screen size: Tablet 768 × 1024" }),
   ).toBeInTheDocument();
   expect(change).not.toHaveBeenCalled();
 });
@@ -348,7 +359,7 @@ test("a screen size picks, adds and goes", async () => {
   fireEvent.click(add);
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
-    screen_sizes: [...SIZES, { name: "Wide", width: 1440 }],
+    screen_sizes: [...SIZES, { name: "Wide", width: 1440, height: 720 }],
   });
   expect(screen.getByTitle("Preview")).toHaveStyle({ width: "1440px" });
 
@@ -357,7 +368,11 @@ test("a screen size picks, adds and goes", async () => {
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
   expect(change).toHaveBeenLastCalledWith({
     graph: content.graph,
-    screen_sizes: [SIZES[0], SIZES[1], { name: "Wide", width: 1440 }],
+    screen_sizes: [
+      SIZES[0],
+      SIZES[1],
+      { name: "Wide", width: 1440, height: 720 },
+    ],
   });
 });
 
@@ -371,7 +386,8 @@ test("preview zoom defaults to 100% and changes scale independently of the selec
   const { draft, change } = fakeDraft(content);
   renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
   const frame = await screen.findByTitle("Preview");
-  expect(frame).toHaveStyle({ width: "1280px", transform: "scale(1)" });
+  expect(frame).toHaveStyle({ width: "1280px", height: "720px" });
+  expect(frame.parentElement).toHaveStyle({ transform: "scale(1)" });
   fireEvent.pointerDown(
     screen.getByRole("button", { name: "Preview zoom: 100%" }),
     { button: 0, ctrlKey: false },
@@ -382,11 +398,13 @@ test("preview zoom defaults to 100% and changes scale independently of the selec
     "true",
   );
   fireEvent.click(within(zooms).getByRole("menuitem", { name: "200%" }));
-  expect(frame).toHaveStyle({ width: "1280px", transform: "scale(2)" });
+  expect(frame).toHaveStyle({ width: "1280px", height: "720px" });
+  expect(frame.parentElement).toHaveStyle({ transform: "scale(2)" });
   fireEvent.click(
     within(await openSizes()).getByRole("menuitem", { name: /Tablet/ }),
   );
-  expect(frame).toHaveStyle({ width: "768px", transform: "scale(2)" });
+  expect(frame).toHaveStyle({ width: "768px", height: "1024px" });
+  expect(frame.parentElement).toHaveStyle({ transform: "scale(2)" });
   fireEvent.pointerDown(
     screen.getByRole("button", { name: "Preview zoom: 200%" }),
     { button: 0, ctrlKey: false },
@@ -401,4 +419,42 @@ test("preview zoom defaults to 100% and changes scale independently of the selec
   ).toBeInTheDocument();
   expect(frame).toHaveStyle({ width: "768px" });
   expect(change).not.toHaveBeenCalled();
+});
+
+test("preview shortcuts stay in the preview and preserve text editing", async () => {
+  answer.rendered = {
+    tag: "button",
+    className: "",
+    attributes: {},
+    children: ["Compono"],
+  };
+  const { draft } = fakeDraft(content);
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  const surface = await screen.findByRole("region", {
+    name: "Preview viewport",
+  });
+  const other = vi.fn();
+  window.addEventListener("keydown", other);
+  try {
+    expect(fireEvent.keyDown(surface, { key: "f" })).toBe(false);
+    expect(other).not.toHaveBeenCalled();
+    expect(fireEvent.wheel(surface, { ctrlKey: true, deltaY: -100 })).toBe(
+      false,
+    );
+    expect(
+      screen.getByRole("button", { name: "Preview zoom: 122%" }),
+    ).toBeInTheDocument();
+    expect(
+      fireEvent.wheel(document.body, { ctrlKey: true, deltaY: -100 }),
+    ).toBe(true);
+    expect(
+      screen.getByRole("button", { name: "Preview zoom: 122%" }),
+    ).toBeInTheDocument();
+    fireEvent.click(await sizeActions("Desktop"));
+    expect(
+      fireEvent.keyDown(screen.getByLabelText("Size name"), { key: "f" }),
+    ).toBe(true);
+  } finally {
+    window.removeEventListener("keydown", other);
+  }
 });
