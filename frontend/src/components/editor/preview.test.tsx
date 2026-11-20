@@ -429,7 +429,9 @@ test("preview shortcuts stay in the preview and preserve text editing", async ()
     children: ["Compono"],
   };
   const { draft } = fakeDraft(content);
-  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  renderWithClient(
+    <Preview componentId="card" draft={draft} onShowNode={() => {}} />,
+  );
   const surface = await screen.findByRole("region", {
     name: "Preview viewport",
   });
@@ -444,6 +446,7 @@ test("preview shortcuts stay in the preview and preserve text editing", async ()
     expect(
       screen.getByRole("button", { name: "Preview zoom: 122%" }),
     ).toBeInTheDocument();
+    expect(localStorage.getItem("compono:preview-zoom:card")).toBe("1.221");
     expect(
       fireEvent.wheel(document.body, { ctrlKey: true, deltaY: -100 }),
     ).toBe(true);

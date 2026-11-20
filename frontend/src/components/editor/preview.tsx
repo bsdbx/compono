@@ -22,6 +22,7 @@ import { PreviewFrame, type PreviewZoom } from "./preview-frame";
 import { screenHeight } from "./preview-size";
 import { SizePicker } from "./preview-sizes";
 import { previewZoom } from "./preview-view";
+import { usePreviewZoom } from "./use-preview-zoom";
 
 const VOID = new Set([
   "area",
@@ -193,7 +194,7 @@ export function Preview({
   );
   const evaluated = useEvaluation(graph);
   const nodeTypes = useNodeTypes();
-  const [zoom, setZoom] = useState<PreviewZoom>(1);
+  const [zoom, setZoom] = usePreviewZoom(componentId);
   const region = useRef<HTMLElement>(null);
   const actualScale = useRef(1);
   const [centerRequest, setCenterRequest] = useState(0);
@@ -261,7 +262,7 @@ export function Preview({
       window.removeEventListener("wheel", wheel, true);
       window.removeEventListener("keydown", key, true);
     };
-  }, []);
+  }, [setZoom]);
   const remembered = useMemo(() => {
     try {
       return componentId
