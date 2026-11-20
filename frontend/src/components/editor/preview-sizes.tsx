@@ -169,7 +169,7 @@ export function SizePicker({
           aria-label="Screen sizes"
           aria-labelledby={undefined}
           data-preview-controls
-          className="w-48"
+          className="min-w-0"
           onInteractOutside={(event) => {
             if (
               event.target instanceof Element &&

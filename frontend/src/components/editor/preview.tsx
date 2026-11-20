@@ -126,13 +126,17 @@ function ZoomPicker({
           type="button"
           aria-label={`Preview zoom: ${zoom === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}`}
           title="Ctrl+wheel to zoom · Middle-drag to pan · F to center"
-          className="flex h-7.5 shrink-0 items-center gap-1 rounded-md border border-border px-1.5 text-sm"
+          className="flex h-7.5 min-w-16 shrink-0 items-center justify-between gap-1 rounded-md border border-border px-1.5 text-sm"
         >
           <span>{zoom === "fit" ? "Fit" : `${Math.round(zoom * 100)}%`}</span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-32" data-preview-controls>
+      <DropdownMenuContent
+        align="end"
+        className="min-w-0"
+        data-preview-controls
+      >
         <DropdownMenuItem
           className={zoom === "fit" ? "bg-accent text-sm" : "text-sm"}
           aria-current={zoom === "fit" ? "true" : undefined}
