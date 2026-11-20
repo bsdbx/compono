@@ -1,9 +1,17 @@
+import { ChevronDown } from "lucide-react";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { Button } from "@/components/ui/button";
-import { PreviewFrame } from "./preview-frame";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { PreviewFrame, type PreviewZoom } from "./preview-frame";
 import { SizePicker } from "./preview-sizes";
 
 const VOID = new Set([
@@ -94,6 +102,50 @@ function Box({ children }: { children: React.ReactNode }) {
   );
 }
 
+function ZoomPicker({
+  zoom,
+  onChange,
+}: {
+  zoom: PreviewZoom;
+  onChange: (zoom: PreviewZoom) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Preview zoom: ${zoom === "fit" ? "Fit" : `${zoom * 100}%`}`}
+          title="Preview zoom · Middle-drag to pan"
+          className="flex h-7.5 shrink-0 items-center gap-1 rounded-md border border-border px-1.5 text-sm"
+        >
+          <span>{zoom === "fit" ? "Fit" : `${zoom * 100}%`}</span>
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-32">
+        <DropdownMenuItem
+          className={zoom === "fit" ? "bg-accent text-sm" : "text-sm"}
+          aria-current={zoom === "fit" ? "true" : undefined}
+          onSelect={() => onChange("fit")}
+        >
+          Fit
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        {[0.25, 0.5, 1, 1.5, 2].map((scale) => (
+          <DropdownMenuItem
+            key={scale}
+            className={zoom === scale ? "bg-accent text-sm" : "text-sm"}
+            aria-current={zoom === scale ? "true" : undefined}
+            onSelect={() => onChange(scale)}
+          >
+            {scale * 100}%
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /** The Preview before a component is open. */
 export function PreviewPlaceholder() {
   return (
@@ -132,6 +184,7 @@ export function Preview({
   );
   const evaluated = useEvaluation(graph);
   const nodeTypes = useNodeTypes();
+  const [zoom, setZoom] = useState<PreviewZoom>(1);
   const remembered = useMemo(() => {
     try {
       return componentId
@@ -182,26 +235,29 @@ export function Preview({
       aria-label="Preview"
       className="flex h-full min-h-0 flex-col px-3 pb-3"
     >
-      <div className="flex h-10 shrink-0 items-center justify-between px-0.5">
-        <h2 className="font-semibold text-sm">Preview</h2>
+      <div className="flex h-10 shrink-0 items-center justify-between gap-1 px-0.5">
+        <h2 className="shrink-0 font-semibold text-sm">Preview</h2>
         {current ? (
-          <SizePicker
-            key={componentId}
-            sizes={sizes}
-            current={current}
-            onPick={(size) => pick(size.name)}
-            onChange={(screen_sizes) => {
-              const now = draft.getSnapshot().content;
-              if (now) {
-                draft.change({ graph: now.graph, screen_sizes });
-              }
-            }}
-          />
+          <div className="flex min-w-0 items-center gap-1">
+            <SizePicker
+              key={componentId}
+              sizes={sizes}
+              current={current}
+              onPick={(size) => pick(size.name)}
+              onChange={(screen_sizes) => {
+                const now = draft.getSnapshot().content;
+                if (now) {
+                  draft.change({ graph: now.graph, screen_sizes });
+                }
+              }}
+            />
+            <ZoomPicker zoom={zoom} onChange={setZoom} />
+          </div>
         ) : null}
       </div>
       <Box>
         {evaluated === undefined ? null : html !== "" && current ? (
-          <PreviewFrame html={html} width={current.width} />
+          <PreviewFrame html={html} width={current.width} zoom={zoom} />
         ) : first ? (
           <>
             <p className="font-medium text-error text-xs">Can’t render</p>
