@@ -1,14 +1,8 @@
-import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
+import type { Node, NodeProps } from "@xyflow/react";
 import { memo, type ReactNode } from "react";
 import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types";
 import { cn } from "@/lib/utils";
-import {
-  type CanvasState,
-  choiceOptions,
-  inputsOf,
-  socketsOf,
-  useCanvas,
-} from "./context";
+import { choiceOptions, inputsOf, socketsOf, useCanvas } from "./context";
 import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addRow,
@@ -17,12 +11,12 @@ import {
   setProperty,
   setValue,
 } from "./graph";
+import { GroupSockets } from "./group-sockets";
 import { NodeFrame } from "./node-frame";
 import { collapsedHeight, collapsedSocket } from "./node-size";
+import { SocketHandle } from "./socket-handle";
 
 export type CanvasNode = Node<Record<string, never>, "graph">;
-
-const HANDLE = "z-10! size-2.5! min-h-0! min-w-0! rounded-full!";
 
 /** The kinds of input that are typed in a field on the node, when nothing is wired in. */
 export const TYPED: ReadonlySet<string> = new Set([
@@ -32,86 +26,30 @@ export const TYPED: ReadonlySet<string> = new Set([
   "choice",
 ]);
 
-function SocketHandle({
-  type,
-  id,
-  socket,
-  side,
-  offset = 0,
-  top,
-  label,
-}: {
-  type: "source" | "target";
-  id: string;
-  socket: SocketType | undefined;
-  side: "left" | "right";
-  offset?: number;
-  top?: number;
-  label?: string;
-}) {
-  const kind = socket?.kind ?? "any";
-  return (
-    <Handle
-      type={type}
-      id={id}
-      title={label}
-      position={side === "left" ? Position.Left : Position.Right}
-      // Inline, over React Flow's own handle style
-      style={{
-        ...(side === "left" ? { left: offset } : { right: offset }),
-        ...(top === undefined ? {} : { top }),
-        // A Slot is a ring: the place an element goes. So is a socket that has no type until it's wired
-        ...(kind === "slot" || kind === "any"
-          ? {
-              background: "var(--card)",
-              border: `2px solid ${kind === "slot" ? "var(--socket-element)" : "var(--subtle-foreground)"}`,
-            }
-          : { background: `var(--socket-${kind})`, border: 0 }),
-      }}
-      className={HANDLE}
-    />
-  );
-}
-
 function AddSocket({
   group,
-  offset = -11,
+  socket,
+  offset = -1,
   top,
   label,
 }: {
   group: string;
+  socket: SocketType;
   offset?: number;
   top?: number;
   label?: string;
 }) {
   return (
-    <Handle
+    <SocketHandle
       type="target"
       id={addRow(group)}
-      title={label ?? `Add ${group}`}
-      position={Position.Left}
-      style={{ left: offset, ...(top === undefined ? {} : { top }) }}
-      className="z-10! size-3.5! min-h-0! min-w-0! rounded-full! border-0! bg-transparent!"
-    >
-      <svg
-        aria-hidden
-        viewBox="0 0 14 14"
-        className="pointer-events-none block size-full"
-      >
-        <circle
-          cx="7"
-          cy="7"
-          r="6.5"
-          fill="var(--card)"
-          stroke="var(--muted-foreground)"
-        />
-        <path
-          d="M4.5 7h5M7 4.5v5"
-          stroke="var(--foreground)"
-          strokeLinecap="round"
-        />
-      </svg>
-    </Handle>
+      socket={socket}
+      side="left"
+      offset={offset}
+      {...(top === undefined ? {} : { top })}
+      pill
+      label={label ?? `Add ${group}`}
+    />
   );
 }
 
@@ -146,6 +84,7 @@ function CollapsedSockets({
             <AddSocket
               key={`${side}:${socket.id}`}
               group={socket.add}
+              socket={socket.type}
               label={socket.label}
               offset={inset}
               top={top}
@@ -166,19 +105,6 @@ function CollapsedSockets({
       )}
     </div>
   );
-}
-
-/** What a wired value looks like in one word, for a group's row: an element's tag, or a text. */
-function summary(canvas: CanvasState, node: string, socket: string): string {
-  const value = canvas.evaluated.get(node)?.outputs[socket];
-  if (typeof value === "object" && value !== null && "tag" in value) {
-    return String(value.tag) || "Fragment";
-  }
-  if (typeof value === "string" && value !== "") {
-    return value;
-  }
-  const from = canvas.graph.nodes.find((each) => each.id === node);
-  return (from && canvas.nodeTypes.get(from.type)?.name) ?? "Empty";
 }
 
 /** A field to type an input's value in, for the types that can be typed. */
@@ -287,55 +213,6 @@ function InputRow({
   );
 }
 
-function GroupRows({ node, group }: { node: GraphNode; group: GroupSocket }) {
-  const canvas = useCanvas();
-  const rows = node.groups[group.id] ?? [];
-  return (
-    <div className="mx-2.5 my-0.5 rounded-md border border-node-group-border bg-node-group">
-      <div className="flex h-5.5 items-center justify-between px-2 text-muted-foreground">
-        <span>{group.label}</span>
-        {rows.length > 0 ? (
-          <span className="text-subtle-foreground">{rows.length}</span>
-        ) : null}
-      </div>
-      {rows.map((row, index) => {
-        const socket = `${group.id}/${row}`;
-        const wire = canvas.graph.wires.find(
-          (each) => each.to.node === node.id && each.to.socket === socket,
-        );
-        return (
-          <div
-            key={row}
-            // The canvas opens the row's menu for a right click here
-            data-group={group.id}
-            data-row={row}
-            className="relative flex h-5.5 items-center gap-2 border-node-group-line border-t px-2"
-          >
-            {/* At the node's edge, past the group's margin and border */}
-            <SocketHandle
-              type="target"
-              id={socket}
-              socket={group.type}
-              side="left"
-              offset={-11}
-            />
-            <span className="w-3 text-subtle-foreground">{index + 1}</span>
-            <span className="truncate">
-              {wire
-                ? summary(canvas, wire.from.node, wire.from.socket)
-                : "Empty"}
-            </span>
-          </div>
-        );
-      })}
-      <div className="relative flex h-5.5 items-center border-node-group-line border-t px-2 text-subtle-foreground">
-        <AddSocket group={group.id} />
-        Add
-      </div>
-    </div>
-  );
-}
-
 /** The value a node like Number gives, set on the node beside its output. */
 function OnNodeValue({
   node,
@@ -401,7 +278,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const compactInputs: CompactSocket[] = [];
   const groupRows = (group: GroupSocket) => {
     rows.push(
-      <GroupRows key={`group:${group.id}`} node={node} group={group} />,
+      <GroupSockets key={`group:${group.id}`} node={node} group={group} />,
     );
     compactInputs.push(
       ...(node.groups[group.id] ?? []).map((row, index) => ({

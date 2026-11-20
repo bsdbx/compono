@@ -28,6 +28,7 @@ function meaning(graph: Graph) {
       ({
         position: _,
         name: _name,
+        socketNames: _socketNames,
         width: _width,
         collapsed: _collapsed,
         ...node

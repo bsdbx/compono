@@ -329,6 +329,8 @@ def test_node_display_names_survive_saving_and_reopening(
                 "id": "output",
                 "type": "component-output",
                 "name": "Final output",
+                "groups": {"children": ["child"]},
+                "socketNames": {"children/child": "Header"},
                 "width": 320,
                 "collapsed": True,
             }

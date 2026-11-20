@@ -4,22 +4,20 @@ import type {
   InputSocket,
   NodeSockets,
   NodeTypeInfo,
+  Wire,
 } from "@/api/types";
-import type { Graph, GraphNode, SocketType } from "./graph";
+import {
+  type Graph,
+  type GraphNode,
+  groupDrop,
+  type SocketType,
+} from "./graph";
 import type { NodeSize } from "./node-size";
 
 /** A menu opened at the pointer, with what it's for. */
 export type Menu =
   | { kind: "canvas"; x: number; y: number }
-  | { kind: "node"; x: number; y: number; node: string }
-  | {
-      kind: "row";
-      x: number;
-      y: number;
-      node: string;
-      group: string;
-      row: string;
-    };
+  | { kind: "node"; x: number; y: number; node: string };
 
 export type CanvasState = {
   graph: Graph;
@@ -40,6 +38,8 @@ export type CanvasState = {
     size: NodeSize | undefined,
     commit?: boolean,
   ) => void;
+  /** The wire temporarily picked up from its input; its graph entry stays until the drop commits. */
+  rewiring?: Wire | undefined;
 };
 
 export const CanvasContext = createContext<CanvasState | null>(null);
@@ -98,6 +98,8 @@ export function inputType(
   if (into === undefined) return undefined;
   const sockets = socketsOf(known, into.id, into.type);
   const group = socket.split("/")[0] ?? "";
+  const drop = groupDrop(socket);
+  if (drop) return sockets.groups.find((each) => each.id === drop.group)?.type;
   return (
     inputsOf(known, into).find((each) => each.id === socket)?.type ??
     (socket.includes("/") &&

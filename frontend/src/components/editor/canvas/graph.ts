@@ -11,6 +11,8 @@ export type GraphNode = {
   type: string;
   /** An optional display label; the node's type and socket IDs stay unchanged. */
   name?: string;
+  /** Optional display names keyed by stable socket IDs, independent of values and order. */
+  socketNames?: Record<string, string>;
   /** A manually chosen width. Without one, the node fits its label from the shared default. */
   width?: number;
   /** A compact label and sockets; the expanded width and all node values stay intact. */
@@ -45,9 +47,17 @@ export function readGraph(stored: Record<string, unknown>): Graph {
     nodes: list(stored.nodes).map((item) => {
       const node = object(item);
       const position = object(node.position);
+      const socketNames = Object.fromEntries(
+        Object.entries(object(node.socketNames)).flatMap(([socket, value]) =>
+          typeof value === "string" && nodeName(value)
+            ? [[socket, nodeName(value)]]
+            : [],
+        ),
+      );
       return {
         id: String(node.id),
         type: String(node.type),
+        ...(Object.keys(socketNames).length ? { socketNames } : {}),
         ...(typeof node.name === "string" && node.name.trim() !== ""
           ? { name: nodeName(node.name) }
           : {}),
@@ -71,8 +81,14 @@ export function readGraph(stored: Record<string, unknown>): Graph {
   };
 }
 
-/** The socket a group's Add row wires into, which adds a row. */
-export const addRow = (group: string) => `${group}/+`;
+/** Temporary drop targets append an input or insert it before a stable row ID. */
+export const addRow = (group: string, before?: string) =>
+  `${group}/+${before ? `/${before}` : ""}`;
+
+export function groupDrop(socket: string) {
+  const match = /^([^/]+)\/\+(?:\/(.+))?$/.exec(socket);
+  return match?.[1] ? { group: match[1], before: match[2] } : undefined;
+}
 
 const replace = (
   graph: Graph,
@@ -98,6 +114,44 @@ export function renameNode(graph: Graph, id: string, value: string): Graph {
     ...graph,
     nodes: graph.nodes.map((node) => (node.id === id ? renamed : node)),
   };
+}
+
+function withoutSocketNames(
+  node: GraphNode,
+  sockets: readonly string[],
+): GraphNode {
+  if (
+    !node.socketNames ||
+    !sockets.some((socket) => socket in (node.socketNames ?? {}))
+  )
+    return node;
+  const names = Object.fromEntries(
+    Object.entries(node.socketNames).filter(
+      ([socket]) => !sockets.includes(socket),
+    ),
+  );
+  const { socketNames: _, ...rest } = node;
+  return Object.keys(names).length ? { ...rest, socketNames: names } : rest;
+}
+
+/** A child input's display name follows its socket ID; clearing it restores the type label. */
+export function renameSocket(
+  graph: Graph,
+  nodeId: string,
+  group: string,
+  row: string,
+  value: string,
+): Graph {
+  const node = graph.nodes.find((each) => each.id === nodeId);
+  if (!node?.groups[group]?.includes(row)) return graph;
+  const socket = `${group}/${row}`,
+    name = nodeName(value);
+  if ((node.socketNames?.[socket] ?? "") === name) return graph;
+  return replace(graph, nodeId, (current) =>
+    name
+      ? { ...current, socketNames: { ...current.socketNames, [socket]: name } }
+      : withoutSocketNames(current, [socket]),
+  );
 }
 
 /** Collapse a mixed selection together, or expand it when every selected node is collapsed. */
@@ -194,14 +248,12 @@ export function connect(
 ): Graph {
   let next = graph;
   let socket = to.socket;
-  if (socket.endsWith("/+")) {
-    const group = socket.slice(0, -2);
+  const drop = groupDrop(socket);
+  if (drop) {
+    const { group, before } = drop;
     const row = crypto.randomUUID();
     socket = `${group}/${row}`;
-    next = replace(next, to.node, (node) => ({
-      ...node,
-      groups: { ...node.groups, [group]: [...(node.groups[group] ?? []), row] },
-    }));
+    next = insertGroupRow(next, to.node, group, before, row);
   }
   return {
     ...next,
@@ -212,6 +264,58 @@ export function connect(
       { id, from, to: { node: to.node, socket } },
     ],
   };
+}
+
+/** Add an intentionally empty input without creating a wire. */
+export function insertGroupRow(
+  graph: Graph,
+  node: string,
+  group: string,
+  before?: string,
+  row: string = crypto.randomUUID(),
+): Graph {
+  return replace(graph, node, (current) => {
+    const rows = [...(current.groups[group] ?? [])];
+    const index = before ? rows.indexOf(before) : -1;
+    rows.splice(index < 0 ? rows.length : index, 0, row);
+    return { ...current, groups: { ...current.groups, [group]: rows } };
+  });
+}
+
+/** Finish an edit atomically: remove inputs whose last wire was removed, keeping manual empty slots. */
+export function pruneDisconnectedRows(before: Graph, after: Graph): Graph {
+  if (before === after || before.wires === after.wires) return after;
+  const connected = new Set(
+    after.wires.map((wire) => `${wire.to.node}\n${wire.to.socket}`),
+  );
+  const removed = new Set(
+    before.wires
+      .filter((wire) => !connected.has(`${wire.to.node}\n${wire.to.socket}`))
+      .map((wire) => `${wire.to.node}\n${wire.to.socket}`),
+  );
+  if (removed.size === 0) return after;
+  let changed = false;
+  const nodes = after.nodes.map((node) => {
+    let nodeChanged = false;
+    const groups = Object.fromEntries(
+      Object.entries(node.groups).map(([group, rows]) => {
+        const next = rows.filter(
+          (row) => !removed.has(`${node.id}\n${group}/${row}`),
+        );
+        nodeChanged ||= next.length !== rows.length;
+        return [group, next];
+      }),
+    );
+    if (!nodeChanged) return node;
+    changed = true;
+    return withoutSocketNames(
+      { ...node, groups },
+      Object.keys(node.socketNames ?? {}).filter((socket) =>
+        removed.has(`${node.id}\n${socket}`),
+      ),
+    );
+  });
+  return changed ? { ...after, nodes } : after;
 }
 
 export function disconnect(graph: Graph, ids: ReadonlySet<string>): Graph {
@@ -320,6 +424,42 @@ export function moveRow(
   });
 }
 
+/** Reorder stable input IDs, preserving the wires attached to them. */
+export function placeRow(
+  graph: Graph,
+  node: string,
+  group: string,
+  row: string,
+  before?: string,
+): Graph {
+  const current = graph.nodes.find((each) => each.id === node)?.groups[group];
+  if (!current) return graph;
+  const rows = reorderedRows(current, row, before);
+  if (rows === current) return graph;
+  return replace(graph, node, (value) => ({
+    ...value,
+    groups: { ...value.groups, [group]: rows },
+  }));
+}
+
+/** The same prospective order is used for the drag preview and the committed edit. */
+export function reorderedRows(
+  current: string[],
+  row: string,
+  before?: string,
+): string[] {
+  if (
+    !current.includes(row) ||
+    before === row ||
+    (before && !current.includes(before))
+  )
+    return current;
+  const rows = current.filter((each) => each !== row);
+  const index = before ? rows.indexOf(before) : rows.length;
+  rows.splice(index, 0, row);
+  return rows.every((each, at) => each === current[at]) ? current : rows;
+}
+
 /** Takes a group's row away, with its wire. */
 export function removeRow(
   graph: Graph,
@@ -328,13 +468,18 @@ export function removeRow(
   row: string,
 ): Graph {
   const socket = `${group}/${row}`;
-  const next = replace(graph, id, (node) => ({
-    ...node,
-    groups: {
-      ...node.groups,
-      [group]: (node.groups[group] ?? []).filter((each) => each !== row),
-    },
-  }));
+  const next = replace(graph, id, (node) =>
+    withoutSocketNames(
+      {
+        ...node,
+        groups: {
+          ...node.groups,
+          [group]: (node.groups[group] ?? []).filter((each) => each !== row),
+        },
+      },
+      [socket],
+    ),
+  );
   return {
     ...next,
     wires: next.wires.filter(
