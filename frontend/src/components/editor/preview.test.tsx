@@ -164,11 +164,13 @@ test("with nothing rendered, the Preview shows only its empty state", async () =
 });
 
 async function openSizes() {
+  const current = screen.queryByRole("menu", { name: "Screen sizes" });
+  if (current?.getAttribute("data-state") === "open") return current;
   fireEvent.pointerDown(screen.getByRole("button", { name: /Screen size/ }), {
     button: 0,
     ctrlKey: false,
   });
-  return screen.findByRole("menu");
+  return screen.findByRole("menu", { name: "Screen sizes" });
 }
 
 async function sizeActions(name: string) {
@@ -177,6 +179,21 @@ async function sizeActions(name: string) {
   );
   return screen.findByRole("menuitem", { name: "Edit" });
 }
+
+test("right-clicking a preview size keeps the sizes list open behind its actions", async () => {
+  const { draft } = fakeDraft(content);
+  renderWithClient(<Preview draft={draft} onShowNode={() => {}} />);
+  const edit = await sizeActions("Desktop");
+  // The action menu covers the row under the pointer; leaving it must not steal focus.
+  fireEvent.pointerLeave(screen.getByRole("menuitem", { name: /Desktop/ }), {
+    pointerType: "mouse",
+    relatedTarget: edit,
+  });
+  expect(edit).toBeVisible();
+  expect(screen.getByRole("menuitem", { name: /Tablet/ })).toBeVisible();
+  expect(screen.getByRole("menuitem", { name: /Mobile/ })).toBeVisible();
+  expect(screen.getAllByRole("menu")).toHaveLength(2);
+});
 
 test("the current size is highlighted without a checkmark and can be deleted", async () => {
   const { draft, change } = fakeDraft(content);

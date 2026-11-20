@@ -96,6 +96,8 @@ export function SizePicker({
   onChange: (sizes: ScreenSize[]) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const isOpen = useRef(open);
+  isOpen.current = open;
   const [adding, setAdding] = useState(false);
   const [menu, setMenu] = useState<{
     size: ScreenSize;
@@ -103,7 +105,9 @@ export function SizePicker({
     y: number;
   }>();
   const [editing, setEditing] = useState<ScreenSize>();
-  const openingContext = useRef(false);
+  const openingDialog = useRef(false);
+  const row = useRef<HTMLElement | null>(null);
+  const list = useRef<HTMLDivElement | null>(null);
 
   function remove(size: ScreenSize) {
     if (sizes.length <= 1) return;
@@ -120,6 +124,7 @@ export function SizePicker({
   return (
     <>
       <DropdownMenu
+        modal={false}
         open={open}
         onOpenChange={(next) => {
           setOpen(next);
@@ -140,83 +145,109 @@ export function SizePicker({
             <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
-        {!menu ? (
-          <DropdownMenuContent
-            align="end"
-            className="w-48"
-            onCloseAutoFocus={(event) => {
-              if (openingContext.current) {
+        <DropdownMenuContent
+          ref={list}
+          align="end"
+          aria-label="Screen sizes"
+          aria-labelledby={undefined}
+          className="w-48"
+          onInteractOutside={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest(".preview-size-actions")
+            )
+              event.preventDefault();
+          }}
+          onCloseAutoFocus={(event) => {
+            if (openingDialog.current) {
+              event.preventDefault();
+              openingDialog.current = false;
+            } else if (isOpen.current) event.preventDefault();
+          }}
+        >
+          {sizes.map((size) => (
+            <DropdownMenuItem
+              key={size.name}
+              aria-current={size.name === current.name ? "true" : undefined}
+              className={cn(
+                "h-8 gap-2 text-sm",
+                size.name === current.name && "bg-accent",
+              )}
+              onSelect={() => onPick(size)}
+              onPointerLeave={(event) => {
+                // Opening the action menu moves the pointer off its row.
+                if (menu) event.preventDefault();
+              }}
+              onContextMenu={(event) => {
                 event.preventDefault();
-                openingContext.current = false;
-              }
-            }}
-          >
-            {sizes.map((size) => (
-              <DropdownMenuItem
-                key={size.name}
-                aria-current={size.name === current.name ? "true" : undefined}
-                className={cn(
-                  "h-8 gap-2 text-sm",
-                  size.name === current.name && "bg-accent",
-                )}
-                onSelect={() => onPick(size)}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  openingContext.current = true;
-                  setOpen(false);
-                  setMenu({ size, x: event.clientX, y: event.clientY });
-                }}
-              >
-                <SizeIcon width={size.width} />
-                <span>{size.name}</span>
-                <span className="ml-auto text-subtle-foreground">
-                  {size.width}
-                </span>
-              </DropdownMenuItem>
-            ))}
-            {sizes.length < 10 ? (
-              <>
-                <DropdownMenuSeparator />
-                {adding ? (
-                  <SizeForm
-                    taken={sizes.map((size) => size.name)}
-                    onSave={(size) => {
-                      onChange([...sizes, size]);
-                      onPick(size);
-                      setOpen(false);
-                      setAdding(false);
-                    }}
-                  />
-                ) : (
-                  <DropdownMenuItem
-                    className="h-8 gap-2 text-sm"
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setAdding(true);
-                    }}
-                  >
-                    <Plus className="size-3.5 text-muted-foreground" />
-                    Add size
-                  </DropdownMenuItem>
-                )}
-              </>
-            ) : null}
-          </DropdownMenuContent>
-        ) : null}
+                row.current = event.currentTarget;
+                setMenu({ size, x: event.clientX, y: event.clientY });
+              }}
+            >
+              <SizeIcon width={size.width} />
+              <span>{size.name}</span>
+              <span className="ml-auto text-subtle-foreground">
+                {size.width}
+              </span>
+            </DropdownMenuItem>
+          ))}
+          {sizes.length < 10 ? (
+            <>
+              <DropdownMenuSeparator />
+              {adding ? (
+                <SizeForm
+                  taken={sizes.map((size) => size.name)}
+                  onSave={(size) => {
+                    onChange([...sizes, size]);
+                    onPick(size);
+                    setOpen(false);
+                    setAdding(false);
+                  }}
+                />
+              ) : (
+                <DropdownMenuItem
+                  className="h-8 gap-2 text-sm"
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setAdding(true);
+                  }}
+                >
+                  <Plus className="size-3.5 text-muted-foreground" />
+                  Add size
+                </DropdownMenuItem>
+              )}
+            </>
+          ) : null}
+        </DropdownMenuContent>
       </DropdownMenu>
       {menu ? (
         <PointerMenu
           x={menu.x}
           y={menu.y}
           onClose={() => setMenu(undefined)}
-          onCloseAutoFocus={(event) => event.preventDefault()}
-          className="w-36"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (openingDialog.current) return;
+            const active = document.activeElement;
+            if (
+              active instanceof HTMLElement &&
+              active !== document.body &&
+              !active.closest(".preview-size-actions")
+            )
+              return;
+            (row.current?.isConnected ? row.current : list.current)?.focus({
+              preventScroll: true,
+            });
+          }}
+          className="preview-size-actions w-36"
         >
           <DropdownMenuItem
             className="text-sm"
             onSelect={() => {
+              openingDialog.current = true;
               setEditing(menu.size);
               setMenu(undefined);
+              setOpen(false);
             }}
           >
             Edit
