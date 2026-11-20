@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, LogOut } from "lucide-react";
 import { useState } from "react";
+import { projectMembersOptions } from "@/api/queries";
 import type { ListedComponent, Project, Team } from "@/api/types";
 import { useSignedInAccount, useSignOut } from "@/components/account";
 import { Avatar } from "@/components/avatar";
@@ -46,7 +48,7 @@ function AccountButton() {
   );
 }
 
-/** The editor's top bar: where the component is, its name to rename, and the account. */
+/** The component's location and name, its project members, and the account. */
 export function TopBar({
   team,
   project,
@@ -63,7 +65,14 @@ export function TopBar({
   onRenamed: () => void;
 }) {
   const [renaming, setRenaming] = useState(false);
+  const account = useSignedInAccount();
   const path = { team_url: team.url, project_url: project.url };
+  const { data: members = [] } = useQuery(projectMembersOptions({ path }));
+  const others = members.filter(
+    (member) =>
+      member.id !== account.id &&
+      (member.role === "LEAD" || member.role === "DEVELOPER"),
+  );
   return (
     <header className="flex h-10.25 shrink-0 items-center gap-4 border-border border-b bg-sidebar pr-3 pl-3.5">
       <Link href="/" aria-label="Compono home" className="flex">
@@ -117,7 +126,24 @@ export function TopBar({
           </>
         )}
       </nav>
-      <div className="ml-auto">
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        {others.length > 0 ? (
+          <ul aria-label="Project members" className="flex -space-x-1">
+            {others.map((member) => {
+              const label = `${member.name}, ${member.role === "LEAD" ? "Lead" : "Developer"}`;
+              return (
+                <li key={member.id} title={label}>
+                  <span className="sr-only">{label}</span>
+                  <Avatar
+                    id={member.id}
+                    name={member.name}
+                    className="size-6 ring-2 ring-sidebar"
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
         <AccountButton />
       </div>
     </header>
