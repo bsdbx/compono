@@ -29,39 +29,17 @@ export function SocketHandle({
 }) {
   const kind = socket?.kind ?? "any";
   const color = WIRE_COLOR[kind];
-  const anchor = {
-    ...(side === "left" ? { left: offset } : { right: offset }),
-    ...(top === undefined ? {} : { top }),
-  };
-  const handleId = flowHandle(type, id);
-  const position = side === "left" ? Position.Left : Position.Right;
-  if (!pill && !invisible && !id.includes("/")) {
-    return (
-      <Handle
-        type={type}
-        id={handleId}
-        title={label}
-        position={position}
-        style={{
-          ...anchor,
-          ...(kind === "slot" || kind === "any"
-            ? {
-                background: "var(--card)",
-                border: `2px solid ${kind === "slot" ? color : "var(--subtle-foreground)"}`,
-              }
-            : { background: color, border: 0 }),
-        }}
-        className="z-10! size-2.5! min-h-0! min-w-0! rounded-full!"
-      />
-    );
-  }
   return (
     <Handle
       type={type}
-      id={handleId}
+      id={flowHandle(type, id)}
       title={label}
-      position={position}
-      style={{ ...anchor, height: 1 }}
+      position={side === "left" ? Position.Left : Position.Right}
+      style={{
+        ...(side === "left" ? { left: offset } : { right: offset }),
+        ...(top === undefined ? {} : { top }),
+        height: 1,
+      }}
       className="z-10! size-px! min-h-0! min-w-0! border-0! bg-transparent!"
     >
       <span
