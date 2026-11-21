@@ -189,7 +189,7 @@ export function GroupSockets({
                     <NodeNameInput
                       name={label}
                       label="Child name"
-                      className="text-xs selection:bg-primary/40"
+                      className="text-xs"
                       onSave={(value) =>
                         canvas.edit((graph) =>
                           renameSocket(
