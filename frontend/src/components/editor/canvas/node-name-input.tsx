@@ -51,7 +51,7 @@ export function NodeNameInput({
       }}
       onContextMenu={(event) => event.stopPropagation()}
       className={cn(
-        "nodrag nowheel h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none focus-visible:outline-none",
+        "nodrag nowheel h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm outline-none selection:bg-primary/40 focus-visible:outline-none",
         className,
       )}
     />
