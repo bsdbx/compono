@@ -13,6 +13,9 @@ import {
   type SocketType,
 } from "./graph";
 import type { NodeSize } from "./node-size";
+import type { SnapGuide } from "./node-snap";
+
+export type ResizePreview = NodeSize & { guides?: readonly SnapGuide[] };
 
 /** A menu opened at the pointer, with what it's for. */
 export type Menu =
@@ -35,7 +38,7 @@ export type CanvasState = {
   /** Preview a resize, commit it once, or cancel it with undefined. */
   resizeNode: (
     node: string,
-    size: NodeSize | undefined,
+    size: ResizePreview | undefined,
     commit?: boolean,
   ) => void;
   /** The wire temporarily picked up from its input; its graph entry stays until the drop commits. */

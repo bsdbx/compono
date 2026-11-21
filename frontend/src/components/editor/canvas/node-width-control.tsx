@@ -1,7 +1,7 @@
 import { useReactFlow, useStore } from "@xyflow/react";
 import { type RefObject, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCanvas } from "./context";
+import { type ResizePreview, useCanvas } from "./context";
 import type { GraphNode } from "./graph";
 import {
   NODE_MAX_WIDTH,
@@ -10,6 +10,8 @@ import {
   type ResizeSide,
   resizedNode,
 } from "./node-size";
+import { alignmentTargets, snapResize } from "./node-snap";
+import type { CanvasNode } from "./node-view";
 
 /** An invisible side border: one horizontal resize, with Escape to cancel. */
 export function NodeWidthControl({
@@ -24,16 +26,39 @@ export function NodeWidthControl({
   width: number;
 }) {
   const canvas = useCanvas();
-  const flow = useReactFlow();
+  const flow = useReactFlow<CanvasNode>();
   const zoom = useStore((state) => state.transform[2]);
   const drag = useRef<{
     pointer: number;
     x: number;
+    lastX?: number;
     zoom: number;
     start: NodeSize;
-    next: NodeSize;
+    next: ResizePreview;
   }>(undefined);
   const [dragging, setDragging] = useState(false);
+
+  function preview(clientX: number, snapping: boolean) {
+    const current = drag.current;
+    if (!current || (current.lastX === undefined && clientX === current.x))
+      return;
+    current.lastX = clientX;
+    const delta = (clientX - current.x) / current.zoom;
+    if (snapping) {
+      const { size, guides } = snapResize(
+        current.start,
+        side,
+        delta,
+        element.current?.offsetHeight ?? 0,
+        alignmentTargets(flow, new Set([node.id])),
+        flow.getZoom(),
+      );
+      current.next = { ...size, guides };
+    } else {
+      current.next = resizedNode(current.start, side, delta);
+    }
+    canvas.resizeNode(node.id, current.next);
+  }
 
   function finish(control: HTMLElement, commit: boolean) {
     const current = drag.current;
@@ -89,23 +114,29 @@ export function NodeWidthControl({
           if (!current || event.pointerId !== current.pointer) return;
           event.preventDefault();
           event.stopPropagation();
-          current.next = resizedNode(
-            current.start,
-            side,
-            (event.clientX - current.x) / current.zoom,
-          );
-          canvas.resizeNode(node.id, current.next);
+          preview(event.clientX, event.ctrlKey);
         }}
         onPointerUp={(event) => {
           if (event.pointerId !== drag.current?.pointer) return;
           event.preventDefault();
           event.stopPropagation();
+          preview(event.clientX, event.ctrlKey);
           finish(event.currentTarget, true);
         }}
         onPointerCancel={(event) => finish(event.currentTarget, false)}
         onLostPointerCapture={(event) => finish(event.currentTarget, false)}
+        onKeyUp={(event) => {
+          if (event.key === "Control" && drag.current?.lastX !== undefined)
+            preview(drag.current.lastX, event.ctrlKey);
+        }}
         onKeyDown={(event) => {
-          if (event.key === "Escape" && drag.current) {
+          if (
+            drag.current &&
+            event.key === "Control" &&
+            drag.current.lastX !== undefined
+          ) {
+            preview(drag.current.lastX, event.ctrlKey);
+          } else if (event.key === "Escape" && drag.current) {
             event.preventDefault();
             event.stopPropagation();
             finish(event.currentTarget, false);

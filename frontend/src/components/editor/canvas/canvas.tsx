@@ -49,6 +49,7 @@ import {
   inputType,
   type Menu,
   outputType,
+  type ResizePreview,
   useCanvas,
 } from "./context";
 import { useEvaluation, useNodeTypes } from "./data";
@@ -72,10 +73,11 @@ import {
   type XY,
 } from "./graph";
 import { History } from "./history";
-import type { NodeSize } from "./node-size";
+import { GRID_GAP, type SnapGuide, snapPositions } from "./node-snap";
 import { type CanvasNode, NodeView } from "./node-view";
 import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
 import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
+import { useNodeSnapping } from "./use-node-snapping";
 import {
   connectionEnds,
   flowHandle,
@@ -101,6 +103,7 @@ type Placement = {
   nodes: ReadonlySet<string>;
   anchor: XY;
   position: XY;
+  guides?: readonly SnapGuide[];
   centered?: string;
   before: ReadonlySet<string>;
 };
@@ -229,7 +232,7 @@ function Flow({
   const wrapper = useRef<HTMLDivElement>(null);
   const pointer = useRef<XY>(undefined);
   const [placement, setPlacement] = useState<Placement>();
-  const [resizing, setResizing] = useState<NodeSize & { node: string }>();
+  const [resizing, setResizing] = useState<ResizePreview & { node: string }>();
   const savedGraph = useMemo(() => readGraph(content.graph), [content.graph]);
   const graph = useMemo(
     () =>
@@ -273,6 +276,12 @@ function Flow({
   const [nodes, setNodes] = useState<CanvasNode[]>(() =>
     graph.nodes.map((node) => toFlow(node)),
   );
+  const dragSnap = useNodeSnapping(flow, setNodes);
+  const snapGuides = placement
+    ? (placement.guides ?? [])
+    : resizing
+      ? (resizing.guides ?? [])
+      : dragSnap.guides;
   const [selectedWires, setSelectedWires] = useState<ReadonlySet<string>>(
     new Set(),
   );
@@ -403,7 +412,7 @@ function Flow({
   );
   const finishRename = useCallback(() => setRenaming(undefined), []);
   const resizeNode = useCallback(
-    (id: string, size: NodeSize | undefined, commit = false) => {
+    (id: string, size: ResizePreview | undefined, commit = false) => {
       if (size && commit)
         edit((current) => setNodeWidth(current, id, size.width, size.position));
       setResizing(size && !commit ? { ...size, node: id } : undefined);
@@ -514,14 +523,65 @@ function Flow({
   }, [flow]);
 
   useEffect(() => {
+    function placementAt(pending: Placement, position: XY, snap: boolean) {
+      const positions = new Map<string, XY>();
+      for (const node of pending.graph.nodes) {
+        if (!pending.nodes.has(node.id)) continue;
+        positions.set(node.id, {
+          x: node.position.x + position.x - pending.anchor.x,
+          y: node.position.y + position.y - pending.anchor.y,
+        });
+      }
+      if (pending.centered) {
+        const node = flow.getInternalNode(pending.centered);
+        const element = wrapper.current?.querySelector<HTMLElement>(
+          `.react-flow__node[data-id="${CSS.escape(pending.centered)}"]`,
+        );
+        positions.set(pending.centered, {
+          x:
+            position.x -
+            (node?.measured.width ?? element?.offsetWidth ?? 0) / 2,
+          y:
+            position.y -
+            (node?.measured.height ?? element?.offsetHeight ?? 0) / 2,
+        });
+      }
+      return snap
+        ? snapPositions(flow, positions)
+        : { positions, offset: { x: 0, y: 0 }, guides: [] };
+    }
+
+    function preview(point: XY, snapping: boolean) {
+      if (!placement) return;
+      const position = flow.screenToFlowPosition(point);
+      const snapped = snapping
+        ? placementAt(placement, position, true)
+        : undefined;
+      setPlacement(
+        (current) =>
+          current && {
+            ...current,
+            position: snapped
+              ? {
+                  x: position.x + snapped.offset.x,
+                  y: position.y + snapped.offset.y,
+                }
+              : position,
+            guides: snapped?.guides ?? [],
+          },
+      );
+    }
+
     const remember = (event: PointerEvent) => {
       pointer.current = { x: event.clientX, y: event.clientY };
-      if (placement) {
-        const position = flow.screenToFlowPosition(pointer.current);
-        setPlacement((current) =>
-          current ? { ...current, position } : current,
-        );
-      }
+      preview(pointer.current, event.ctrlKey);
+    };
+    const modifier = (event: KeyboardEvent) => {
+      if (event.key === "Control" && pointer.current)
+        preview(pointer.current, event.ctrlKey);
+    };
+    const blur = () => {
+      if (pointer.current) preview(pointer.current, false);
     };
     const place = (event: PointerEvent) => {
       if (!placement) return;
@@ -541,31 +601,7 @@ function Flow({
           x: event.clientX,
           y: event.clientY,
         });
-        const positions = new Map(
-          placement.graph.nodes
-            .filter((node) => placement.nodes.has(node.id))
-            .map((node) => [
-              node.id,
-              {
-                x: node.position.x + position.x - placement.anchor.x,
-                y: node.position.y + position.y - placement.anchor.y,
-              },
-            ]),
-        );
-        if (placement.centered) {
-          const node = flow.getNode(placement.centered);
-          const element = wrapper.current.querySelector<HTMLElement>(
-            `.react-flow__node[data-id="${CSS.escape(placement.centered)}"]`,
-          );
-          positions.set(placement.centered, {
-            x:
-              position.x -
-              (node?.measured?.width ?? element?.offsetWidth ?? 0) / 2,
-            y:
-              position.y -
-              (node?.measured?.height ?? element?.offsetHeight ?? 0) / 2,
-          });
-        }
+        const { positions } = placementAt(placement, position, event.ctrlKey);
         edit(() => moveNodes(placement.graph, positions));
         selectNext.current = placement.nodes;
       } else {
@@ -575,9 +611,15 @@ function Flow({
     };
     document.addEventListener("pointermove", remember, true);
     document.addEventListener("pointerdown", place, true);
+    window.addEventListener("keydown", modifier);
+    window.addEventListener("keyup", modifier);
+    window.addEventListener("blur", blur);
     return () => {
       document.removeEventListener("pointermove", remember, true);
       document.removeEventListener("pointerdown", place, true);
+      window.removeEventListener("keydown", modifier);
+      window.removeEventListener("keyup", modifier);
+      window.removeEventListener("blur", blur);
     };
   }, [placement, flow, edit]);
 
@@ -1184,22 +1226,12 @@ function Flow({
           }}
           // The Add node menu stays where it opened, so moving the canvas closes it
           onMoveStart={() => setAdding(undefined)}
-          onNodeDragStop={(_, __, moved) =>
-            edit((current) =>
-              moveNodes(
-                current,
-                new Map(
-                  moved.map((node) => [
-                    node.id,
-                    {
-                      x: Math.round(node.position.x),
-                      y: Math.round(node.position.y),
-                    },
-                  ]),
-                ),
-              ),
-            )
-          }
+          onNodeDragStart={dragSnap.start}
+          onNodeDrag={dragSnap.move}
+          onNodeDragStop={(event, _, moved) => {
+            const positions = dragSnap.finish(event, moved);
+            edit((current) => moveNodes(current, positions));
+          }}
           onDelete={({ nodes: removed, edges: cut }) =>
             edit((current) =>
               disconnect(
@@ -1248,10 +1280,34 @@ function Flow({
         >
           <Background
             variant={BackgroundVariant.Dots}
-            gap={18}
+            gap={GRID_GAP}
             size={1}
             color="var(--input)"
           />
+          {snapGuides.length > 0 ? (
+            <ViewportPortal>
+              <svg
+                aria-hidden
+                width={1}
+                height={1}
+                className="pointer-events-none absolute inset-0 z-10 overflow-visible stroke-selection/65"
+              >
+                {snapGuides.map(({ axis, at, from, to }) => (
+                  <line
+                    key={`${axis}:${at}`}
+                    data-snap-guide={axis}
+                    x1={axis === "x" ? at : from}
+                    x2={axis === "x" ? at : to}
+                    y1={axis === "y" ? at : from}
+                    y2={axis === "y" ? at : to}
+                    strokeLinecap={from === to ? "round" : undefined}
+                    strokeWidth={from === to ? 3 : undefined}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </svg>
+            </ViewportPortal>
+          ) : null}
           {/* The wire dropped on the canvas waits for its node, dashed */}
           {adding?.from ? (
             <ViewportPortal>
