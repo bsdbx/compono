@@ -1,7 +1,7 @@
 import { cn } from "cn";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
-import * as React from "react";
+import type * as React from "react";
 
 function DropdownMenu({
   ...props
@@ -201,22 +201,12 @@ function DropdownMenuShortcut({
       data-slot="dropdown-menu-shortcut"
       aria-hidden
       className={cn(
-        "ml-auto inline-flex items-center gap-1 text-[0.625rem] text-muted-foreground",
+        "ml-auto shrink-0 whitespace-nowrap text-right font-normal text-xs text-muted-foreground!",
         className,
       )}
       {...props}
     >
-      {keys.map((key, index) => (
-        <React.Fragment key={key}>
-          {index > 0 ? <span className="text-subtle-foreground">+</span> : null}
-          <kbd
-            title={key}
-            className="inline-flex h-4.5 min-w-4.5 items-center justify-center rounded border border-foreground/5 bg-foreground/10 px-1 font-sans text-[0.625rem] leading-none"
-          >
-            {key === "Shift" ? "⇧" : key === "Ctrl" ? "⌃" : key}
-          </kbd>
-        </React.Fragment>
-      ))}
+      {keys.join("+")}
     </span>
   );
 }

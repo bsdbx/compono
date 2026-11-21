@@ -409,12 +409,12 @@ test("the canvas menu shows A and Alt+A and performs both selection actions", as
   const deselect = screen.getByRole("menuitem", { name: "Deselect all" });
   expect(select).toHaveAttribute("aria-keyshortcuts", "A");
   expect(deselect).toHaveAttribute("aria-keyshortcuts", "Alt+A");
-  expect([...select.querySelectorAll("kbd")].map((key) => key.title)).toEqual([
-    "A",
-  ]);
-  expect([...deselect.querySelectorAll("kbd")].map((key) => key.title)).toEqual(
-    ["Alt", "A"],
-  );
+  expect(
+    select.querySelector('[data-slot="dropdown-menu-shortcut"]'),
+  ).toHaveTextContent(/^A$/);
+  expect(
+    deselect.querySelector('[data-slot="dropdown-menu-shortcut"]'),
+  ).toHaveTextContent(/^Alt\+A$/);
   fireEvent.click(select);
   expect(document.querySelectorAll(".react-flow__node.selected")).toHaveLength(
     2,
