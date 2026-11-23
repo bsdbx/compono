@@ -21,6 +21,10 @@ export type GraphNode = {
   values: Record<string, unknown>;
   properties: Record<string, unknown>;
   exposed: string[];
+  /** Inputs and inline values moved off the node into Properties. */
+  unexposed?: string[];
+  /** Display order in the Properties panel, keyed by field IDs. */
+  propertyOrder?: string[];
   groups: Record<string, string[]>;
 };
 
@@ -47,6 +51,16 @@ export function readGraph(stored: Record<string, unknown>): Graph {
     nodes: list(stored.nodes).map((item) => {
       const node = object(item);
       const position = object(node.position);
+      const unexposed = list(node.unexposed).filter(
+        (id): id is string => typeof id === "string",
+      );
+      const propertyOrder = [
+        ...new Set(
+          list(node.propertyOrder).filter(
+            (id): id is string => typeof id === "string",
+          ),
+        ),
+      ];
       const socketNames = Object.fromEntries(
         Object.entries(object(node.socketNames)).flatMap(([socket, value]) =>
           typeof value === "string" && nodeName(value)
@@ -69,6 +83,8 @@ export function readGraph(stored: Record<string, unknown>): Graph {
         values: object(node.values),
         properties: object(node.properties),
         exposed: list(node.exposed).map(String),
+        ...(unexposed.length ? { unexposed } : {}),
+        ...(propertyOrder.length ? { propertyOrder } : {}),
         groups: Object.fromEntries(
           Object.entries(object(node.groups)).map(([group, rows]) => [
             group,
@@ -414,6 +430,57 @@ export function setProperty(
   }));
 }
 
+export const groupPropertyId = (id: string) => `group:${id}`;
+
+/** A group follows its default anchor until it has a saved position of its own. */
+export function inPropertyOrder<
+  T extends { id: string; before?: string | null },
+>(fields: readonly T[], order: readonly string[] | undefined): readonly T[] {
+  const positions = new Map(order?.map((id, index) => [id, index]));
+  const position = (field: T) => positions.get(field.id) ?? positions.size;
+  const anchored = (field: T) => field.before && !positions.has(field.id);
+  const sorted = fields
+    .filter((field) => !anchored(field))
+    .sort((a, b) => position(a) - position(b));
+  for (const field of fields.filter(anchored)) {
+    const index = sorted.findIndex((entry) => entry.id === field.before);
+    sorted.splice(index < 0 ? sorted.length : index, 0, field);
+  }
+  return sorted;
+}
+
+/** Replaces the positions of visible fields, leaving absent fields in their slots. */
+function orderVisibleSlots(previous: readonly string[], fields: string[]) {
+  const visible = new Set(fields);
+  let at = 0;
+  const order = previous.map((field) =>
+    visible.has(field) ? (fields[at++] ?? field) : field,
+  );
+  order.push(...fields.slice(at));
+  return order;
+}
+
+/** Reorders visible properties while retaining the slots of temporarily absent fields. */
+export function setPropertyOrder(
+  graph: Graph,
+  id: string,
+  fields: string[],
+): Graph {
+  const node = graph.nodes.find((each) => each.id === id);
+  if (!node) return graph;
+  const previous = node.propertyOrder ?? [];
+  const order = orderVisibleSlots(previous, fields);
+  if (
+    order.length === previous.length &&
+    order.every((field, index) => field === previous[index])
+  )
+    return graph;
+  return replace(graph, id, (current) => ({
+    ...current,
+    propertyOrder: order,
+  }));
+}
+
 /** Moves a group's row up (-1) or down (1). */
 export function moveRow(
   graph: Graph,
@@ -441,14 +508,19 @@ export function placeRow(
   group: string,
   row: string,
   before?: string,
+  visible?: ReadonlySet<string>,
 ): Graph {
   const current = graph.nodes.find((each) => each.id === node)?.groups[group];
   if (!current) return graph;
-  const rows = reorderedRows(current, row, before);
-  if (rows === current) return graph;
+  const displayed = visible ? current.filter((id) => visible.has(id)) : current;
+  const rows = reorderedRows(displayed, row, before);
+  if (rows === displayed) return graph;
   return replace(graph, node, (value) => ({
     ...value,
-    groups: { ...value.groups, [group]: rows },
+    groups: {
+      ...value.groups,
+      [group]: visible ? orderVisibleSlots(current, rows) : rows,
+    },
   }));
 }
 
@@ -498,25 +570,51 @@ export function removeRow(
   };
 }
 
-/** Makes a node's property an input it can take a wire into, keeping its value. */
-export function expose(graph: Graph, id: string, property: string): Graph {
-  return replace(graph, id, (node) =>
-    node.exposed.includes(property)
-      ? node
-      : { ...node, exposed: [...node.exposed, property] },
-  );
+type FieldOrigin = "property" | "input" | "output-property";
+
+/** Restores a default input or makes a property wireable, keeping its stored value. */
+export function expose(
+  graph: Graph,
+  id: string,
+  field: string,
+  origin: FieldOrigin = "property",
+): Graph {
+  return replace(graph, id, (node) => {
+    const { unexposed, ...rest } = node;
+    const hidden = (unexposed ?? []).filter((each) => each !== field);
+    const exposed =
+      origin === "input" || node.exposed.includes(field)
+        ? node.exposed
+        : [...node.exposed, field];
+    return {
+      ...rest,
+      exposed,
+      ...(hidden.length ? { unexposed: hidden } : {}),
+    };
+  });
 }
 
-/** Makes an exposed property a plain property again, taking its wire away. */
-export function unexpose(graph: Graph, id: string, property: string): Graph {
-  const next = replace(graph, id, (node) => ({
-    ...node,
-    exposed: node.exposed.filter((each) => each !== property),
-  }));
+/** Moves a field off the node and takes its incoming wire away. */
+export function unexpose(
+  graph: Graph,
+  id: string,
+  field: string,
+  origin: FieldOrigin = "property",
+): Graph {
+  const next = replace(graph, id, (node) => {
+    const hidden = node.unexposed ?? [];
+    return {
+      ...node,
+      exposed: node.exposed.filter((each) => each !== field),
+      ...(origin !== "property" && !hidden.includes(field)
+        ? { unexposed: [...hidden, field] }
+        : {}),
+    };
+  });
   return {
     ...next,
     wires: next.wires.filter(
-      (wire) => !(wire.to.node === id && wire.to.socket === property),
+      (wire) => !(wire.to.node === id && wire.to.socket === field),
     ),
   };
 }

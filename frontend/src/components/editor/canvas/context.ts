@@ -75,11 +75,23 @@ export function socketsOf(
 
 export type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
 
-/** A node's inputs: its own, then its exposed properties, as the graph has them before the API says so. */
-export function inputsOf(canvas: Known, node: GraphNode): InputSocket[] {
+/** The node type's own inputs, including those moved into the properties panel. */
+export function defaultInputsOf(canvas: Known, node: GraphNode): InputSocket[] {
   const properties = canvas.nodeTypes.get(node.type)?.properties ?? [];
-  const own = socketsOf(canvas, node.id, node.type).inputs.filter(
+  return socketsOf(canvas, node.id, node.type).inputs.filter(
     (input) => !properties.some((property) => property.id === input.id),
+  );
+}
+
+/** A node's visible inputs, followed by its exposed properties. */
+export function inputsOf(
+  canvas: Known,
+  node: GraphNode,
+  includeHidden = false,
+): InputSocket[] {
+  const properties = canvas.nodeTypes.get(node.type)?.properties ?? [];
+  const own = defaultInputsOf(canvas, node).filter(
+    (input) => includeHidden || !node.unexposed?.includes(input.id),
   );
   const exposed = properties
     .filter((property) => node.exposed.includes(property.id))

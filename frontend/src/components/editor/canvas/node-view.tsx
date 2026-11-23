@@ -1,5 +1,9 @@
-import type { Node, NodeProps } from "@xyflow/react";
-import { memo, type ReactNode } from "react";
+import {
+  type Node,
+  type NodeProps,
+  useUpdateNodeInternals,
+} from "@xyflow/react";
+import { memo, type ReactNode, useLayoutEffect } from "react";
 import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types";
 import { cn } from "@/lib/utils";
 import { choiceOptions, inputsOf, socketsOf, useCanvas } from "./context";
@@ -7,6 +11,8 @@ import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addRow,
   type GraphNode,
+  groupPropertyId,
+  inPropertyOrder,
   type SocketType,
   setProperty,
   setValue,
@@ -19,7 +25,7 @@ import { SocketHandle } from "./socket-handle";
 export type CanvasNode = Node<Record<string, never>, "graph">;
 
 /** The kinds of input that are typed in a field on the node, when nothing is wired in. */
-export const TYPED: ReadonlySet<string> = new Set([
+const TYPED: ReadonlySet<string> = new Set([
   "boolean",
   "number",
   "text",
@@ -170,9 +176,16 @@ function InputRow({
   input: InputSocket;
   wired: boolean;
 }) {
-  const { edit } = useCanvas();
+  const canvas = useCanvas();
   // An exposed property keeps its value as a property
   const exposed = node.exposed.includes(input.id);
+  const inline = exposed
+    ? canvas.nodeTypes
+        .get(node.type)
+        ?.properties.find(
+          (property) => property.on_node && property.id === input.id,
+        )
+    : undefined;
   const value = exposed
     ? (node.properties[input.id] ?? input.default)
     : (node.values[input.id] ?? input.default);
@@ -193,13 +206,15 @@ function InputRow({
       />
       {wired ? (
         <span className="truncate text-foreground/90">{input.label}</span>
+      ) : inline ? (
+        <OnNodeValue node={node} property={inline} />
       ) : (
         <Field
           label={input.label}
           type={input.type}
           value={value}
           onChange={(next) =>
-            edit(
+            canvas.edit(
               (graph) =>
                 exposed
                   ? setProperty(graph, node.id, input.id, next)
@@ -213,7 +228,7 @@ function InputRow({
   );
 }
 
-/** The value a node like Number gives, set on the node beside its output. */
+/** The value a node like Number gives, edited on the node as an output value or exposed input. */
 function OnNodeValue({
   node,
   property,
@@ -254,18 +269,61 @@ function OnNodeValue({
   );
 }
 
+type SocketRow =
+  | { id: string; input: InputSocket }
+  | { id: string; before: string | null; group: GroupSocket };
+
 function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const canvas = useCanvas();
   const node = canvas.graph.nodes.find((each) => each.id === id);
-  if (node === undefined) {
+  const sockets = node && socketsOf(canvas, id, node.type);
+  const inputs =
+    node &&
+    sockets &&
+    inPropertyOrder<SocketRow>(
+      [
+        ...inputsOf(canvas, node, true).map((input) => ({
+          id: input.id,
+          input,
+        })),
+        ...sockets.groups.map((group) => ({
+          id: groupPropertyId(group.id),
+          before: group.before,
+          group,
+        })),
+      ],
+      node.propertyOrder,
+    ).filter((row) => "group" in row || !node.unexposed?.includes(row.id));
+  const inputOrder = inputs
+    ?.flatMap((row) =>
+      "group" in row && node?.collapsed
+        ? [
+            row.id,
+            ...(node.groups[row.group.id] ?? []).map(
+              (id) => `${row.group.id}/${id}`,
+            ),
+          ]
+        : row.id,
+    )
+    .join("\n");
+  const updateNodeInternals = useUpdateNodeInternals();
+  useLayoutEffect(() => {
+    // Socket positions can change while the node's outer dimensions stay the same.
+    if (inputOrder !== undefined) updateNodeInternals(id);
+  }, [id, inputOrder, updateNodeInternals]);
+
+  if (!node || !inputs || !sockets) {
     return null;
   }
   const nodeType = canvas.nodeTypes.get(node.type);
   const evaluated = canvas.evaluated.get(id);
-  const sockets = socketsOf(canvas, id, node.type);
-  const inputs = inputsOf(canvas, node);
   const onNode =
-    nodeType?.properties.filter((property) => property.on_node) ?? [];
+    nodeType?.properties.filter(
+      (property) =>
+        property.on_node &&
+        !node.exposed.includes(property.id) &&
+        !node.unexposed?.includes(property.id),
+    ) ?? [];
   // A refused wire leaves the input's field, which the node still uses
   const wired = new Set(
     canvas.graph.wires
@@ -273,7 +331,6 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       .map((wire) => wire.to.socket),
   );
   const error = evaluated?.error;
-  // Groups sit before the input they name, the rest after the inputs
   const rows: ReactNode[] = [];
   const compactInputs: CompactSocket[] = [];
   const groupRows = (group: GroupSocket) => {
@@ -294,12 +351,12 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       },
     );
   };
-  for (const input of inputs) {
-    for (const group of sockets.groups.filter(
-      (each) => each.before === input.id,
-    )) {
-      groupRows(group);
+  for (const row of inputs) {
+    if ("group" in row) {
+      groupRows(row.group);
+      continue;
     }
+    const { input } = row;
     rows.push(
       <InputRow
         key={`input:${input.id}`}
@@ -309,11 +366,6 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       />,
     );
     compactInputs.push(input);
-  }
-  for (const group of sockets.groups.filter(
-    (each) => !inputs.some((input) => input.id === each.before),
-  )) {
-    groupRows(group);
   }
   const compactHeight = collapsedHeight(
     compactInputs.length,
