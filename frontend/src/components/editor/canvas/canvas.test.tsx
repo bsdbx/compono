@@ -451,6 +451,23 @@ test("F2 renames one selected node and the rename supports undo and redo", async
   expect(canvas.graph().nodes[0]?.name).toBe("Price");
 });
 
+test("the empty canvas menu opens Find and shows its shortcut", async () => {
+  selectionCanvas(false, 0);
+  const pane = await waitFor(() => {
+    const element = document.querySelector(".react-flow__pane");
+    expect(element).toBeInTheDocument();
+    return element as Element;
+  });
+  fireEvent.contextMenu(pane);
+  const item = await screen.findByRole("menuitem", { name: "Find" });
+  expect(item).toHaveTextContent("Ctrl+F");
+  expect(item).toHaveAttribute("aria-keyshortcuts", "Control+F Meta+F");
+  fireEvent.click(item);
+  expect(
+    screen.getByRole("textbox", { name: "Find node names" }),
+  ).toHaveFocus();
+});
+
 test("find navigates occurrences, renames one or all, and gives one undo for the batch", async () => {
   const a = newNode("pass", { x: 0, y: 0 }, "first");
   const b = {
