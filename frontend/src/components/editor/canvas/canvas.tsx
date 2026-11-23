@@ -73,6 +73,8 @@ import {
   type XY,
 } from "./graph";
 import { History } from "./history";
+import { findNodes, renameMatches } from "./node-find";
+import { NodeFindPanel } from "./node-find-panel";
 import { GRID_GAP, type SnapGuide, snapPositions } from "./node-snap";
 import { type CanvasNode, NodeView } from "./node-view";
 import { PropertiesPanel, PropertiesPlaceholder } from "./panel";
@@ -187,7 +189,7 @@ function editing(target: EventTarget | null): boolean {
     (target.isContentEditable ||
       ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) ||
       target.closest(
-        '[role="combobox"], [role="menu"], [role="listbox"], [role="dialog"]',
+        '[role="combobox"], [role="menu"], [role="listbox"], [role="dialog"], [data-node-find]',
       ) !== null)
   );
 }
@@ -288,6 +290,15 @@ function Flow({
   const [menu, setMenu] = useState<Menu>();
   const [adding, setAdding] = useState<Adding>();
   const [renaming, setRenaming] = useState<string>();
+  const [find, setFind] = useState({ open: false, query: "", index: 0 });
+  const beforeFind = useRef<HTMLElement>(undefined);
+  const matches = useMemo(
+    () => (find.open ? findNodes(savedGraph.nodes, nodeTypes, find.query) : []),
+    [savedGraph.nodes, nodeTypes, find.open, find.query],
+  );
+  const matchIndex = find.index % Math.max(1, matches.length);
+  const activeMatch = matches[matchIndex];
+  const foundNode = activeMatch?.node;
   const boxSelection = useBoxSelection(
     flow,
     wrapper,
@@ -364,6 +375,96 @@ function Flow({
     },
     [latest, history, save],
   );
+
+  const closeFind = useCallback(() => {
+    setFind((current) => ({ ...current, open: false }));
+    if (beforeFind.current?.isConnected)
+      beforeFind.current.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    function findKeys(event: KeyboardEvent) {
+      if (hidden || placement || resizing || event.isComposing) return;
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === "f"
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.repeat) return;
+        if (find.open) closeFind();
+        else {
+          beforeFind.current =
+            document.activeElement instanceof HTMLElement
+              ? document.activeElement
+              : undefined;
+          setMenu(undefined);
+          setAdding(undefined);
+          setFind((current) => ({ ...current, open: true }));
+        }
+      } else if (
+        find.open &&
+        event.key === "Escape" &&
+        event.target instanceof Element &&
+        event.target.closest("[data-node-find]")
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        closeFind();
+      }
+    }
+    window.addEventListener("keydown", findKeys, true);
+    return () => window.removeEventListener("keydown", findKeys, true);
+  }, [closeFind, find.open, hidden, placement, resizing]);
+
+  const focusFoundNode = useCallback(
+    (id: string) => {
+      setNodes((current) =>
+        current.map((node) => {
+          const selected = node.id === id;
+          return Boolean(node.selected) === selected
+            ? node
+            : { ...node, selected };
+        }),
+      );
+      setSelectedWires((current) => (current.size ? new Set() : current));
+      void flow.fitView({
+        nodes: [{ id }],
+        maxZoom: 1,
+        padding: 0.5,
+        duration: 180,
+      });
+    },
+    [flow],
+  );
+
+  useEffect(() => {
+    if (find.query && foundNode && !hidden) focusFoundNode(foundNode);
+  }, [find.query, focusFoundNode, foundNode, hidden]);
+
+  function stepFind(direction: -1 | 1) {
+    const count = matches.length;
+    if (!count) return;
+    const index = (matchIndex + direction + count) % count;
+    const next = matches[index];
+    if (next && next.node === foundNode) focusFoundNode(next.node);
+    setFind((current) => ({ ...current, index }));
+  }
+
+  function renameFound(replacement: string, all: boolean) {
+    if (!activeMatch) return;
+    const next = renameMatches(
+      latest(),
+      nodeTypes,
+      find.query,
+      replacement,
+      all ? undefined : activeMatch,
+    );
+    edit(() => next.graph);
+    setFind((current) => ({ ...current, index: next.index }));
+  }
 
   const undo = useCallback(() => {
     const previous = history.undo(latest());
@@ -765,6 +866,7 @@ function Flow({
       renaming,
       startRename,
       finishRename,
+      find: find.open ? { query: find.query, active: activeMatch } : undefined,
       resizeNode,
       rewiring,
     }),
@@ -777,6 +879,9 @@ function Flow({
       renaming,
       startRename,
       finishRename,
+      find.open,
+      find.query,
+      activeMatch,
       resizeNode,
       rewiring,
     ],
@@ -1389,6 +1494,17 @@ function Flow({
             from={adding.from?.type}
             onChoose={onChoose}
             onClose={() => setAdding(undefined)}
+          />
+        ) : null}
+        {find.open && !hidden ? (
+          <NodeFindPanel
+            query={find.query}
+            index={matchIndex}
+            count={matches.length}
+            onQuery={(query) => setFind({ open: true, query, index: 0 })}
+            onStep={stepFind}
+            onRename={renameFound}
+            onClose={closeFind}
           />
         ) : null}
       </div>

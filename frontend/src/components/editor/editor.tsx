@@ -249,7 +249,7 @@ function EditorContent() {
         />
         <main
           className={cn(
-            "relative min-w-0 flex-1",
+            "@container/editor relative min-w-0 flex-1",
             // The canvas draws its own dots, which move with it
             openId === undefined
               ? "bg-[radial-gradient(var(--color-border)_1px,transparent_1px)] bg-size-[18px_18px]"
