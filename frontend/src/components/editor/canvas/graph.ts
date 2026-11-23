@@ -105,15 +105,25 @@ export function addNode(graph: Graph, node: GraphNode): Graph {
 
 /** Sets the display label, or restores the type's name when the label is empty. */
 export function renameNode(graph: Graph, id: string, value: string): Graph {
-  const name = nodeName(value);
-  const current = graph.nodes.find((node) => node.id === id);
-  if (!current || (current.name ?? "") === name) return graph;
-  const { name: _, ...rest } = current;
-  const renamed = name === "" ? rest : { ...rest, name };
-  return {
-    ...graph,
-    nodes: graph.nodes.map((node) => (node.id === id ? renamed : node)),
-  };
+  return renameNodes(graph, new Map([[id, value]]));
+}
+
+export function renameNodes(
+  graph: Graph,
+  names: ReadonlyMap<string, string>,
+): Graph {
+  if (!names.size) return graph;
+  let changed = false;
+  const nodes = graph.nodes.map((node) => {
+    const value = names.get(node.id);
+    if (value === undefined) return node;
+    const name = nodeName(value);
+    if ((node.name ?? "") === name) return node;
+    changed = true;
+    const { name: _, ...rest } = node;
+    return name ? { ...rest, name } : rest;
+  });
+  return changed ? { ...graph, nodes } : graph;
 }
 
 function withoutSocketNames(

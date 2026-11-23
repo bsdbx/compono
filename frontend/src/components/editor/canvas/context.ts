@@ -12,6 +12,7 @@ import {
   groupDrop,
   type SocketType,
 } from "./graph";
+import type { NodeMatch } from "./node-find";
 import type { NodeSize } from "./node-size";
 import type { SnapGuide } from "./node-snap";
 
@@ -35,6 +36,7 @@ export type CanvasState = {
   renaming: string | undefined;
   startRename: (node: string) => void;
   finishRename: () => void;
+  find?: { query: string; active: NodeMatch | undefined } | undefined;
   /** Preview a resize, commit it once, or cancel it with undefined. */
   resizeNode: (
     node: string,

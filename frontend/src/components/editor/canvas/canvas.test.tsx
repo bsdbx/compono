@@ -451,6 +451,99 @@ test("F2 renames one selected node and the rename supports undo and redo", async
   expect(canvas.graph().nodes[0]?.name).toBe("Price");
 });
 
+test("find navigates occurrences, renames one or all, and gives one undo for the batch", async () => {
+  const a = newNode("pass", { x: 0, y: 0 }, "first");
+  const b = {
+    ...newNode("pass", { x: 300, y: 0 }, "second"),
+    name: "Pass pass",
+    collapsed: true,
+  };
+  const wire = {
+    id: "wire",
+    from: { node: a.id, socket: "value" },
+    to: { node: b.id, socket: "value" },
+  };
+  const canvas = selectionCanvas(false, 2, {
+    format: 1,
+    props: [],
+    nodes: [a, b],
+    wires: [wire],
+  });
+  await waitFor(() =>
+    expect(document.querySelectorAll("[data-node-header]")).toHaveLength(2),
+  );
+  fireEvent.keyDown(window, { key: "a" });
+  const openFind = () => fireEvent.keyDown(window, { key: "f", ctrlKey: true });
+  expect(openFind()).toBe(false);
+  const field = screen.getByRole("textbox", { name: "Find node names" });
+  expect(field).toHaveFocus();
+  fireEvent.change(field, { target: { value: "pAsS" } });
+  const panel = within(
+    screen.getByRole("region", { name: "Find and rename nodes" }),
+  );
+  const count = panel.getByRole("status");
+  const active = () => document.querySelector("mark[data-active-match]");
+  const selected = () =>
+    Array.from(
+      document.querySelectorAll(".react-flow__node.selected"),
+      (node) => node.getAttribute("data-id"),
+    );
+  expect(count).toHaveTextContent("1 of 3");
+  expect(selected()).toEqual(["first"]);
+  expect(active()?.closest(".react-flow__node")).toHaveAttribute(
+    "data-id",
+    "first",
+  );
+  expect(document.querySelectorAll("mark")).toHaveLength(3);
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(count).toHaveTextContent("2 of 3");
+  expect(selected()).toEqual(["second"]);
+  expect(active()?.closest(".react-flow__node")).toHaveAttribute(
+    "data-id",
+    "second",
+  );
+  fireEvent.click(panel.getByRole("button", { name: "Next match" }));
+  expect(active()).toHaveTextContent(/^pass$/);
+  fireEvent.keyDown(field, { key: "Enter", shiftKey: true });
+  expect(active()).toHaveTextContent(/^Pass$/);
+  fireEvent.click(panel.getByRole("button", { name: "Previous match" }));
+  fireEvent.click(panel.getByRole("button", { name: "Previous match" }));
+  expect(count).toHaveTextContent("3 of 3");
+  expect(canvas.change).not.toHaveBeenCalled();
+
+  fireEvent.click(panel.getByRole("button", { name: "Show rename" }));
+  const replacement = panel.getByRole("textbox", { name: "Rename to" });
+  fireEvent.change(replacement, { target: { value: "Layer" } });
+  fireEvent.click(panel.getByRole("button", { name: "Rename" }));
+  expect(canvas.graph().nodes.map((node) => node.name)).toEqual([
+    undefined,
+    "Pass Layer",
+  ]);
+  expect(count).toHaveTextContent("1 of 2");
+  fireEvent.change(replacement, { target: { value: "Label" } });
+  fireEvent.click(panel.getByRole("button", { name: "Rename all" }));
+  expect(count).toHaveTextContent("No matches");
+  expect(canvas.graph().nodes.map((node) => node.name)).toEqual([
+    "Label",
+    "Label Layer",
+  ]);
+  expect(canvas.graph().wires).toEqual([wire]);
+  expect(canvas.change).toHaveBeenCalledTimes(2);
+
+  fireEvent.keyDown(field, { key: "f", ctrlKey: true });
+  expect(field).not.toBeInTheDocument();
+  expect(document.querySelectorAll("mark")).toHaveLength(0);
+  fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+  expect(canvas.graph().nodes.map((node) => node.name)).toEqual([
+    undefined,
+    "Pass Layer",
+  ]);
+  openFind();
+  expect(screen.getByRole("textbox", { name: "Find node names" })).toHaveValue(
+    "pAsS",
+  );
+});
+
 test("node side borders resize width with the keyboard and support undo", async () => {
   const canvas = selectionCanvas(false, 1);
   await waitFor(() =>

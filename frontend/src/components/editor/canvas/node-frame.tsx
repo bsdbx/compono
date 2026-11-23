@@ -1,4 +1,5 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { Highlight } from "@/components/highlight";
 import { cn } from "@/lib/utils";
 import { useCanvas } from "./context";
 import { type GraphNode, renameNode, setNodeWidth } from "./graph";
@@ -137,7 +138,20 @@ export function NodeFrame({
           />
         ) : (
           <span className="truncate" title={name}>
-            {name}
+            {canvas.find ? (
+              <Highlight
+                text={name}
+                query={canvas.find.query}
+                all
+                activeStart={
+                  canvas.find.active?.node === node.id
+                    ? canvas.find.active.start
+                    : undefined
+                }
+              />
+            ) : (
+              name
+            )}
           </span>
         )}
       </div>
