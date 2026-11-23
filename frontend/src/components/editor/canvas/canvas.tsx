@@ -382,6 +382,18 @@ function Flow({
       beforeFind.current.focus({ preventScroll: true });
   }, []);
 
+  const openFind = useCallback(() => {
+    const field = wrapper.current?.querySelector<HTMLInputElement>(
+      "[data-node-find] input",
+    );
+    if (field) field.focus({ preventScroll: true });
+    else if (document.activeElement instanceof HTMLElement)
+      beforeFind.current = document.activeElement;
+    setMenu(undefined);
+    setAdding(undefined);
+    setFind((current) => ({ ...current, open: true }));
+  }, []);
+
   useEffect(() => {
     function findKeys(event: KeyboardEvent) {
       if (hidden || placement || resizing || event.isComposing) return;
@@ -395,15 +407,7 @@ function Flow({
         event.stopPropagation();
         if (event.repeat) return;
         if (find.open) closeFind();
-        else {
-          beforeFind.current =
-            document.activeElement instanceof HTMLElement
-              ? document.activeElement
-              : undefined;
-          setMenu(undefined);
-          setAdding(undefined);
-          setFind((current) => ({ ...current, open: true }));
-        }
+        else openFind();
       } else if (
         find.open &&
         event.key === "Escape" &&
@@ -417,7 +421,7 @@ function Flow({
     }
     window.addEventListener("keydown", findKeys, true);
     return () => window.removeEventListener("keydown", findKeys, true);
-  }, [closeFind, find.open, hidden, placement, resizing]);
+  }, [closeFind, find.open, hidden, openFind, placement, resizing]);
 
   const focusFoundNode = useCallback(
     (id: string) => {
@@ -1174,6 +1178,14 @@ function Flow({
                 />
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuItem
+              className={MENU_ITEM}
+              onSelect={openFind}
+              aria-keyshortcuts="Control+F Meta+F"
+            >
+              Find
+              <DropdownMenuShortcut keys={["Ctrl", "F"]} />
+            </DropdownMenuItem>
             <DropdownMenuSeparator className={MENU_SEPARATOR} />
             <DropdownMenuItem
               className={MENU_ITEM}
@@ -1470,9 +1482,11 @@ function Flow({
             y={menu.y}
             className={menu.kind === "node" ? "w-64" : ""}
             onCloseAutoFocus={(event) => {
-              // Keep the inline field focused after its context menu closes.
+              // Keep the field focused when the menu starts an edit or opens Find.
               if (
-                wrapper.current?.querySelector('input[aria-label="Node name"]')
+                wrapper.current?.querySelector(
+                  'input[aria-label="Node name"], [data-node-find] input',
+                )
               )
                 event.preventDefault();
             }}
