@@ -1,13 +1,20 @@
+import { GripVertical } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import type { Prop } from "@/api/types";
+import { createPortal } from "react-dom";
+import type { InputSocket, NodeProperty, Prop } from "@/api/types";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { SOCKET_COLOR } from "./accepts";
-import { choiceOptions, inputsOf, useCanvas } from "./context";
+import { SOCKET_COLOR, socketTypeName } from "./accepts";
+import {
+  choiceOptions,
+  defaultInputsOf,
+  socketsOf,
+  useCanvas,
+} from "./context";
 import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addProp,
@@ -15,17 +22,24 @@ import {
   duplicateProp,
   expose,
   type GraphNode,
+  groupPropertyId,
+  inPropertyOrder,
   PROP_NAME,
+  placeRow,
   removeProp,
+  renameSocket,
+  reorderedRows,
   type SocketType,
   setProperty,
+  setPropertyOrder,
   setValue,
   unexpose,
 } from "./graph";
-import { TYPED } from "./node-view";
+import { NodeNameInput } from "./node-name-input";
 import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
+import { useRowDrag } from "./use-row-drag";
 
-const FIELD = "h-6.5";
+const FIELD = "h-7 text-sm";
 
 const KINDS: Readonly<Record<string, string>> = {
   text: "Text",
@@ -113,37 +127,234 @@ function PanelField({
       );
     default:
       return (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-muted-foreground text-sm">
           {KINDS[type.kind ?? "any"]}
         </span>
       );
   }
 }
 
+function ExposureAccent() {
+  return (
+    <span className="pointer-events-none absolute inset-y-0 left-0.5 my-auto h-3.5 w-0.5 rounded-full bg-socket-element">
+      <span className="sr-only">Exposed</span>
+    </span>
+  );
+}
+
+function PropertyLabel({
+  label,
+  count,
+}: {
+  label: string;
+  count?: number | undefined;
+}) {
+  return (
+    <span title={label} className="flex min-w-0 items-baseline gap-1.5">
+      <span className="truncate">{label}</span>
+      {count !== undefined ? (
+        <span className="shrink-0 text-subtle-foreground text-2xs">
+          {count}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 /** A labelled row. Its menu, if it has one, opens on a right click. */
 function Row({
   label,
+  count,
   menu,
   active = false,
+  exposed = false,
+  leading,
+  onRename,
   children,
 }: {
   label: string;
-  menu?: string;
+  count?: number | undefined;
+  menu?: string | undefined;
   active?: boolean;
+  exposed?: boolean | undefined;
+  leading?: ReactNode;
+  onRename?: ((name: string) => void) | undefined;
   children: ReactNode;
 }) {
+  const [renaming, setRenaming] = useState(false);
+
   return (
     <div
       data-menu={menu}
+      data-row-drag-surface
+      data-exposed={exposed ? "true" : undefined}
       className={cn(
-        "-mx-1.5 flex h-8 items-center rounded-md px-1.5",
-        active ? "bg-accent" : "",
+        "relative flex h-8.5 items-center rounded-md px-1.5 transition-colors duration-100",
+        !leading && "-mx-1.5",
+        active ? "bg-highlight" : "hover:bg-highlight",
       )}
     >
-      <span className="w-21 shrink-0 truncate text-muted-foreground text-xs">
-        {label}
-      </span>
-      <div className="flex min-w-0 flex-1 items-center">{children}</div>
+      {exposed && <ExposureAccent />}
+      {leading}
+      {onRename ? (
+        renaming ? (
+          <NodeNameInput
+            name={label}
+            label="Child name"
+            onSave={onRename}
+            onDone={() => setRenaming(false)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="h-full min-w-0 flex-1 cursor-default truncate text-left text-muted-foreground text-sm"
+            title={label}
+            onDoubleClick={() => setRenaming(true)}
+            onKeyDown={(event) => {
+              if (event.key !== "F2" && event.key !== "Enter") return;
+              event.preventDefault();
+              event.stopPropagation();
+              setRenaming(true);
+            }}
+          >
+            {label}
+          </button>
+        )
+      ) : (
+        <>
+          <span className="flex w-21 shrink-0 items-center text-muted-foreground text-sm">
+            <PropertyLabel label={label} count={count} />
+          </span>
+          <div className="flex min-w-0 flex-1 items-center">{children}</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+type PropertyRow = {
+  id: string;
+  label: string;
+  count?: number;
+  menu?: string;
+  exposed?: boolean;
+  field?: ReactNode;
+  before?: string | null;
+  details?: ReactNode;
+  gripLabel?: string;
+  onRename?: (name: string) => void;
+};
+
+function PropertyList({
+  fields,
+  activeMenu,
+  onPlace,
+  label = "Node property order",
+  className,
+}: {
+  fields: readonly PropertyRow[];
+  activeMenu?: string | undefined;
+  onPlace: (row: string, before?: string) => void;
+  label?: string;
+  className?: string;
+}) {
+  const byId = new Map(fields.map((field) => [field.id, field]));
+  const saved = fields.map((field) => field.id);
+  const drag = useRowDrag(saved, onPlace);
+  const preview = drag.preview;
+  const dragged = preview && byId.get(preview.row);
+
+  return (
+    <div ref={drag.region} className={className} {...drag.handlers}>
+      <ol
+        ref={drag.list}
+        aria-label={label}
+        className="-mx-1.5 flex flex-col gap-1.5"
+      >
+        {drag.rows.map((id) => {
+          const row = byId.get(id);
+          if (!row) return null;
+          return (
+            <li
+              key={id}
+              data-row={id}
+              className={cn(
+                row.details &&
+                  "rounded-md border border-node-group-border bg-node-group",
+                preview?.row === id && "opacity-40",
+              )}
+            >
+              <Row
+                label={row.label}
+                count={row.count}
+                menu={row.menu}
+                active={row.menu !== undefined && activeMenu === row.menu}
+                exposed={row.exposed}
+                onRename={row.onRename}
+                leading={
+                  <button
+                    type="button"
+                    aria-label={`Reorder ${row.gripLabel ?? row.label}`}
+                    aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+                    title="Drag to reorder (Alt+Up/Down)"
+                    disabled={saved.length < 2}
+                    className="mr-1 flex size-5 shrink-0 touch-none cursor-grab items-center justify-center rounded text-subtle-foreground hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+                    onPointerDown={(event) => {
+                      const focused = document.activeElement;
+                      if (
+                        event.button === 0 &&
+                        focused instanceof HTMLInputElement &&
+                        drag.region.current?.contains(focused)
+                      )
+                        focused.blur();
+                      drag.start(event, id);
+                    }}
+                    onKeyDown={(event) => {
+                      const { key, altKey } = event;
+                      if (!altKey || (key !== "ArrowUp" && key !== "ArrowDown"))
+                        return;
+                      event.preventDefault();
+                      event.stopPropagation();
+                      const index = saved.indexOf(id);
+                      if (key === "ArrowUp" && index > 0)
+                        onPlace(id, saved[index - 1]);
+                      if (key === "ArrowDown" && index < saved.length - 1)
+                        onPlace(id, saved[index + 2]);
+                    }}
+                  >
+                    <GripVertical className="size-3.5" />
+                  </button>
+                }
+              >
+                {row.field}
+              </Row>
+              {row.details}
+            </li>
+          );
+        })}
+      </ol>
+      {preview && dragged
+        ? createPortal(
+            <div
+              aria-hidden
+              data-property-drag-preview
+              className="pointer-events-none fixed z-100 flex items-center gap-1 rounded-md border border-input bg-card px-1.5 text-foreground text-sm shadow-xl"
+              style={{
+                left: preview.x,
+                top: preview.y,
+                width: preview.width,
+                height: preview.height,
+              }}
+            >
+              {dragged.exposed && <ExposureAccent />}
+              <span className="flex size-5 shrink-0 items-center justify-center">
+                <GripVertical className="size-3.5" />
+              </span>
+              <PropertyLabel label={dragged.label} count={dragged.count} />
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -154,7 +365,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       aria-label={title}
       className="border-border border-b px-3.5 pt-2.5 pb-3 last:border-b-0"
     >
-      <h3 className="flex h-5 items-center font-semibold text-sm">{title}</h3>
+      <h3 className="flex h-5 items-center font-semibold text-base">{title}</h3>
       <div className="mt-1">{children}</div>
     </section>
   );
@@ -162,7 +373,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Header({ children }: { children: ReactNode }) {
   return (
-    <h2 className="flex h-10.5 shrink-0 items-center border-border border-b px-3.5 font-semibold text-sm">
+    <h2 className="flex h-10.5 shrink-0 items-center border-border border-b px-3.5 font-semibold text-base">
       {children}
     </h2>
   );
@@ -435,7 +646,7 @@ function Props({
   );
 }
 
-/** What the right column shows of the selected node: its value, properties, inputs and, for Component Input, the props. */
+/** The selected node's fields and, for Component Input, the component's public props. */
 export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
   const canvas = useCanvas();
   const toast = useToast();
@@ -495,21 +706,141 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       .filter((wire) => wire.to.node === id && !canvas.refused.has(wire.id))
       .map((wire) => wire.to.socket),
   );
-  const onNode = nodeType.properties.filter((property) => property.on_node);
-  const properties = nodeType.properties.filter(
-    (property) => !property.on_node && !node.exposed.includes(property.id),
+  const properties = nodeType.properties.toSorted(
+    (a, b) => Number(b.on_node) - Number(a.on_node),
   );
-  // Inputs typed in a field: those without a wire, and every exposed property
-  const inputs = inputsOf(canvas, node).filter(
-    (input) =>
-      node.exposed.includes(input.id) ||
-      (TYPED.has(input.type.kind ?? "any") && !wired.has(input.id)),
+  const defaults = defaultInputsOf(canvas, node);
+  const groups = socketsOf(canvas, id, node.type).groups;
+  const wiredLabel = (
+    <span className="text-muted-foreground text-sm">Wired</span>
   );
-  const setOn = (property: string, key: string) => (value: unknown) =>
+  const setOn = (property: string) => (value: unknown) =>
     canvas.edit(
       (graph) => setProperty(graph, id, property, value),
-      `${key}:${id}:${property}`,
+      `property:${id}:${property}`,
     );
+
+  function propertyField(property: NodeProperty) {
+    const value = node?.properties[property.id] ?? property.default;
+    const options =
+      node?.type === "choice" && property.on_node
+        ? choiceOptions(canvas, id)
+        : [];
+    if (options.length > 0) {
+      return (
+        <ChoiceField
+          label={property.label}
+          value={typeof value === "string" ? value : ""}
+          options={options}
+          className={FIELD}
+          onChange={setOn(property.id)}
+        />
+      );
+    }
+    return (
+      <PanelField
+        label={property.label}
+        type={property.type}
+        value={value}
+        onChange={setOn(property.id)}
+      />
+    );
+  }
+
+  function inputField(input: InputSocket) {
+    return (
+      <PanelField
+        label={input.label}
+        type={input.type}
+        value={node?.values[input.id] ?? input.default}
+        onChange={(value) =>
+          canvas.edit(
+            (graph) => setValue(graph, id, input.id, value),
+            `value:${id}:${input.id}`,
+          )
+        }
+      />
+    );
+  }
+
+  const fields = inPropertyOrder<PropertyRow>(
+    [
+      ...properties.map((property) => {
+        const exposed = node.exposed.includes(property.id);
+        const inline =
+          property.on_node && !node.unexposed?.includes(property.id);
+        const kind = exposed
+          ? "exposed"
+          : inline
+            ? "output-property"
+            : "property";
+        return {
+          id: property.id,
+          label: property.label,
+          menu: `${kind}:${property.id}`,
+          exposed,
+          field:
+            exposed && wired.has(property.id)
+              ? wiredLabel
+              : propertyField(property),
+        };
+      }),
+      ...defaults.map((input) => {
+        const exposed = !node.unexposed?.includes(input.id);
+        return {
+          id: input.id,
+          label: input.label,
+          menu: `${exposed ? "input" : "hidden-input"}:${input.id}`,
+          exposed,
+          field:
+            exposed && wired.has(input.id) ? wiredLabel : inputField(input),
+        };
+      }),
+      ...groups.map((group): PropertyRow => {
+        const connected = (node.groups[group.id] ?? []).filter((row) =>
+          wired.has(`${group.id}/${row}`),
+        );
+        const visible = new Set(connected);
+        const typeLabel = socketTypeName(group.type);
+        const children = connected.map(
+          (row, index): PropertyRow => ({
+            id: row,
+            label: node.socketNames?.[`${group.id}/${row}`] ?? typeLabel,
+            gripLabel: `${group.label} ${index + 1}`,
+            onRename: (name) =>
+              canvas.edit((graph) =>
+                renameSocket(
+                  graph,
+                  id,
+                  group.id,
+                  row,
+                  name === typeLabel ? "" : name,
+                ),
+              ),
+          }),
+        );
+        return {
+          id: groupPropertyId(group.id),
+          before: group.before,
+          label: group.label,
+          count: children.length,
+          details: children.length > 0 && (
+            <PropertyList
+              fields={children}
+              label={`${group.label} order`}
+              className="py-1 pr-2 pl-5 [&>ol]:gap-0.5"
+              onPlace={(row, before) =>
+                canvas.edit((graph) =>
+                  placeRow(graph, id, group.id, row, before, visible),
+                )
+              }
+            />
+          ),
+        };
+      }),
+    ],
+    node.propertyOrder,
+  );
 
   function copy(value: unknown) {
     const text =
@@ -546,27 +877,41 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       );
     }
 
-    const value =
-      kind === "input"
-        ? (node?.values[target] ??
-          inputs.find((input) => input.id === target)?.default)
-        : (node?.properties[target] ??
-          nodeType?.properties.find((property) => property.id === target)
-            ?.default);
+    const defaultInput = kind === "input" || kind === "hidden-input";
+    const property = nodeType?.properties.find(
+      (property) => property.id === target,
+    );
+    const origin = defaultInput
+      ? "input"
+      : property?.on_node
+        ? "output-property"
+        : "property";
+    const value = defaultInput
+      ? (node?.values[target] ??
+        defaults.find((input) => input.id === target)?.default)
+      : (node?.properties[target] ?? property?.default);
     return (
       <>
-        {kind === "property" ? (
+        {kind === "property" ||
+        kind === "hidden-input" ||
+        kind === "output-property" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
-            onSelect={() => canvas.edit((graph) => expose(graph, id, target))}
+            onSelect={() =>
+              canvas.edit((graph) => expose(graph, id, target, origin))
+            }
           >
             Expose
           </DropdownMenuItem>
         ) : null}
-        {kind === "exposed" ? (
+        {kind === "exposed" ||
+        kind === "input" ||
+        kind === "output-property" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
-            onSelect={() => canvas.edit((graph) => unexpose(graph, id, target))}
+            onSelect={() =>
+              canvas.edit((graph) => unexpose(graph, id, target, origin))
+            }
           >
             Unexpose
           </DropdownMenuItem>
@@ -586,96 +931,24 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         </span>
       </Header>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {onNode.length > 0 ? (
-          <Section title="Output">
-            {onNode.map((property) => {
-              const value = node.properties[property.id] ?? property.default;
-              const options =
-                node.type === "choice" ? choiceOptions(canvas, id) : [];
-              return (
-                <Row key={property.id} label={property.label}>
-                  {options.length > 0 ? (
-                    <ChoiceField
-                      label={property.label}
-                      value={typeof value === "string" ? value : ""}
-                      options={options}
-                      className={FIELD}
-                      onChange={setOn(property.id, "property")}
-                    />
-                  ) : (
-                    <PanelField
-                      label={property.label}
-                      type={property.type}
-                      value={value}
-                      onChange={setOn(property.id, "property")}
-                    />
-                  )}
-                </Row>
-              );
-            })}
-          </Section>
-        ) : null}
         {node.type === "component-input" ? (
           <Section title="Props">
             <Props open={open} onOpen={setOpen} menuOn={menu?.on} />
           </Section>
         ) : null}
-        {properties.length > 0 ? (
+        {fields.length > 0 ? (
           <Section title="Properties">
-            {properties.map((property) => (
-              <Row
-                key={property.id}
-                label={property.label}
-                menu={`property:${property.id}`}
-                active={menu?.on === `property:${property.id}`}
-              >
-                <PanelField
-                  label={property.label}
-                  type={property.type}
-                  value={node.properties[property.id] ?? property.default}
-                  onChange={setOn(property.id, "property")}
-                />
-              </Row>
-            ))}
-          </Section>
-        ) : null}
-        {inputs.length > 0 ? (
-          <Section title="Inputs">
-            {inputs.map((input) => {
-              const exposed = node.exposed.includes(input.id);
-              const key = `${exposed ? "exposed" : "input"}:${input.id}`;
-              return (
-                <Row
-                  key={input.id}
-                  label={input.label}
-                  menu={key}
-                  active={menu?.on === key}
-                >
-                  {wired.has(input.id) ? (
-                    <span className="text-muted-foreground text-xs">Wired</span>
-                  ) : (
-                    <PanelField
-                      label={input.label}
-                      type={input.type}
-                      value={
-                        exposed
-                          ? (node.properties[input.id] ?? input.default)
-                          : (node.values[input.id] ?? input.default)
-                      }
-                      onChange={(value) =>
-                        canvas.edit(
-                          (graph) =>
-                            exposed
-                              ? setProperty(graph, id, input.id, value)
-                              : setValue(graph, id, input.id, value),
-                          `value:${id}:${input.id}`,
-                        )
-                      }
-                    />
-                  )}
-                </Row>
-              );
-            })}
+            <PropertyList
+              key={id}
+              fields={fields}
+              activeMenu={menu?.on}
+              onPlace={(row, before) => {
+                const saved = fields.map((field) => field.id);
+                const order = reorderedRows(saved, row, before);
+                if (order !== saved)
+                  canvas.edit((graph) => setPropertyOrder(graph, id, order));
+              }}
+            />
           </Section>
         ) : null}
       </div>

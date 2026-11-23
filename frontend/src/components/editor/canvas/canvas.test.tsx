@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
+import type { NodeProperty } from "@/api/types";
 import { renderWithClient, stubApi } from "@/test-utils";
 import type { Content, Draft } from "../draft";
 import { Canvas } from "./canvas";
@@ -32,6 +33,7 @@ function selectionCanvas(
   count = 2,
   initialGraph?: Graph,
   groupType?: SocketType,
+  properties: NodeProperty[] = [],
 ) {
   vi.stubGlobal("PointerEvent", MouseEvent);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(600);
@@ -46,7 +48,7 @@ function selectionCanvas(
               name: "Pass",
               category: "Test",
               single: false,
-              properties: [],
+              properties,
               sockets: {
                 inputs: [{ id: "value", label: "Value", type, default: "" }],
                 outputs: [{ id: "value", label: "Value", type }],
@@ -132,6 +134,47 @@ function orderedInputs(groupType?: SocketType) {
     groupType,
   );
 }
+
+test("saved property order arranges exposed, default and grouped sockets in both node views", async () => {
+  const node = {
+    ...newNode("pass", { x: 0, y: 0 }, "first"),
+    exposed: ["title", "subtitle"],
+    propertyOrder: ["subtitle", "group:children", "value", "title"],
+    groups: { children: ["second", "first"] },
+  };
+  selectionCanvas(
+    false,
+    1,
+    { format: 1, props: [], nodes: [node], wires: [] },
+    undefined,
+    ["title", "subtitle"].map((id) => ({
+      id,
+      label: id,
+      type: { kind: "text" },
+      default: "",
+      on_node: false,
+    })),
+  );
+  await screen.findByText("Pass", { selector: "[data-node-header] span" });
+  const element = document.querySelector('.react-flow__node[data-id="first"]');
+  const socketOrder = () =>
+    [...(element?.querySelectorAll("[data-handleid^='target:']") ?? [])]
+      .map((handle) => handle.getAttribute("data-handleid"))
+      .filter((handle) => !handle?.includes("/+"));
+  const expected = [
+    "target:subtitle",
+    "target:children/second",
+    "target:children/first",
+    "target:value",
+    "target:title",
+  ];
+  expect(socketOrder()).toEqual(expected);
+
+  fireEvent.click(element?.querySelector("[data-node-header]") as HTMLElement);
+  fireEvent.keyDown(window, { key: "h" });
+  expect(element?.querySelector("[data-node-collapsed]")).toBeInTheDocument();
+  expect(socketOrder()).toEqual(expected);
+});
 
 test.each<[SocketType, string]>([
   [{ kind: "element" }, "Element"],

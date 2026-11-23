@@ -2,6 +2,7 @@ import {
   Handle,
   Position,
   useConnection,
+  useReactFlow,
   useUpdateNodeInternals,
 } from "@xyflow/react";
 import { GripVertical, Plus, X } from "lucide-react";
@@ -37,10 +38,14 @@ export function GroupSockets({
   group: GroupSocket;
 }) {
   const canvas = useCanvas();
+  const { getZoom } = useReactFlow();
   const savedRows = node.groups[group.id] ?? NO_ROWS;
   const [renaming, setRenaming] = useState<string>();
-  const drag = useRowDrag(savedRows, (row, before) =>
-    canvas.edit((graph) => placeRow(graph, node.id, group.id, row, before)),
+  const drag = useRowDrag(
+    savedRows,
+    (row, before) =>
+      canvas.edit((graph) => placeRow(graph, node.id, group.id, row, before)),
+    getZoom,
   );
   const rows = drag.rows;
   const typeLabel = socketTypeName(group.type);

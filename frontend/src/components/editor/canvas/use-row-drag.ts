@@ -1,4 +1,3 @@
-import { useReactFlow } from "@xyflow/react";
 import {
   type PointerEvent,
   useCallback,
@@ -28,6 +27,7 @@ type Gesture = {
   width: number;
   height: number;
   zoom: number;
+  targets: { row: string; center: number }[];
   active: boolean;
   before: string | null;
   valid: boolean;
@@ -37,8 +37,8 @@ type Gesture = {
 export function useRowDrag(
   savedRows: string[],
   onDrop: (row: string, before?: string) => void,
+  getZoom?: () => number,
 ) {
-  const flow = useReactFlow();
   const region = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLOListElement>(null);
   const gesture = useRef<Gesture | undefined>(undefined);
@@ -96,13 +96,13 @@ export function useRowDrag(
       current.capture.setPointerCapture?.(current.pointer);
     }
     current.active = true;
-    const rowHeight = bounds.height / rows.length || 26 * current.zoom;
-    const centerY = event.clientY - current.offset.y + current.height / 2;
-    const index = Math.max(
-      0,
-      Math.min(rows.length - 1, Math.floor((centerY - bounds.top) / rowHeight)),
-    );
-    current.before = rows.filter((row) => row !== current.row)[index] ?? null;
+    const rowHeight = current.height || 26 * current.zoom;
+    const centerY =
+      event.clientY - current.offset.y + rowHeight / 2 - bounds.top;
+    current.before =
+      current.targets.find(
+        ({ row, center }) => centerY < center && rows.includes(row),
+      )?.row ?? null;
     current.valid =
       event.clientX >= bounds.left - 24 &&
       event.clientX <= bounds.right + 24 &&
@@ -123,11 +123,29 @@ export function useRowDrag(
   function start(event: PointerEvent<HTMLElement>, row: string) {
     if (event.button !== 0 || gesture.current) return;
     const element = event.currentTarget.closest<HTMLElement>("[data-row]");
-    const control = region.current;
-    if (!element || !control) return;
+    const ordered = list.current;
+    if (!element || !ordered || !region.current) return;
     event.preventDefault();
     event.stopPropagation();
-    const bounds = element.getBoundingClientRect();
+    const surface = element.querySelector("[data-row-drag-surface]") ?? element;
+    const bounds = surface.getBoundingClientRect();
+    const listBounds = ordered.getBoundingClientRect();
+    const zoom = getZoom?.() ?? 1;
+    const rowHeight = listBounds.height / savedRows.length || 26 * zoom;
+    // Freeze the targets so shifting the preview cannot move the drop thresholds.
+    const targets = Array.from(ordered.children).flatMap((child, index) => {
+      const id = child.getAttribute("data-row");
+      if (id === null || id === row) return [];
+      const rect = child.getBoundingClientRect();
+      return [
+        {
+          row: id,
+          center: rect.height
+            ? rect.top - listBounds.top + rect.height / 2
+            : (index + 0.5) * rowHeight,
+        },
+      ];
+    });
     gesture.current = {
       capture: event.currentTarget,
       pointer: event.pointerId,
@@ -136,7 +154,8 @@ export function useRowDrag(
       offset: { x: event.clientX - bounds.left, y: event.clientY - bounds.top },
       width: bounds.width,
       height: bounds.height,
-      zoom: flow.getZoom(),
+      zoom,
+      targets,
       active: false,
       before: null,
       valid: false,

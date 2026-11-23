@@ -31,6 +31,8 @@ function meaning(graph: Graph) {
         socketNames: _socketNames,
         width: _width,
         collapsed: _collapsed,
+        unexposed: _unexposed,
+        propertyOrder: _propertyOrder,
         ...node
       }) => node,
     ),
