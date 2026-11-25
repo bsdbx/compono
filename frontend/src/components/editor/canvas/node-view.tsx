@@ -203,7 +203,8 @@ function InputRow({
   const value = exposed
     ? (node.properties[input.id] ?? input.default)
     : (node.values[input.id] ?? input.default);
-  const field = !wired && TYPED.has(input.type.kind ?? "any");
+  const field =
+    !wired && !input.wire_only && TYPED.has(input.type.kind ?? "any");
   return (
     <div
       className={cn(
@@ -218,8 +219,15 @@ function InputRow({
         socket={input.type}
         side="left"
       />
-      {wired ? (
-        <span className="truncate text-foreground/90">{input.label}</span>
+      {wired || input.wire_only ? (
+        <span
+          className={cn(
+            "truncate",
+            wired ? "text-foreground/90" : "text-muted-foreground",
+          )}
+        >
+          {input.label}
+        </span>
       ) : inline ? (
         <OnNodeValue node={node} property={inline} />
       ) : (
@@ -228,7 +236,11 @@ function InputRow({
           type={input.type}
           value={value}
           menu={choiceMenuOf(node.type, input.id)}
-          showChoiceLabel={node.type === "object" || node.type === "set-field"}
+          showChoiceLabel={
+            node.type === "object" ||
+            node.type === "set-field" ||
+            node.type === "default"
+          }
           onChange={(next) =>
             canvas.edit(
               (graph) =>

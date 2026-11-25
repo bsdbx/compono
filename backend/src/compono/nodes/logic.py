@@ -1,4 +1,4 @@
-"""Nodes that decide: Switch, Compare, Boolean Math."""
+"""Nodes that decide: Switch, Compare, Boolean Math, and Default."""
 
 from collections.abc import Mapping
 from datetime import datetime
@@ -28,6 +28,7 @@ from compono.graph.sockets import (
     AnyType,
     BooleanType,
     ChoiceType,
+    NothingType,
     NumberType,
     SocketType,
     TextType,
@@ -66,6 +67,8 @@ def _switch(context: EvaluateContext) -> Mapping[str, Value]:
 
 
 def _may_be_nothing(code: Code) -> bool:
+    if isinstance(code, Choose):
+        return _may_be_nothing(code.then) or _may_be_nothing(code.otherwise)
     return code is None or (isinstance(code, Js) and code.may_be_nothing)
 
 
@@ -347,4 +350,60 @@ BOOLEAN_MATH: Final = NodeType(
     code=_boolean_math_code,
 )
 
-NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH)
+
+def _default_sockets(context: SocketsContext) -> Sockets:
+    value = next(
+        (
+            socket
+            for name in ("value", "fallback")
+            if (socket := context.wired.get(name)) is not None
+            and not isinstance(socket, AnyType | NothingType)
+        ),
+        AnyType(),
+    )
+    return Sockets(
+        inputs=(
+            Input("value", "Value", value, wire_only=True),
+            Input(
+                "fallback",
+                "Fallback",
+                value,
+                False if isinstance(value, BooleanType) else None,
+                allow_stale_value=True,
+            ),
+        ),
+        outputs=(Output("result", "Result", value),),
+    )
+
+
+def _default(context: EvaluateContext) -> Mapping[str, Value]:
+    value = context.inputs["value"]
+    return {"result": context.inputs["fallback"] if value is None else value}
+
+
+def _default_code(context: CodeContext) -> Mapping[str, Code]:
+    value = context.inputs["value"]
+    fallback = context.inputs["fallback"]
+    if value is None:
+        return {"result": fallback}
+    if fallback is None or not _may_be_nothing(value):
+        return {"result": value}
+
+    expression_of = context.expression_of or js_of
+    primary, backup = expression_of(value), expression_of(fallback)
+    if primary is None or backup is None:
+        raise NodeError("Can't export Default's inputs")
+    return {"result": Js(f"({primary} ?? {backup})", nothing=_may_be_nothing(fallback))}
+
+
+DEFAULT: Final = NodeType(
+    type="default",
+    name="Default",
+    category=CATEGORY,
+    sockets=_default_sockets,
+    evaluate=_default,
+    code=_default_code,
+    accepts_unselected_choices=("value", "fallback"),
+)
+
+NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH, DEFAULT)

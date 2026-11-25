@@ -2,10 +2,11 @@
 
 import time
 from collections.abc import Mapping
+from operator import not_
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, JsonValue, StringConstraints
+from pydantic import BaseModel, Field, JsonValue, StringConstraints
 
 from compono.api.dependencies import SignedIn
 from compono.api.teams import NOT_SIGNED_IN, answers
@@ -36,6 +37,7 @@ class InputSocket(BaseModel):
     type: SocketType
     # What the input uses without a wire or a typed value
     default: JsonValue
+    wire_only: bool = Field(default=False, exclude_if=not_)
 
 
 class GroupSocket(BaseModel):
@@ -68,6 +70,7 @@ def sockets_of(sockets: Sockets) -> NodeSockets:
                 label=each.label,
                 type=each.type,
                 default=to_json(each.default),
+                wire_only=each.wire_only,
             )
             for each in sockets.inputs
         ],
