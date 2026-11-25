@@ -7,7 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useEvaluation, useNodeTypes } from "@/components/editor/canvas/data";
+import { useEvaluation } from "@/components/editor/canvas/data";
 import { readGraph } from "@/components/editor/canvas/graph";
 import type { Draft } from "@/components/editor/draft";
 import { Button } from "@/components/ui/button";
@@ -197,7 +197,6 @@ export function Preview({
     [content],
   );
   const evaluated = useEvaluation(graph);
-  const nodeTypes = useNodeTypes();
   const [zoom, setZoom] = usePreviewZoom(componentId);
   const region = useRef<HTMLElement>(null);
   const actualScale = useRef(1);
@@ -297,20 +296,21 @@ export function Preview({
   const sizes = content?.screen_sizes ?? [];
   const current =
     sizes.find((size) => size.name === pickedName) ?? sizes[0] ?? undefined;
-  const html = useMemo(() => toHtml(evaluated?.rendered), [evaluated]);
-  const errors = Object.entries(evaluated?.nodes ?? {}).flatMap(
-    ([id, node]) => {
-      if (node.error === null) {
-        return [];
-      }
-
-      const type = graph?.nodes.find((each) => each.id === id)?.type ?? "";
-      return [
-        { id, name: nodeTypes?.get(type)?.name ?? type, error: node.error },
-      ];
-    },
+  const [wireId] = Object.keys(evaluated?.wires ?? {});
+  const hasWireError = wireId !== undefined;
+  const html = useMemo(
+    () => (hasWireError ? "" : toHtml(evaluated?.rendered)),
+    [evaluated, hasWireError],
   );
-  const first = errors[0];
+  const wire = hasWireError
+    ? graph?.wires.find((each) => each.id === wireId)
+    : undefined;
+  const errorNode = hasWireError
+    ? (graph?.nodes.find((node) => node.id === wire?.to.node)?.id ??
+      graph?.nodes.find((node) => node.id === wire?.from.node)?.id)
+    : Object.entries(evaluated?.nodes ?? {}).find(
+        ([, node]) => node.error !== null,
+      )?.[0];
 
   return (
     <section
@@ -350,21 +350,19 @@ export function Preview({
             onZoomChange={setZoom}
             onScaleChange={reportScale}
           />
-        ) : first ? (
+        ) : hasWireError || errorNode !== undefined ? (
           <>
             <p className="font-medium text-error text-xs">Can’t render</p>
-            <p className="text-2xs text-muted-foreground">
-              {first.name}: {first.error}
-              {errors.length > 1 ? ` And ${errors.length - 1} more.` : ""}
-            </p>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="mt-1.5"
-              onClick={() => onShowNode(first.id)}
-            >
-              Show node
-            </Button>
+            {errorNode !== undefined && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-1.5"
+                onClick={() => onShowNode(errorNode)}
+              >
+                Show node
+              </Button>
+            )}
           </>
         ) : (
           <p className="font-medium text-base">Nothing to render yet</p>

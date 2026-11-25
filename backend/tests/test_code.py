@@ -164,38 +164,45 @@ def test_what_takes_a_prop_is_written_with_it() -> None:
     )
 
 
-def test_a_refused_wire_is_left_out_as_the_preview_leaves_it_out() -> None:
+def test_a_refused_wire_blocks_export_even_outside_the_render_path() -> None:
     nodes, wires, props = card()
     # A Boolean can't go into Text
-    wires[0] = wire("w1", "input.p3", "title.text")
+    nodes.append(node("loose", "element"))
+    wires.append(wire("w8", "input.p3", "loose.text"))
 
-    assert "<h3>Plan</h3>" in code(nodes, wires, props)
+    with pytest.raises(CodeError) as raised:
+        code(nodes, wires, props)
+
+    assert raised.value.errors == ["Wire: Boolean can't go into Text"]
 
 
-@pytest.mark.parametrize("default", [None, "Large"])
-def test_a_refused_choice_wire_is_left_out_of_export(default: str | None) -> None:
-    written = code(
-        [
-            node("input", "component-input"),
-            node("heading", "element", values={"tag": "h2", "text": "Hi"}),
-            node("output", "component-output"),
-        ],
-        [
-            wire("w1", "input.p1", "heading.tag"),
-            wire("w2", "heading.element", "output.render"),
-        ],
-        [
-            prop(
-                "p1",
-                "level",
-                {"kind": "choice", "options": ["a", "Large"]},
-                default=default,
-            )
-        ],
-    )
+@pytest.mark.parametrize(
+    ("default", "reason"),
+    [(None, "No choice selected"), ("Large", "Tag can't be Large")],
+)
+def test_a_refused_choice_wire_blocks_export(default: str | None, reason: str) -> None:
+    with pytest.raises(CodeError) as raised:
+        code(
+            [
+                node("input", "component-input"),
+                node("heading", "element", values={"tag": "h2", "text": "Hi"}),
+                node("output", "component-output"),
+            ],
+            [
+                wire("w1", "input.p1", "heading.tag"),
+                wire("w2", "heading.element", "output.render"),
+            ],
+            [
+                prop(
+                    "p1",
+                    "level",
+                    {"kind": "choice", "options": ["a", "Large"]},
+                    default=default,
+                )
+            ],
+        )
 
-    assert "<h2>Hi</h2>" in written
-    assert "const Tag" not in written
+    assert raised.value.errors == [f"Wire: {reason}"]
 
 
 def test_a_wire_that_brings_nothing_counts_as_no_wire() -> None:
