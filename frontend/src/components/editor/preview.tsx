@@ -171,7 +171,7 @@ export function PreviewPlaceholder() {
         Preview
       </h2>
       <Box>
-        <p className="font-medium text-2xs">Nothing to render yet</p>
+        <p className="font-medium text-base">Nothing to render yet</p>
       </Box>
     </section>
   );
@@ -367,7 +367,7 @@ export function Preview({
             </Button>
           </>
         ) : (
-          <p className="font-medium text-2xs">Nothing to render yet</p>
+          <p className="font-medium text-base">Nothing to render yet</p>
         )}
       </Box>
     </section>
