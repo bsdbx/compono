@@ -883,3 +883,34 @@ def test_slice_exports_an_optional_end_without_treating_it_as_zero() -> None:
     )
 
     assert '[...((title ?? ""))].slice(-4, ((end) ?? void 0)).join("")' in written
+
+
+def test_case_exports_all_three_modes_when_wired() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("case", "case", values={"text": "pro plan"}),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "case.text"),
+            wire("mode", "input.mode", "case.op"),
+            wire("text", "case.text", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("title", "title", TEXT),
+            prop(
+                "mode",
+                "mode",
+                {"kind": "choice", "options": ["Upper", "Lower", "Capitalize first"]},
+                default="Capitalize first",
+            ),
+        ],
+    )
+
+    assert 'mode === "Lower" ? value.toLowerCase()' in written
+    assert 'mode === "Capitalize first" ? value.replace(/^./su' in written
+    assert ": value.toUpperCase()" in written
+    assert '(title ?? "pro plan")' in written
