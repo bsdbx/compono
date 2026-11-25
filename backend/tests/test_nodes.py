@@ -104,6 +104,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("number-check", "Logic"),
         ("convert", "Logic"),
         ("join", "Text"),
+        ("text-length", "Text"),
     ]
 
 
@@ -535,6 +536,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "number-check": [],
         "convert": [],
         "join": [],
+        "text-length": [],
     }
 
 
@@ -1373,6 +1375,36 @@ def test_join_uses_order_and_skips_only_nothing() -> None:
     assert output(evaluation, "join", "text") == "Home/Pricing//Pro"
     assert output(run(nodes), "join", "text") == "Home/Old//Pro"
     assert output(run([node("join", "join")]), "join", "text") == ""
+
+
+@pytest.mark.parametrize(
+    ("value", "length"),
+    [("Pro plan", 8), ("", 0), (" 👋 ", 3), ("e\u0301", 2), (None, 0)],
+)
+def test_text_length_counts_code_points(value: JsonValue, length: int) -> None:
+    evaluation = run([node("count", "text-length", values={"text": value})])
+
+    assert output(evaluation, "count", "length") == length
+    assert evaluation.nodes["count"].sockets.outputs[0].type == NumberType(
+        integer=True, minimum=0
+    )
+
+
+@pytest.mark.parametrize(("value", "length"), [("👋👋", 2), ("", 0), (None, 8)])
+def test_wired_text_length_uses_the_typed_value_when_the_wire_is_nothing(
+    value: JsonValue, length: int
+) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("count", "text-length", values={"text": "Pro plan"}),
+        ],
+        [wire("text", "input.value", "count.text")],
+        [prop("value", "value", {"kind": "text"}, default=value)],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "count", "length") == length
 
 
 @pytest.mark.parametrize(

@@ -274,6 +274,7 @@ def test_compono_node_types_say_where_they_belong(
         ("number-check", "Logic", False),
         ("convert", "Logic", False),
         ("join", "Text", False),
+        ("text-length", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
