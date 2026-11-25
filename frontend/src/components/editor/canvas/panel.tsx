@@ -16,7 +16,13 @@ import {
   socketsOf,
   useCanvas,
 } from "./context";
-import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
+import {
+  ChoiceField,
+  NUMBER_SUBTYPE_NAMES,
+  NumberField,
+  TextField,
+  Toggle,
+} from "./fields";
 import {
   addProp,
   changeProp,
@@ -109,12 +115,14 @@ function PanelField({
   type,
   value,
   placeholder,
+  names,
   onChange,
 }: {
   label: string;
   type: SocketType;
   value: unknown;
   placeholder?: string | undefined;
+  names?: Readonly<Record<string, string>> | undefined;
   onChange: (value: unknown) => void;
 }): ReactNode {
   switch (type.kind) {
@@ -139,6 +147,7 @@ function PanelField({
           label={label}
           value={typeof value === "string" ? value : ""}
           options={type.options}
+          names={names}
           onChange={onChange}
           className={FIELD}
         />
@@ -837,6 +846,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         label={property.label}
         type={property.type}
         value={value}
+        names={
+          node?.type === "number" && property.id === "subtype"
+            ? NUMBER_SUBTYPE_NAMES
+            : undefined
+        }
         placeholder={
           node?.type === "text" &&
           property.id === "value" &&

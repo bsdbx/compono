@@ -1,6 +1,5 @@
 """Nodes that give a value set on them: Boolean, Number, Text, Choice and Nothing."""
 
-import math
 from collections.abc import Mapping
 from typing import Final
 
@@ -26,8 +25,6 @@ from compono.graph.values import Value
 
 CATEGORY: Final = "Values"
 
-CONSTANTS: Final[Mapping[str, float]] = {"Pi": math.pi, "E": math.e}
-
 
 def _value_output(
     socket_type: BooleanType | NumberType | TextType | ChoiceType | NothingType,
@@ -50,13 +47,10 @@ def _number_type(context: SocketsContext | EvaluateContext) -> NumberType:
 
 
 def _number(context: EvaluateContext) -> Mapping[str, Value]:
-    constant = text(context.properties["constant"])
-    value = CONSTANTS.get(constant, number(context.properties["value"]))
+    value = number(context.properties["value"])
     if _number_type(context).integer and value is not None:
         if not float(value).is_integer():
-            raise NodeError(
-                f"{constant if constant in CONSTANTS else value} isn't a whole number"
-            )
+            raise NodeError(f"{value} isn't a whole number")
         value = int(value)
     return {"value": value}
 
@@ -68,9 +62,6 @@ NUMBER: Final = NodeType(
     properties=(
         Property(
             "subtype", "Subtype", ChoiceType(options=("Number", "Integer")), "Number"
-        ),
-        Property(
-            "constant", "Constant", ChoiceType(options=("Custom", *CONSTANTS)), "Custom"
         ),
         Property("value", "Value", NumberType(), 0, on_node=True),
     ),
