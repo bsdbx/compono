@@ -595,7 +595,7 @@ export function expose(
   });
 }
 
-/** Moves a field off the node and takes its incoming wires away. */
+/** Removes a field's input and its wires, restoring inline values to their output. */
 export function unexpose(
   graph: Graph,
   id: string,
@@ -605,13 +605,15 @@ export function unexpose(
   const key = origin === "group" ? groupPropertyId(field) : field;
   const next = replace(graph, id, (node) => {
     const hidden = node.unexposed ?? [];
+    const restoreInline =
+      origin === "output-property" && node.exposed.includes(field);
     return {
       ...node,
       exposed:
         origin === "group"
           ? node.exposed
           : node.exposed.filter((each) => each !== field),
-      ...(origin !== "property" && !hidden.includes(key)
+      ...(origin !== "property" && !restoreInline && !hidden.includes(key)
         ? { unexposed: [...hidden, key] }
         : {}),
     };

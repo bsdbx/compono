@@ -425,7 +425,7 @@ test("a wired default input can move into Properties and be exposed again with t
   expect(reopened.edited()?.wires).toEqual([]);
 });
 
-test("inline output values can become inputs or move into Properties", () => {
+test("unexposing a value input restores its inline field", () => {
   const graphWithText = graph({
     nodes: [
       {
@@ -454,10 +454,20 @@ test("inline output values can become inputs or move into Properties", () => {
   expect(screen.queryByRole("region", { name: "Output" })).toBeNull();
   fireEvent.contextMenu(value);
   fireEvent.click(screen.getByRole("menuitem", { name: "Unexpose" }));
-  const hidden = showExposed.edited();
+  const restored = showExposed.edited();
+  expect(restored?.nodes[0]).toEqual(graphWithText.nodes[0]);
+  showExposed.unmount();
+
+  const showRestored = show(["text"], restored);
+  const restoredValue = within(
+    screen.getByRole("region", { name: "Properties" }),
+  ).getByRole("textbox", { name: "Value" });
+  fireEvent.contextMenu(restoredValue);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Unexpose" }));
+  const hidden = showRestored.edited();
   expect(hidden?.nodes[0]?.exposed).toEqual([]);
   expect(hidden?.nodes[0]?.unexposed).toEqual(["value"]);
-  showExposed.unmount();
+  showRestored.unmount();
   show(["text"], hidden);
   expect(
     within(screen.getByRole("region", { name: "Properties" })).getByRole(
