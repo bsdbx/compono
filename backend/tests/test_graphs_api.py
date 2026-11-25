@@ -45,8 +45,8 @@ def element(context: EvaluateContext) -> Mapping[str, Value]:
     }
 
 
-def no_template(_: object) -> Sockets:
-    raise NodeError("Write a template first")
+def broken_sockets(_: object) -> Sockets:
+    raise NodeError("Sockets need a value")
 
 
 TEST_TYPES = {
@@ -82,7 +82,7 @@ TEST_TYPES = {
             type="broken",
             name="Broken",
             category="Test",
-            sockets=no_template,
+            sockets=broken_sockets,
             evaluate=lambda _: {},
         ),
     ]
@@ -258,7 +258,6 @@ def test_compono_node_types_say_where_they_belong(
         ("nothing", "Values", False),
         ("switch", "Logic", False),
         ("compare", "Logic", False),
-        ("template", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),

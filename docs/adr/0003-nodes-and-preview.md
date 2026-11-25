@@ -52,32 +52,24 @@ A component's graph is one JSON document in `components.graph`:
 
 ### Node types
 
-A node type is one TypeScript module in `frontend/src/nodes/`:
+A node type is defined under `backend/src/compono/nodes/`. The Switch declaration in `logic.py` shows the structure.
 
-```ts
-export const template = defineNodeType({
-  type: "template", // stored in graphs, so it never changes
-  name: "Template",
-  category: "Text",
-  properties: { template: textProperty("") },
-  sockets: ({ properties }) => ({
-    inputs: placeholders(properties.template).map((name) => input(name, any())),
-    outputs: [output("text", "Text", text())],
-  }),
-  evaluate: ({ inputs, properties }) => ({
-    text: fill(properties.template, inputs),
-  }),
-  generate: ({ inputs, properties }) => ({
-    text: templateLiteral(properties.template, inputs),
-  }),
-});
+```python
+SWITCH: Final = NodeType(
+    type="switch",
+    name="Switch",
+    category=CATEGORY,
+    sockets=_switch_sockets,
+    evaluate=_switch,
+    code=_switch_code,
+)
 ```
 
-- `sockets` gives the node's sockets from its properties and the types wired into it. Most node types always give the same ones. Template takes its inputs from the `{names}` in its text, Convert its output from **To**, and Get Field its output from the object's fields.
-- `evaluate` turns the inputs' values into the outputs' values. It's pure: the same inputs always give the same outputs.
-- `generate` gives the code for the same thing, as Babel expressions, for the export.
+- `sockets` describes the node's inputs and outputs. Element's inputs follow its tag, and Switch's result type follows its True and False inputs.
+- `evaluate` turns input values into output values. The same inputs always give the same outputs.
+- `code` describes the equivalent expression or JSX for export when the node depends on props.
 - One node component draws every node on the canvas from its sockets, and the properties panel draws itself from the properties. A node type has no UI code of its own.
-- `frontend/src/nodes/index.ts` lists every node type, and a test fails when a module isn't in it. This is how node types register, rather than automatically as `PROPOSAL.md` puts it.
+- `backend/src/compono/nodes/__init__.py` registers the node types. A test checks that every node module is registered.
 
 ### Socket types
 
@@ -115,7 +107,7 @@ A wire that brings Nothing counts as no wire: the input uses the value typed in 
 
 ### Export
 
-Each node type's `generate` gives the code for what its `evaluate` computes. The export puts them together into one `.jsx` component for React 19, with the class names as they are, so the app that uses it needs Tailwind CSS 4. Tests evaluate sample graphs, run the code generated for them, and compare the HTML that both render.
+The exporter uses each node type's `code` function for outputs that depend on props. The export puts them together into one `.jsx` component for React 19, with the class names as they are, so the app that uses it needs Tailwind CSS 4. Tests evaluate sample graphs, run the code generated for them, and compare the HTML that both render.
 
 ### Canvas
 
@@ -123,7 +115,7 @@ React Flow, as `0002-stack.md` chose. Below 50% zoom, nodes leave out their text
 
 ## Consequences
 
-- **Each node is written twice**: `evaluate` for the preview and `generate` for the export can drift apart, and the tests that compare them have to catch it. In exchange, an edit evaluates only what it changes, instead of building and running the whole component again.
+- **Each node is written twice**: `evaluate` for the preview and `code` for the export can drift apart, and the tests that compare them have to catch it. In exchange, an edit evaluates only what it changes, instead of building and running the whole component again.
 - **Types travel along wires**: changing a prop or an Object's fields can break nodes further on. That's why an error belongs to a node and names what broke.
 - **Interactivity fits in later**: a hover or click state is a value that nodes read, and evaluation already updates only what depends on a change. It needs new node types, and state in the preview and the export, but should need no new kind of evaluation.
 - **Lists need a List socket type** later, and nodes that repeat an Element for each item.
