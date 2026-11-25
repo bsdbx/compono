@@ -860,3 +860,26 @@ def test_text_length_exports_code_point_counting_with_the_inline_fallback() -> N
     )
 
     assert '[...((title ?? "👋"))].length' in written
+
+
+def test_slice_exports_an_optional_end_without_treating_it_as_zero() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("slice", "slice", values={"start": -4}),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "slice.text"),
+            wire("end", "input.end", "slice.end"),
+            wire("text", "slice.text", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("title", "title", TEXT),
+            prop("end", "end", {"kind": "number", "integer": True}),
+        ],
+    )
+
+    assert '[...((title ?? ""))].slice(-4, ((end) ?? void 0)).join("")' in written

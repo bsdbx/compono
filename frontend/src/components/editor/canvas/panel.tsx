@@ -67,6 +67,7 @@ const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
     default: { fallback: "Default value" },
     join: { separator: "Between items" },
     "text-length": { text: "Text to measure" },
+    slice: { text: "Text to slice", end: "End of text" },
   };
 
 const KINDS: Readonly<Record<string, string>> = {
