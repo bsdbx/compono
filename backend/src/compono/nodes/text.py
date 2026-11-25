@@ -1,6 +1,6 @@
 """Nodes that work with text."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import Final
 
 from compono.graph.node_types import (
@@ -18,7 +18,7 @@ from compono.graph.node_types import (
     literal,
     text,
 )
-from compono.graph.sockets import NumberType, TextType
+from compono.graph.sockets import ChoiceType, NumberType, TextType
 from compono.graph.values import Value
 
 CATEGORY: Final = "Text"
@@ -147,4 +147,62 @@ SLICE: Final = NodeType(
     code=_slice_code,
 )
 
-NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE)
+type TextModes = Mapping[str, tuple[Callable[[str], str], str]]
+
+CASE_MODES: Final[TextModes] = {
+    "Upper": (str.upper, ".toUpperCase()"),
+    "Lower": (str.lower, ".toLowerCase()"),
+    "Capitalize first": (
+        lambda value: value[:1].upper() + value[1:],
+        ".replace(/^./su, (first) => first.toUpperCase())",
+    ),
+}
+
+
+def _text_mode(value: Code, modes: TextModes) -> str:
+    return value if isinstance(value, str) and value in modes else next(iter(modes))
+
+
+def _apply_mode(context: EvaluateContext, modes: TextModes) -> Mapping[str, Value]:
+    transform, _ = modes[_text_mode(context.inputs["op"], modes)]
+    return {"text": transform(text(context.inputs["text"]))}
+
+
+def _mode_code(context: CodeContext, modes: TextModes) -> Mapping[str, Code]:
+    value = context.inputs["text"]
+    source = _text_expression(value)
+    if isinstance(value, Js) and value.may_be_nothing:
+        source = f'({source}) ?? ""'
+    mode = context.inputs["op"]
+    if isinstance(mode, Js):
+        default = next(iter(modes))
+        checks = " ".join(
+            f"mode === {literal(name)} ? value{suffix} :"
+            for name, (_, suffix) in modes.items()
+            if name != default
+        )
+        written = (
+            f"((mode, value) => {checks} value{modes[default][1]})"
+            f"({expression(mode)}, {source})"
+        )
+    else:
+        written = f"({source}){modes[_text_mode(mode, modes)][1]}"
+    return {"text": Js(written, nothing=False)}
+
+
+CASE: Final = NodeType(
+    type="case",
+    name="Case",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(
+            Input("op", "Case", ChoiceType(options=tuple(CASE_MODES)), "Upper"),
+            Input("text", "Text", TEXT, ""),
+        ),
+        outputs=(Output("text", "Text", TEXT),),
+    ),
+    evaluate=lambda context: _apply_mode(context, CASE_MODES),
+    code=lambda context: _mode_code(context, CASE_MODES),
+)
+
+NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE, CASE)

@@ -106,6 +106,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("join", "Text"),
         ("text-length", "Text"),
         ("slice", "Text"),
+        ("case", "Text"),
     ]
 
 
@@ -539,6 +540,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "join": [],
         "text-length": [],
         "slice": [],
+        "case": [],
     }
 
 
@@ -1438,6 +1440,22 @@ def test_slice_requires_whole_numbers_for_indexes() -> None:
     )
 
     assert evaluation.nodes["slice"].error == "A value typed in isn't a whole number"
+
+
+@pytest.mark.parametrize(
+    ("mode", "source", "expected"),
+    [
+        ("Upper", "pro plan", "PRO PLAN"),
+        ("Lower", "PRO Plan", "pro plan"),
+        ("Capitalize first", "pro PLAN", "Pro PLAN"),
+        ("Capitalize first", "ßeta plan", "SSeta plan"),
+        ("Capitalize first", "", ""),
+    ],
+)
+def test_case_transforms_the_text(mode: str, source: str, expected: str) -> None:
+    evaluation = run([node("case", "case", values={"op": mode, "text": source})])
+
+    assert output(evaluation, "case", "text") == expected
 
 
 @pytest.mark.parametrize(

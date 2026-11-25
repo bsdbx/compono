@@ -72,6 +72,7 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
   convert: {
     to: { search: "Search types", fallback: (options) => options[0] ?? "" },
   },
+  case: { op: { search: "Search case modes" } },
   number: {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },
