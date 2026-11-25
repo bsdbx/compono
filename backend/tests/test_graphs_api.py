@@ -272,6 +272,7 @@ def test_compono_node_types_say_where_they_belong(
         ("default", "Logic", False),
         ("check", "Logic", False),
         ("number-check", "Logic", False),
+        ("convert", "Logic", False),
         ("join", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
@@ -311,6 +312,12 @@ def test_compono_node_types_say_where_they_belong(
     ]
     assert not number_check.inputs[1].wire_only
     assert number_check.outputs[0].type == BooleanType()
+    convert = listed["convert"].sockets
+    assert convert.inputs[0].wire_only
+    assert (convert.inputs[1].id, convert.inputs[1].label) == ("to", "To")
+    assert convert.inputs[1].type == ChoiceType(options=("Number", "Text", "Boolean"))
+    assert convert.inputs[1].default == "Number"
+    assert convert.outputs[0].type == NumberType()
     join = listed["join"].sockets
     assert [(each.id, each.type, each.default) for each in join.inputs] == [
         ("separator", TEXT, ""),

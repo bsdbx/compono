@@ -239,7 +239,8 @@ function InputRow({
           showChoiceLabel={
             node.type === "object" ||
             node.type === "set-field" ||
-            node.type === "default"
+            node.type === "default" ||
+            node.type === "convert"
           }
           onChange={(next) =>
             canvas.edit(

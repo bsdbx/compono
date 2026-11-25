@@ -69,6 +69,9 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
   default: { fallback: { search: "Search values", optional: true } },
   check: { op: { search: "Search checks", fallback: "Is nothing" } },
   "number-check": { op: { search: "Search checks", fallback: "Is integer" } },
+  convert: {
+    to: { search: "Search types", fallback: (options) => options[0] ?? "" },
+  },
   number: {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },
