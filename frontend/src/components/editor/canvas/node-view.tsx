@@ -293,7 +293,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
         })),
       ],
       node.propertyOrder,
-    ).filter((row) => "group" in row || !node.unexposed?.includes(row.id));
+    ).filter((row) => !node.unexposed?.includes(row.id));
   const inputOrder = inputs
     ?.flatMap((row) =>
       "group" in row && node?.collapsed

@@ -10,6 +10,7 @@ import {
   type Graph,
   type GraphNode,
   groupDrop,
+  groupPropertyId,
   type SocketType,
 } from "./graph";
 import type { NodeMatch } from "./node-find";
@@ -115,6 +116,8 @@ export function inputType(
   if (into === undefined) return undefined;
   const sockets = socketsOf(known, into.id, into.type);
   const group = socket.split("/")[0] ?? "";
+  if (socket.includes("/") && into.unexposed?.includes(groupPropertyId(group)))
+    return undefined;
   const drop = groupDrop(socket);
   if (drop) return sockets.groups.find((each) => each.id === drop.group)?.type;
   return (

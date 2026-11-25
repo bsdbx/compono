@@ -3,7 +3,13 @@ import { expect, test, vi } from "vitest";
 import type { NodeTypeInfo } from "@/api/types";
 import { Toasts } from "@/components/ui/toast";
 import { CanvasContext, type CanvasState } from "./context";
-import { type Graph, newNode, readGraph, setValue } from "./graph";
+import {
+  type Graph,
+  newNode,
+  pruneDisconnectedRows,
+  readGraph,
+  setValue,
+} from "./graph";
 import { PropertiesPanel } from "./panel";
 
 const ELEMENT: NodeTypeInfo = {
@@ -210,7 +216,7 @@ test("wired children can be reordered and renamed inside their group", () => {
   const { edit, edited } = show(["parent"], current, ["refused"]);
   const properties = within(screen.getByRole("region", { name: "Properties" }));
   const children = properties.getByText("Children");
-  expect(children.closest("[data-exposed]")).toBeNull();
+  expect(children.closest("[data-exposed]")).toBeInTheDocument();
   expect(
     within(properties.getByTitle("Children")).getByText("2"),
   ).toBeInTheDocument();
@@ -222,7 +228,7 @@ test("wired children can be reordered and renamed inside their group", () => {
   expect(items.getByText("Element")).toBeInTheDocument();
   expect(items.queryByText("Title")).toBeNull();
 
-  fireEvent.contextMenu(children);
+  fireEvent.contextMenu(items.getByText("Heading"));
   expect(screen.queryByRole("menu")).toBeNull();
   expect(edit).not.toHaveBeenCalled();
 
@@ -272,6 +278,47 @@ test("wired children can be reordered and renamed inside their group", () => {
   });
   expect(edited()?.wires).toEqual(current.wires);
   expect(edited()?.nodes[1]?.name).toBe("Title");
+});
+
+test("Children can be unexposed and exposed again without changing other inputs", () => {
+  const start = graph();
+  start.nodes = [
+    {
+      ...newNode("element", { x: 0, y: 0 }, "h3"),
+      groups: { children: ["wired", "manual"] },
+      propertyOrder: ["class", "group:children", "text"],
+      exposed: ["title"],
+    },
+    ...start.nodes.slice(1),
+    newNode("element", { x: -300, y: 100 }, "child"),
+  ];
+  start.wires.push({
+    id: "child",
+    from: { node: "child", socket: "element" },
+    to: { node: "h3", socket: "children/wired" },
+  });
+  const first = show(["h3"], start);
+  fireEvent.contextMenu(screen.getByText("Children", { exact: true }));
+  fireEvent.click(screen.getByRole("menuitem", { name: "Unexpose" }));
+  const hidden = pruneDisconnectedRows(start, first.edited() ?? start);
+  expect(hidden.nodes[0]?.unexposed).toEqual(["group:children"]);
+  expect(hidden.nodes[0]?.groups.children).toEqual(["manual"]);
+  expect(hidden.wires.map((wire) => wire.id)).toEqual(["w1"]);
+  first.unmount();
+
+  const second = show(["h3"], readGraph(hidden));
+  const row = screen.getByText("Children", { exact: true });
+  expect(row.closest("[data-exposed]")).toBeNull();
+  expect(screen.queryByRole("list", { name: "Children order" })).toBeNull();
+  fireEvent.contextMenu(row);
+  fireEvent.click(screen.getByRole("menuitem", { name: "Expose" }));
+  const exposed = second.edited();
+  expect(exposed?.nodes[0]?.unexposed).toBeUndefined();
+  expect(exposed?.nodes[0]?.exposed).toEqual(["title"]);
+  expect(exposed?.nodes[0]?.propertyOrder).toEqual(
+    start.nodes[0]?.propertyOrder,
+  );
+  expect(exposed?.wires).toEqual(hidden.wires);
 });
 
 test("the handles reorder properties and default inputs across a reload", () => {

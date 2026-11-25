@@ -134,11 +134,17 @@ function PanelField({
   }
 }
 
-function ExposureAccent() {
+function ExposureAccent({ boxed = false }: { boxed?: boolean }) {
   return (
-    <span className="pointer-events-none absolute inset-y-0 left-0.5 my-auto h-3.5 w-0.5 rounded-full bg-socket-element">
+    <>
       <span className="sr-only">Exposed</span>
-    </span>
+      {!boxed && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0.5 my-auto h-3.5 w-0.5 rounded-full bg-socket-element"
+        />
+      )}
+    </>
   );
 }
 
@@ -168,6 +174,7 @@ function Row({
   menu,
   active = false,
   exposed = false,
+  boxed = false,
   leading,
   onRename,
   children,
@@ -177,6 +184,7 @@ function Row({
   menu?: string | undefined;
   active?: boolean;
   exposed?: boolean | undefined;
+  boxed?: boolean;
   leading?: ReactNode;
   onRename?: ((name: string) => void) | undefined;
   children: ReactNode;
@@ -194,7 +202,7 @@ function Row({
         active ? "bg-highlight" : "hover:bg-highlight",
       )}
     >
-      {exposed && <ExposureAccent />}
+      {exposed && <ExposureAccent boxed={boxed} />}
       {leading}
       {onRename ? (
         renaming ? (
@@ -263,6 +271,7 @@ function PropertyList({
   const drag = useRowDrag(saved, onPlace);
   const preview = drag.preview;
   const dragged = preview && byId.get(preview.row);
+  const draggedBoxed = Boolean(dragged?.details);
 
   return (
     <div ref={drag.region} className={className} {...drag.handlers}>
@@ -274,13 +283,17 @@ function PropertyList({
         {drag.rows.map((id) => {
           const row = byId.get(id);
           if (!row) return null;
+          const boxed = Boolean(row.details);
           return (
             <li
               key={id}
               data-row={id}
               className={cn(
-                row.details &&
-                  "rounded-md border border-node-group-border bg-node-group",
+                boxed && "rounded-md border bg-node-group",
+                boxed &&
+                  (row.exposed
+                    ? "border-socket-element/40"
+                    : "border-node-group-border"),
                 preview?.row === id && "opacity-40",
               )}
             >
@@ -290,6 +303,7 @@ function PropertyList({
                 menu={row.menu}
                 active={row.menu !== undefined && activeMenu === row.menu}
                 exposed={row.exposed}
+                boxed={boxed}
                 onRename={row.onRename}
                 leading={
                   <button
@@ -338,7 +352,12 @@ function PropertyList({
             <div
               aria-hidden
               data-property-drag-preview
-              className="pointer-events-none fixed z-100 flex items-center gap-1 rounded-md border border-input bg-card px-1.5 text-foreground text-sm shadow-xl"
+              className={cn(
+                "pointer-events-none fixed z-100 flex items-center gap-1 rounded-md border bg-card px-1.5 text-foreground text-sm shadow-xl",
+                dragged.exposed && draggedBoxed
+                  ? "border-socket-element/40"
+                  : "border-input",
+              )}
               style={{
                 left: preview.x,
                 top: preview.y,
@@ -346,7 +365,7 @@ function PropertyList({
                 height: preview.height,
               }}
             >
-              {dragged.exposed && <ExposureAccent />}
+              {dragged.exposed && <ExposureAccent boxed={draggedBoxed} />}
               <span className="flex size-5 shrink-0 items-center justify-center">
                 <GripVertical className="size-3.5" />
               </span>
@@ -785,8 +804,10 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         };
       }),
       ...groups.map((group): PropertyRow => {
-        const connected = (node.groups[group.id] ?? []).filter((row) =>
-          wired.has(`${group.id}/${row}`),
+        const propertyId = groupPropertyId(group.id);
+        const exposed = !node.unexposed?.includes(propertyId);
+        const connected = (node.groups[group.id] ?? []).filter(
+          (row) => exposed && wired.has(`${group.id}/${row}`),
         );
         const visible = new Set(connected);
         const typeLabel = socketTypeName(group.type);
@@ -808,9 +829,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
           }),
         );
         return {
-          id: groupPropertyId(group.id),
+          id: propertyId,
           before: group.before,
           label: group.label,
+          menu: `${exposed ? "group" : "hidden-group"}:${group.id}`,
+          exposed,
           count: children.length,
           details: children.length > 0 && (
             <PropertyList
@@ -866,14 +889,17 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
     }
 
     const defaultInput = kind === "input" || kind === "hidden-input";
+    const group = kind === "group" || kind === "hidden-group";
     const property = nodeType?.properties.find(
       (property) => property.id === target,
     );
-    const origin = defaultInput
-      ? "input"
-      : property?.on_node
-        ? "output-property"
-        : "property";
+    const origin = group
+      ? "group"
+      : defaultInput
+        ? "input"
+        : property?.on_node
+          ? "output-property"
+          : "property";
     const value = defaultInput
       ? (node?.values[target] ??
         defaults.find((input) => input.id === target)?.default)
@@ -882,6 +908,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       <>
         {kind === "property" ||
         kind === "hidden-input" ||
+        kind === "hidden-group" ||
         kind === "output-property" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
@@ -894,6 +921,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         ) : null}
         {kind === "exposed" ||
         kind === "input" ||
+        kind === "group" ||
         kind === "output-property" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
@@ -904,9 +932,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
             Unexpose
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem className={MENU_ITEM} onSelect={() => copy(value)}>
-          Copy value
-        </DropdownMenuItem>
+        {group ? null : (
+          <DropdownMenuItem className={MENU_ITEM} onSelect={() => copy(value)}>
+            Copy value
+          </DropdownMenuItem>
+        )}
       </>
     );
   }

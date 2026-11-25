@@ -21,7 +21,7 @@ export type GraphNode = {
   values: Record<string, unknown>;
   properties: Record<string, unknown>;
   exposed: string[];
-  /** Inputs and inline values moved off the node into Properties. */
+  /** Inputs, socket groups and inline values moved off the node into Properties. */
   unexposed?: string[];
   /** Display order in the Properties panel, keyed by field IDs. */
   propertyOrder?: string[];
@@ -570,20 +570,21 @@ export function removeRow(
   };
 }
 
-type FieldOrigin = "property" | "input" | "output-property";
+type FieldOrigin = "property" | "input" | "output-property" | "group";
 
-/** Restores a default input or makes a property wireable, keeping its stored value. */
+/** Restores a default input or group, or makes a property wireable. */
 export function expose(
   graph: Graph,
   id: string,
   field: string,
   origin: FieldOrigin = "property",
 ): Graph {
+  const key = origin === "group" ? groupPropertyId(field) : field;
   return replace(graph, id, (node) => {
     const { unexposed, ...rest } = node;
-    const hidden = (unexposed ?? []).filter((each) => each !== field);
+    const hidden = (unexposed ?? []).filter((each) => each !== key);
     const exposed =
-      origin === "input" || node.exposed.includes(field)
+      origin === "input" || origin === "group" || node.exposed.includes(field)
         ? node.exposed
         : [...node.exposed, field];
     return {
@@ -594,27 +595,35 @@ export function expose(
   });
 }
 
-/** Moves a field off the node and takes its incoming wire away. */
+/** Moves a field off the node and takes its incoming wires away. */
 export function unexpose(
   graph: Graph,
   id: string,
   field: string,
   origin: FieldOrigin = "property",
 ): Graph {
+  const key = origin === "group" ? groupPropertyId(field) : field;
   const next = replace(graph, id, (node) => {
     const hidden = node.unexposed ?? [];
     return {
       ...node,
-      exposed: node.exposed.filter((each) => each !== field),
-      ...(origin !== "property" && !hidden.includes(field)
-        ? { unexposed: [...hidden, field] }
+      exposed:
+        origin === "group"
+          ? node.exposed
+          : node.exposed.filter((each) => each !== field),
+      ...(origin !== "property" && !hidden.includes(key)
+        ? { unexposed: [...hidden, key] }
         : {}),
     };
   });
   return {
     ...next,
     wires: next.wires.filter(
-      (wire) => !(wire.to.node === id && wire.to.socket === field),
+      (wire) =>
+        wire.to.node !== id ||
+        (origin === "group"
+          ? !wire.to.socket.startsWith(`${field}/`)
+          : wire.to.socket !== field),
     ),
   };
 }
