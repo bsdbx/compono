@@ -258,6 +258,7 @@ def test_compono_node_types_say_where_they_belong(
         ("object", "Objects", False),
         ("break-object", "Objects", False),
         ("set-field", "Objects", False),
+        ("merge-objects", "Objects", False),
         ("nothing", "Values", False),
         ("switch", "Logic", False),
         ("compare", "Logic", False),

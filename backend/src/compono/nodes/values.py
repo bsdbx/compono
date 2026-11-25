@@ -333,6 +333,46 @@ SET_FIELD: Final = NodeType(
 )
 
 
+def _merge_objects_sockets(context: SocketsContext) -> Sockets:
+    base = _object_fields(context, "base")
+    override = _object_fields(context, "override")
+    # An absent object supplies Nothing for its declared fields, keeping the result's field types stable.
+    return Sockets(
+        inputs=(
+            Input("base", "Base", ANY_OBJECT, {name: None for name in base}),
+            Input(
+                "override", "Override", ANY_OBJECT, {name: None for name in override}
+            ),
+        ),
+        outputs=(Output("value", "Object", ObjectType(fields={**base, **override})),),
+    )
+
+
+def _merge_objects(context: EvaluateContext) -> Mapping[str, Value]:
+    base = _object_value(context.inputs["base"])
+    override = _object_value(context.inputs["override"])
+    return {"value": {**base, **override}}
+
+
+def _merge_objects_code(context: CodeContext) -> Mapping[str, Code]:
+    expression_of = context.expression_of or js_of
+    base = expression_of(context.inputs["base"])
+    override = expression_of(context.inputs["override"])
+    if base is None or override is None:
+        raise NodeError("Can't export the Objects")
+    return {"value": Js(f"{{...({base}), ...({override})}}", nothing=False)}
+
+
+MERGE_OBJECTS: Final = NodeType(
+    type="merge-objects",
+    name="Merge Objects",
+    category=OBJECT_CATEGORY,
+    sockets=_merge_objects_sockets,
+    evaluate=_merge_objects,
+    code=_merge_objects_code,
+)
+
+
 NOTHING: Final = NodeType(
     type="nothing",
     name="Nothing",
@@ -359,5 +399,6 @@ NODE_TYPES: Final = (
     OBJECT,
     BREAK_OBJECT,
     SET_FIELD,
+    MERGE_OBJECTS,
     NOTHING,
 )

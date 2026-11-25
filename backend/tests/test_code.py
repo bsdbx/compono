@@ -138,6 +138,40 @@ def test_break_object_exports_an_access_to_the_wired_field() -> None:
     assert '<h2>{(content)?.["page/title"] ?? "Fallback"}</h2>' in written
 
 
+def test_set_field_and_merge_objects_export_in_override_order() -> None:
+    card: JsonValue = {"kind": "object", "fields": {"item/title": TEXT}}
+    written = code(
+        [
+            node("input", "component-input"),
+            node("set", "set-field", values={"field": "item/title"}),
+            node("merge", "merge-objects"),
+            node("break", "break-object"),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("base", "input.base", "merge.base"),
+            wire("source", "input.overrides", "set.object"),
+            wire("label", "input.label", "set.value"),
+            wire("override", "set.value", "merge.override"),
+            wire("merged", "merge.value", "break.object"),
+            wire("title", "break.field:item%2Ftitle", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("base", "base", card),
+            prop("overrides", "overrides", card),
+            prop("label", "label", TEXT),
+        ],
+    )
+
+    assert (
+        '...((base ?? {"item/title": null})), '
+        '...({...((overrides ?? {"item/title": null})), "item/title": label})'
+    ) in written
+    assert '?.["item/title"]' in written
+
+
 def test_set_field_exports_a_wired_field_selector() -> None:
     written = code(
         [
