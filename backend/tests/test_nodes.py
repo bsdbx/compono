@@ -92,8 +92,20 @@ def test_the_node_types_and_their_categories() -> None:
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
-        ("template", "Text"),
     ]
+
+
+def test_saved_template_nodes_are_reported_as_unsupported() -> None:
+    evaluation = run(
+        [
+            node("old", "template", properties={"template": "Hi {name}!"}),
+            node("title", "element", values={"tag": "h3"}),
+        ],
+        [wire("w1", "old.text", "title.text")],
+    )
+
+    assert evaluation.nodes["old"].error == "There's no template node"
+    assert evaluation.nodes["title"].skipped
 
 
 def test_a_new_component_has_its_input_and_output() -> None:
@@ -432,10 +444,8 @@ def test_values_set_on_a_node_show_there() -> None:
         "text": ["value"],
         "choice": ["value"],
         "nothing": ["value"],
-        # A template is typed in the panel
         "switch": [],
         "compare": [],
-        "template": [],
     }
 
 
@@ -679,60 +689,3 @@ def test_compare_takes_the_type_wired_into_a_and_orders_only_like_kinds() -> Non
         evaluation.nodes["compare"].error
         == "Less needs two numbers, two texts or two dates"
     )
-
-
-def test_a_template_has_an_input_for_each_name_in_braces() -> None:
-    evaluation = run(
-        [
-            node("input", "component-input"),
-            node(
-                "template",
-                "template",
-                properties={"template": "${price}/{period} {price} {not a name} {"},
-                values={"period": "mo"},
-            ),
-        ],
-        [wire("w1", "input.p1", "template.price")],
-        [prop("p1", "price", {"kind": "number"}, default=24.0)],
-    )
-
-    # A name once; price is a Number from its wire, period Text to type in
-    assert inputs_of(evaluation, "template") == [
-        ("price", "Number"),
-        ("period", "Text"),
-    ]
-    assert output(evaluation, "template", "text") == "$24/mo 24 {not a name} {"
-
-
-@pytest.mark.parametrize(
-    ("value", "written"),
-    [(True, "true"), (2.5, "2.5"), (3.0, "3"), (None, "")],
-)
-def test_a_template_writes_values_as_javascript_does(
-    value: JsonValue, written: str
-) -> None:
-    kind: JsonValue = (
-        {"kind": "boolean"} if isinstance(value, bool) else {"kind": "number"}
-    )
-    evaluation = run(
-        [
-            node("input", "component-input"),
-            node("template", "template", properties={"template": "[{v}]"}),
-        ],
-        [wire("w1", "input.p1", "template.v")],
-        [prop("p1", "v", kind, default=value)],
-    )
-
-    assert output(evaluation, "template", "text") == f"[{written}]"
-
-
-def test_an_element_in_a_template_is_an_error() -> None:
-    evaluation = run(
-        [
-            node("badge", "element"),
-            node("template", "template", properties={"template": "{v}"}),
-        ],
-        [wire("w1", "badge.element", "template.v")],
-    )
-
-    assert evaluation.nodes["template"].error == "v can't be an element in a template"

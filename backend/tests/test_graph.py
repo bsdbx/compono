@@ -70,30 +70,12 @@ def constant(name: str, socket_type: SocketType) -> NodeType:
     )
 
 
-def placeholders(template: str) -> list[str]:
-    """The {names} in a template."""
-    names: list[str] = []
-    for part in template.split("{")[1:]:
-        name, closed, _ = part.partition("}")
-        if closed and name.isidentifier():
-            names.append(name)
-    return names
-
-
-def template_sockets(context: SocketsContext) -> Sockets:
-    # An input for each {name} in the template
-    names = placeholders(text(context.properties["template"]))
+def named_input_sockets(context: SocketsContext) -> Sockets:
+    name = text(context.properties["name"])
     return Sockets(
-        inputs=tuple(Input(name, name, TEXT, "") for name in names),
+        inputs=(Input(name, name, TEXT, ""),),
         outputs=(Output("text", "Text", TEXT),),
     )
-
-
-def template_evaluate(context: EvaluateContext) -> Mapping[str, Value]:
-    filled = text(context.properties["template"])
-    for name in placeholders(filled):
-        filled = filled.replace(f"{{{name}}}", text(context.inputs[name]))
-    return {"text": filled}
 
 
 def switch_sockets(context: SocketsContext) -> Sockets:
@@ -180,12 +162,14 @@ NODE_TYPES = {
             },
         ),
         NodeType(
-            type="template",
-            name="Template",
+            type="named-input",
+            name="Named input",
             category="Text",
-            properties=(Property("template", "Template", TEXT, ""),),
-            sockets=template_sockets,
-            evaluate=template_evaluate,
+            properties=(Property("name", "Name", TEXT, "value"),),
+            sockets=named_input_sockets,
+            evaluate=lambda context: {
+                "text": context.inputs[text(context.properties["name"])]
+            },
         ),
         NodeType(
             type="switch",
@@ -520,7 +504,7 @@ def test_sockets_follow_the_properties() -> None:
     evaluation = run(
         [
             node("name", "text", properties={"value": "Mira"}),
-            node("greeting", "template", properties={"template": "Hi {name}!"}),
+            node("greeting", "named-input", properties={"name": "name"}),
         ],
         [
             wire("w1", "name.value", "greeting.name"),
@@ -529,9 +513,8 @@ def test_sockets_follow_the_properties() -> None:
     )
 
     assert [each.id for each in evaluation.nodes["greeting"].sockets.inputs] == ["name"]
-    assert output(evaluation, "greeting", "text") == "Hi Mira!"
-    # Its placeholder was removed
-    assert evaluation.wires == {"w2": "Template has no input title"}
+    assert output(evaluation, "greeting", "text") == "Mira"
+    assert evaluation.wires == {"w2": "Named input has no input title"}
 
 
 def test_an_any_input_takes_the_type_wired_into_it() -> None:

@@ -80,11 +80,11 @@ One step of a graph. It takes values in through its inputs and passes results on
 _Avoid_: Block, box
 
 **Node type**:
-The kind of a node, such as Element, Switch or Template. It decides the node's sockets and properties.
+The kind of a **Node**, such as Element, Switch or Text. It decides the node's sockets and properties.
 _Avoid_: Node class, node kind
 
 **Category**:
-A group of node types in the Add node menu, such as Logic, Text or Dates.
+A group of **Node types** in the Add node menu, such as Logic, Values or Elements.
 
 **Socket**:
 A point on a node where a wire attaches: either an input or an output, with one socket type.
