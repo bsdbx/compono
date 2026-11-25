@@ -18,7 +18,7 @@ from compono.graph.node_types import (
     literal,
     text,
 )
-from compono.graph.sockets import TextType
+from compono.graph.sockets import NumberType, TextType
 from compono.graph.values import Value
 
 CATEGORY: Final = "Text"
@@ -67,4 +67,34 @@ JOIN: Final = NodeType(
     code=_join_code,
 )
 
-NODE_TYPES: Final = (JOIN,)
+
+def _characters(value: Code) -> str:
+    """Spread a string so JavaScript indexes the same code points as Python."""
+    written = _text_expression(value)
+    if isinstance(value, Js) and value.may_be_nothing:
+        written = f'({written}) ?? ""'
+    return f"[...({written})]"
+
+
+def _length_code(context: CodeContext) -> Mapping[str, Code]:
+    value = context.inputs["text"]
+    if isinstance(value, Js):
+        return {"length": Js(f"{_characters(value)}.length", nothing=False)}
+    if value is None or isinstance(value, str):
+        return {"length": len(text(value))}
+    raise NodeError("Text Length needs a Text input")
+
+
+TEXT_LENGTH: Final = NodeType(
+    type="text-length",
+    name="Text Length",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(Input("text", "Text", TEXT, ""),),
+        outputs=(Output("length", "Length", NumberType(integer=True, minimum=0)),),
+    ),
+    evaluate=lambda context: {"length": len(text(context.inputs["text"]))},
+    code=_length_code,
+)
+
+NODE_TYPES: Final = (JOIN, TEXT_LENGTH)

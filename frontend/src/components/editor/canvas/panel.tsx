@@ -66,6 +66,7 @@ const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
     compare: { a: "Value to compare", b: "Compare against" },
     default: { fallback: "Default value" },
     join: { separator: "Between items" },
+    "text-length": { text: "Text to measure" },
   };
 
 const KINDS: Readonly<Record<string, string>> = {

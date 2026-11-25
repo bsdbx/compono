@@ -839,3 +839,24 @@ def test_convert_exports_strict_numeric_parsing_and_text_conversion() -> None:
     assert ".test(input) ? +input" in written
     assert "number - number === 0 ? number : null" in written
     assert "`${value}` : null" in written
+
+
+def test_text_length_exports_code_point_counting_with_the_inline_fallback() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("count", "text-length", values={"text": "👋"}),
+            node("display", "convert"),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "count.text"),
+            wire("length", "count.length", "display.value"),
+            wire("text", "display.result", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [prop("title", "title", TEXT)],
+    )
+
+    assert '[...((title ?? "👋"))].length' in written
