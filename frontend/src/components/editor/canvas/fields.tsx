@@ -10,6 +10,7 @@ const FIELD =
 export function TextField({
   label,
   value,
+  placeholder,
   onChange,
   showLabel = true,
   className,
@@ -17,6 +18,7 @@ export function TextField({
 }: {
   label: string;
   value: string;
+  placeholder?: string | undefined;
   onChange: (value: string) => void;
   showLabel?: boolean;
   className?: string;
@@ -30,6 +32,7 @@ export function TextField({
       <input
         aria-label={label}
         value={value}
+        placeholder={placeholder}
         spellCheck={false}
         onChange={(event) => onChange(event.target.value)}
         onBlur={onBlur}
@@ -46,12 +49,14 @@ export function TextField({
 export function NumberField({
   label,
   value,
+  placeholder,
   onChange,
   showLabel = true,
   className,
 }: {
   label: string;
   value: number | null;
+  placeholder?: string | undefined;
   onChange: (value: number | string | undefined) => void;
   showLabel?: boolean;
   className?: string;
@@ -67,6 +72,7 @@ export function NumberField({
         aria-label={label}
         inputMode="decimal"
         value={typed ?? shown}
+        placeholder={placeholder}
         onChange={(event) => {
           const text = event.target.value;
           setTyped(text);

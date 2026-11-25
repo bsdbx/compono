@@ -170,7 +170,13 @@ test("a selected node lists properties and default inputs together", () => {
   ).toBeInTheDocument();
   expect(screen.getAllByRole("heading")).toHaveLength(1);
   const properties = screen.getByRole("region", { name: "Properties" });
-  expect(within(properties).getByLabelText("ID")).toHaveValue("");
+  const identifier = within(properties).getByLabelText("ID");
+  expect(identifier).toHaveValue("");
+  expect(identifier).toHaveAttribute("placeholder", "Unique ID");
+  expect(within(properties).getByLabelText("Title")).toHaveAttribute(
+    "placeholder",
+    "Tooltip text",
+  );
   expect(
     within(properties).getByRole("switch", { name: "Hidden" }),
   ).toBeInTheDocument();
@@ -181,6 +187,7 @@ test("a selected node lists properties and default inputs together", () => {
   ).toHaveTextContent("h3");
   const className = within(properties).getByLabelText("Class name");
   expect(className).toHaveValue("uppercase");
+  expect(className).toHaveAttribute("placeholder", "Tailwind classes");
   expect(className.closest("[data-menu]")).toHaveAttribute(
     "data-exposed",
     "true",
@@ -477,6 +484,9 @@ test("a prop opens to edit it, and takes only a free name for React", async () =
   fireEvent.click(screen.getByRole("button", { name: /price/ }));
   const name = screen.getByLabelText("Name");
   expect(name).toHaveValue("price");
+  const defaultValue = screen.getByRole("textbox", { name: "Default" });
+  expect(defaultValue).toHaveValue("");
+  expect(defaultValue).toHaveAttribute("placeholder", "Unset");
   expect(screen.getByLabelText("Max")).toBeInTheDocument();
 
   // Taken, then not a name
