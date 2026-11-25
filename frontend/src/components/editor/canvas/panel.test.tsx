@@ -159,9 +159,10 @@ test("with several nodes selected, the panel asks for one", () => {
 test("a selected node lists properties and default inputs together", () => {
   const { edited } = show(["h3"]);
 
-  expect(screen.getByRole("heading", { level: 2 })).toHaveTextContent(
-    "Element",
-  );
+  expect(
+    screen.getByRole("heading", { level: 2, name: "Properties" }),
+  ).toBeInTheDocument();
+  expect(screen.getAllByRole("heading")).toHaveLength(1);
   const properties = screen.getByRole("region", { name: "Properties" });
   expect(within(properties).getByLabelText("ID")).toHaveValue("");
   expect(

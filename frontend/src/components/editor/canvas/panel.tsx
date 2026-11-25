@@ -359,22 +359,10 @@ function PropertyList({
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section
-      aria-label={title}
-      className="border-border border-b px-3.5 pt-2.5 pb-3 last:border-b-0"
-    >
-      <h3 className="flex h-5 items-center font-semibold text-base">{title}</h3>
-      <div className="mt-1">{children}</div>
-    </section>
-  );
-}
-
-function Header({ children }: { children: ReactNode }) {
+function PropertiesHeading() {
   return (
     <h2 className="flex h-10.5 shrink-0 items-center border-border border-b px-3.5 font-semibold text-base">
-      {children}
+      Properties
     </h2>
   );
 }
@@ -383,8 +371,8 @@ function Header({ children }: { children: ReactNode }) {
 export function PropertiesPlaceholder({ many = false }: { many?: boolean }) {
   return (
     <>
-      <Header>Properties</Header>
-      <p className="mt-10.25 text-center text-muted-foreground text-xs">
+      <PropertiesHeading />
+      <p className="mt-10.25 px-3.5 text-center text-muted-foreground text-base">
         {many
           ? "Select one node to edit its properties."
           : "Select a node to edit its properties."}
@@ -925,19 +913,21 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
 
   return (
     <div ref={root} className="flex min-h-0 flex-1 flex-col">
-      <Header>
-        <span className="truncate" title={node.name ?? nodeType.name}>
-          {node.name ?? nodeType.name}
-        </span>
-      </Header>
+      <PropertiesHeading />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {node.type === "component-input" ? (
-          <Section title="Props">
+          <section
+            aria-label="Props"
+            className="border-border border-b px-3.5 pt-2.5 pb-3 last:border-b-0"
+          >
+            <h3 className="mb-1 flex h-5 items-center font-semibold text-base">
+              Props
+            </h3>
             <Props open={open} onOpen={setOpen} menuOn={menu?.on} />
-          </Section>
+          </section>
         ) : null}
         {fields.length > 0 ? (
-          <Section title="Properties">
+          <section aria-label="Properties" className="px-3.5 pt-2.5 pb-3">
             <PropertyList
               key={id}
               fields={fields}
@@ -949,7 +939,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
                   canvas.edit((graph) => setPropertyOrder(graph, id, order));
               }}
             />
-          </Section>
+          </section>
         ) : null}
       </div>
       {menu ? (
