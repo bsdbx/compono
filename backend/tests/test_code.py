@@ -172,6 +172,32 @@ def test_a_refused_wire_is_left_out_as_the_preview_leaves_it_out() -> None:
     assert "<h3>Plan</h3>" in code(nodes, wires, props)
 
 
+@pytest.mark.parametrize("default", [None, "Large"])
+def test_a_refused_choice_wire_is_left_out_of_export(default: str | None) -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("heading", "element", values={"tag": "h2", "text": "Hi"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("w1", "input.p1", "heading.tag"),
+            wire("w2", "heading.element", "output.render"),
+        ],
+        [
+            prop(
+                "p1",
+                "level",
+                {"kind": "choice", "options": ["a", "Large"]},
+                default=default,
+            )
+        ],
+    )
+
+    assert "<h2>Hi</h2>" in written
+    assert "const Tag" not in written
+
+
 def test_a_wire_that_brings_nothing_counts_as_no_wire() -> None:
     written = code(
         [
@@ -216,7 +242,16 @@ def test_a_prop_needs_a_name_javascript_can_take(name: str) -> None:
     assert raised.value.errors == [f"{name} can't name a prop"]
 
 
-def test_a_tag_from_a_prop_is_a_variable_named_apart_from_the_component() -> None:
+@pytest.mark.parametrize(
+    ("options", "expression"),
+    [
+        (["h2", "h3"], "level"),
+        (["h2", "Large"], '(["h2"].includes(level) ? level : undefined)'),
+    ],
+)
+def test_a_tag_from_a_prop_is_a_variable_named_apart_from_the_component(
+    options: list[str], expression: str
+) -> None:
     written = code(
         [
             node("input", "component-input"),
@@ -227,15 +262,24 @@ def test_a_tag_from_a_prop_is_a_variable_named_apart_from_the_component() -> Non
             wire("w1", "input.p1", "heading.tag"),
             wire("w2", "heading.element", "output.render"),
         ],
-        [prop("p1", "level", {"kind": "choice", "options": ["h2", "h3"]})],
+        [
+            prop(
+                "p1",
+                "level",
+                {"kind": "choice", "options": list(options)},
+                default="h2",
+            )
+        ],
         name="Tag",
     )
 
     assert written == (
-        "export default function Tag({ level }) {\n"
-        '  const Tag2 = level ?? "h2";\n'
+        'export default function Tag({ level = "h2" }) {\n'
+        f'  const Tag2 = {expression} ?? "h2";\n'
         "  return (\n"
-        "    <Tag2>Hi</Tag2>\n"
+        "    <Tag2>\n"
+        '      {["br", "hr", "img"].includes(Tag2) ? null : "Hi"}\n'
+        "    </Tag2>\n"
         "  );\n"
         "}\n"
     )
@@ -424,7 +468,14 @@ def test_a_comparison_cant_take_its_operation_from_a_prop() -> None:
                 wire("w2", "tested.result", "p.hidden"),
                 wire("w3", "p.element", "output.render"),
             ],
-            [prop("p1", "chosen", {"kind": "choice", "options": ["Equal"]})],
+            [
+                prop(
+                    "p1",
+                    "chosen",
+                    {"kind": "choice", "options": ["Equal"]},
+                    default="Equal",
+                )
+            ],
         )
 
     assert raised.value.errors == [

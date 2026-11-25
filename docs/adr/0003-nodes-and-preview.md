@@ -78,10 +78,11 @@ A socket type is a value, not just a name. Number can carry a subtype and a rang
 A wire is allowed from an output to an input when:
 
 - both have the same socket type, or the output's is a subtype of the input's: Integer feeds Number, and Link feeds Text;
+- for two Choice sockets, the output has a selected value and the input accepts that value;
 - the input is Any, which then takes the output's socket type;
 - the input is a Slot and the output an Element.
 
-Any other wire is refused, and the canvas shows it in red. Changing a value's type takes a Convert node. This replaces the implicit conversions of `PROPOSAL.md`, whose example, Int to Float, subtypes cover.
+Any other wire is refused. The canvas shows the wire in red, and both the preview and JSX export use the destination's local value as they would without the wire. Changing a value's type takes a Convert node. This replaces the implicit conversions of `PROPOSAL.md`, whose example, Int to Float, subtypes cover.
 
 ### Nothing
 
@@ -91,7 +92,7 @@ A wire that brings Nothing counts as no wire: the input uses the value typed in 
 
 - The editor evaluates the graph in the browser, on the main thread.
 - A wire that would make a loop is refused, so every node comes after the nodes it takes values from.
-- Evaluation runs in two passes. The first works out every node's sockets and checks every wire's types. The second computes the values.
+- Evaluation follows dependency order. For each node, it works out its sockets from the upstream types and values, checks its incoming wires, then computes its values.
 - Each node's outputs are kept. After an edit, only the edited node and the nodes after it are evaluated again, and evaluation stops at a node whose outputs didn't change. An Element that didn't change stays the same object, so React skips it in the preview.
 - A node that can't evaluate has an error that says why, such as "badge.tone no longer exists". The nodes that depend on it aren't evaluated, and the preview says **Can't render** with **Show node**.
 - In the preview, Component Input gives each prop its default, or Nothing when it has none.

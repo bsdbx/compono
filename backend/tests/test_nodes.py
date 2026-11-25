@@ -301,6 +301,73 @@ def test_an_elements_sockets_follow_its_tag() -> None:
 
 
 @pytest.mark.parametrize(
+    ("options", "default", "tag", "image", "refusal"),
+    [
+        (
+            [],
+            None,
+            "h2",
+            Element(tag="img", attributes=(("src", "/logo.svg"),)),
+            "No choice selected",
+        ),
+        (
+            ["a"],
+            None,
+            "h2",
+            Element(tag="img", attributes=(("src", "/logo.svg"),)),
+            "No choice selected",
+        ),
+        (["a"], "a", "a", Element(tag="a"), None),
+        (["a", "Large"], "a", "a", Element(tag="a"), None),
+        (
+            ["a", "Large"],
+            "Large",
+            "h2",
+            Element(tag="img", attributes=(("src", "/logo.svg"),)),
+            "Tag can't be Large",
+        ),
+    ],
+)
+def test_element_tag_sockets_follow_the_value_of_a_choice_prop(
+    options: list[str],
+    default: str | None,
+    tag: str,
+    image: Element,
+    refusal: str | None,
+) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("heading", "element", values={"tag": "h2"}),
+            node("logo", "element", values={"tag": "img", "src": "/logo.svg"}),
+        ],
+        [wire("w1", "input.p1", "heading.tag"), wire("w2", "input.p1", "logo.tag")],
+        [
+            prop(
+                "p1",
+                "tag",
+                {"kind": "choice", "options": list(options)},
+                default=default,
+            )
+        ],
+    )
+
+    assert evaluation.wires == (
+        {} if refusal is None else {"w1": refusal, "w2": refusal}
+    )
+    assert [each.id for each in evaluation.nodes["heading"].sockets.inputs] == (
+        ["tag", "href", "text", "class"] if tag == "a" else ["tag", "text", "class"]
+    )
+    assert [each.id for each in evaluation.nodes["logo"].sockets.inputs] == (
+        ["tag", "href", "text", "class"]
+        if tag == "a"
+        else ["tag", "src", "alt", "class"]
+    )
+    assert output(evaluation, "heading", "element") == Element(tag=tag)
+    assert output(evaluation, "logo", "element") == image
+
+
+@pytest.mark.parametrize(
     "link",
     [
         "https://acme.dev/pricing",
@@ -598,6 +665,23 @@ def test_a_switch_has_no_type_until_true_or_false_is_wired() -> None:
     ]
     assert inputs_of(wired, "switch")[1:] == [("true", "Element"), ("false", "Element")]
     assert name_of(wired.nodes["switch"].sockets.outputs[0].type) == "Element"
+
+
+def test_an_unselected_choice_does_not_set_the_type_of_a_switch() -> None:
+    evaluation = run(
+        [
+            node("choice", "choice"),
+            node("text", "text", properties={"value": "Fallback"}),
+            node("switch", "switch", values={"condition": False}),
+        ],
+        [
+            wire("w1", "choice.value", "switch.true"),
+            wire("w2", "text.value", "switch.false"),
+        ],
+    )
+
+    assert evaluation.wires == {"w1": "No choice selected"}
+    assert output(evaluation, "switch", "result") == "Fallback"
 
 
 @pytest.mark.parametrize(

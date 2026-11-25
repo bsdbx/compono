@@ -793,9 +793,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
   }
 
   const id = node.id;
-  const wired = new Set(
-    canvas.graph.wires
-      .filter((wire) => wire.to.node === id && !canvas.refused.has(wire.id))
+  const incoming = canvas.graph.wires.filter((wire) => wire.to.node === id);
+  const wired = new Set(incoming.map((wire) => wire.to.socket));
+  const accepted = new Set(
+    incoming
+      .filter((wire) => !canvas.refused.has(wire.id))
       .map((wire) => wire.to.socket),
   );
   const properties = nodeType.properties.toSorted(
@@ -901,7 +903,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         const propertyId = groupPropertyId(group.id);
         const exposed = !node.unexposed?.includes(propertyId);
         const connected = (node.groups[group.id] ?? []).filter(
-          (row) => exposed && wired.has(`${group.id}/${row}`),
+          (row) => exposed && accepted.has(`${group.id}/${row}`),
         );
         const visible = new Set(connected);
         const typeLabel = socketTypeName(group.type);

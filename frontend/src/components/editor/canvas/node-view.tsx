@@ -302,6 +302,11 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       ],
       node.propertyOrder,
     ).filter((row) => !node.unexposed?.includes(row.id));
+  const wired = new Set(
+    canvas.graph.wires
+      .filter((wire) => wire.to.node === id)
+      .map((wire) => wire.to.socket),
+  );
   const inputOrder = inputs
     ?.flatMap((row) =>
       "group" in row && node?.collapsed
@@ -311,7 +316,9 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
               (id) => `${row.group.id}/${id}`,
             ),
           ]
-        : row.id,
+        : wired.has(row.id)
+          ? `${row.id}:wired`
+          : row.id,
     )
     .join("\n");
   const outputOrder = outputs?.map((output) => output.id).join("\n");
@@ -334,12 +341,6 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
         !node.exposed.includes(property.id) &&
         !node.unexposed?.includes(property.id),
     ) ?? [];
-  // A refused wire leaves the input's field, which the node still uses
-  const wired = new Set(
-    canvas.graph.wires
-      .filter((wire) => wire.to.node === id && !canvas.refused.has(wire.id))
-      .map((wire) => wire.to.socket),
-  );
   const error = evaluated?.error;
   const rows: ReactNode[] = [];
   const compactInputs: CompactSocket[] = [];

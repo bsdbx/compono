@@ -204,6 +204,14 @@ test("a selected node lists properties and default inputs together", () => {
   expect(edited()?.nodes[0]?.values).toEqual({ tag: "h3", class: "card" });
 });
 
+test("a refused wire still hides the input's local value", () => {
+  show(["h3"], graph(), ["w1"]);
+
+  const properties = within(screen.getByRole("region", { name: "Properties" }));
+  expect(properties.getByText("Wired")).toBeInTheDocument();
+  expect(properties.queryByLabelText("Text")).toBeNull();
+});
+
 test("wired children can be reordered and renamed inside their group", () => {
   const current = graph({
     nodes: [

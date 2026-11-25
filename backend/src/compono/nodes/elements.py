@@ -30,6 +30,7 @@ from compono.graph.sockets import (
     ElementType,
     NumberType,
     TextType,
+    accepts,
 )
 from compono.graph.values import Element, Value
 
@@ -98,13 +99,20 @@ SCHEMES: Final = frozenset({"http", "https", "mailto", "tel"})
 TEXT: Final = TextType()
 LINK: Final = TextType(link=True)
 ELEMENT: Final = ElementType()
+TAG: Final = ChoiceType(options=TAGS)
 
 
 def _tag(context: SocketsContext) -> str:
-    """The tag the sockets follow: the one a wired Choice can only be, or the one typed in."""
-    wired = context.wired.get("tag")
-    if isinstance(wired, ChoiceType) and len(wired.options) == 1:
-        return wired.options[0]
+    """The tag used in the preview, falling back to the node's own tag."""
+    wired_type = context.wired.get("tag")
+    wired_value = context.wired_values.get("tag")
+    if (
+        isinstance(wired_value, str)
+        and wired_value in TAGS
+        and wired_type is not None
+        and (isinstance(wired_type, ChoiceType) or accepts(TAG, wired_type))
+    ):
+        return wired_value
 
     typed = context.typed.get("tag")
     return typed if isinstance(typed, str) else "div"
@@ -112,7 +120,7 @@ def _tag(context: SocketsContext) -> str:
 
 def _element_sockets(context: SocketsContext) -> Sockets:
     tag = _tag(context)
-    inputs = [Input("tag", "Tag", ChoiceType(options=TAGS), "div")]
+    inputs = [Input("tag", "Tag", TAG, "div")]
     if tag == "a":
         inputs.append(Input("href", "Href", LINK, ""))
     if tag == "img":

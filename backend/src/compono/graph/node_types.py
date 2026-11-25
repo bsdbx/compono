@@ -2,7 +2,7 @@
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 
 from pydantic import JsonValue
@@ -75,6 +75,8 @@ class SocketsContext:
     typed: Mapping[str, JsonValue]
     # The component's props
     props: Sequence[Prop]
+    # The values brought by incoming wires, by input, before checking their types
+    wired_values: Mapping[str, Value] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
