@@ -89,7 +89,8 @@ test("an element renders as HTML, with its texts and attributes escaped", () => 
   expect(toHtml(null)).toBe("");
 });
 
-test("a rendered component shows in a sandboxed frame at the first screen size", async () => {
+test("a rendered component shows in a sandboxed frame even with unrelated wire errors", async () => {
+  answer.wires = { unrelated: "Object can't go into Number" };
   answer.rendered = {
     tag: "div",
     className: "card",
@@ -140,6 +141,7 @@ test("nodes in error keep it from rendering, and Show node shows the first", asy
 
 test("a refused wire shows the same concise error state", async () => {
   answer.wires = { w1: "No choice selected" };
+  answer.render_error_wire = "w1";
   answer.rendered = { tag: "p", children: ["Outdated preview"] };
   const { draft } = fakeDraft({
     ...content,

@@ -25,7 +25,7 @@ from compono.graph.node_types import (
     object_key,
 )
 from compono.graph.values import Element, Value, from_json
-from compono.nodes.component import COMPONENT_INPUT, COMPONENT_OUTPUT
+from compono.nodes.component import COMPONENT_INPUT, render_path
 from compono.nodes.elements import VOID
 
 # Words JavaScript keeps for itself, which can't name a prop
@@ -314,15 +314,6 @@ class _Generator:
             )
         return self._dynamic[node_id]
 
-    def needed(self, node_id: str, seen: set[str]) -> None:
-        """The node, and every node it takes values from."""
-        if node_id in seen:
-            return
-
-        seen.add(node_id)
-        for wire in self.wires_into(node_id):
-            self.needed(wire.from_.node, seen)
-
     def value(self, node: Node, socket: str, typed: Value) -> Code:
         """What goes into an input: its wire's value, or what's typed in when the wire brings Nothing."""
         wire = self.into.get((node.id, socket))
@@ -403,23 +394,20 @@ class _Generator:
 
 
 def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Generated:
-    """The component as JSX. Raises CodeError for refused wires, render errors, or invalid prop names."""
+    """The component as JSX. Raises CodeError for render errors or invalid prop names."""
     component = component_name(name)
     printer = _Printer({component, *(prop.name for prop in graph.props)})
     generator = _Generator(graph, node_types, printer)
 
-    errors = [f"Wire: {reason}" for reason in generator.evaluation.wires.values()]
+    path = render_path(graph, generator.evaluation.wires)
+    errors = [f"Wire: {reason}" for reason in path.refused.values()]
     errors.extend(
         f"{prop.name} can't name a prop"
         for prop in graph.props
         if not re.fullmatch(r"[A-Za-z_$][\w$]*", prop.name) or prop.name in RESERVED
     )
-    outputs = [node for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
-    output = outputs[0] if outputs else None
-    if output is not None:
-        needed: set[str] = set()
-        generator.needed(output.id, needed)
-        for node_id in sorted(needed, key=list(generator.nodes).index):
+    for node_id in generator.nodes:
+        if node_id in path.nodes:
             error = generator.evaluation.nodes[node_id].error
             if error is not None:
                 node_type = node_types.get(generator.nodes[node_id].type)
@@ -427,7 +415,9 @@ def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Gen
     if errors:
         raise CodeError(errors)
 
-    render = None if output is None else generator.value(output, "render", None)
+    render = (
+        None if path.output is None else generator.value(path.output, "render", None)
+    )
     if isinstance(render, Jsx | Element):
         body = ["  return (", *printer.lines(render, "    "), "  );"]
     elif isinstance(render, Choose):

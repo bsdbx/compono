@@ -1,9 +1,10 @@
 """A component's own nodes: its props coming in, and what it renders going out."""
 
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Final
 
-from compono.graph.model import Prop
+from compono.graph.model import Graph, Node, Prop
 from compono.graph.node_types import (
     EvaluateContext,
     Input,
@@ -75,6 +76,42 @@ COMPONENT_OUTPUT: Final = NodeType(
 )
 
 NODE_TYPES: Final = (COMPONENT_INPUT, COMPONENT_OUTPUT)
+
+
+@dataclass(frozen=True)
+class RenderPath:
+    output: Node | None
+    nodes: set[str]
+    refused: dict[str, str]
+
+
+def render_path(graph: Graph, refused: Mapping[str, str]) -> RenderPath:
+    """Follow accepted wires back from Render and collect errors on those inputs."""
+    output = next(
+        (node for node in graph.nodes if node.type == COMPONENT_OUTPUT.type), None
+    )
+    if output is None:
+        return RenderPath(None, set(), {})
+
+    sources: dict[str, list[str]] = {}
+    for wire in graph.wires:
+        if wire.id not in refused:
+            sources.setdefault(wire.to.node, []).append(wire.from_.node)
+
+    nodes = {output.id}
+    pending = [output.id]
+    while pending:
+        for source in sources.get(pending.pop(), []):
+            if source not in nodes:
+                nodes.add(source)
+                pending.append(source)
+
+    errors = {
+        wire.id: refused[wire.id]
+        for wire in graph.wires
+        if wire.to.node in nodes and wire.id in refused
+    }
+    return RenderPath(output, nodes, errors)
 
 
 def new_graph() -> dict[str, object]:

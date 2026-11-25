@@ -213,16 +213,14 @@ def test_what_takes_a_prop_is_written_with_it() -> None:
     )
 
 
-def test_a_refused_wire_blocks_export_even_outside_the_render_path() -> None:
+def test_a_refused_wire_outside_the_render_path_does_not_block_export() -> None:
     nodes, wires, props = card()
+    expected = code(nodes, wires, props)
     # A Boolean can't go into Text
     nodes.append(node("loose", "element"))
     wires.append(wire("w8", "input.p3", "loose.text"))
 
-    with pytest.raises(CodeError) as raised:
-        code(nodes, wires, props)
-
-    assert raised.value.errors == ["Wire: Boolean can't go into Text"]
+    assert code(nodes, wires, props) == expected
 
 
 @pytest.mark.parametrize(

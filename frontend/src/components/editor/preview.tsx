@@ -296,8 +296,8 @@ export function Preview({
   const sizes = content?.screen_sizes ?? [];
   const current =
     sizes.find((size) => size.name === pickedName) ?? sizes[0] ?? undefined;
-  const [wireId] = Object.keys(evaluated?.wires ?? {});
-  const hasWireError = wireId !== undefined;
+  const wireId = evaluated?.render_error_wire;
+  const hasWireError = wireId != null;
   const html = useMemo(
     () => (hasWireError ? "" : toHtml(evaluated?.rendered)),
     [evaluated, hasWireError],

@@ -70,6 +70,7 @@ export type Evaluated = {
   wires: {
     [key: string]: string;
   };
+  render_error_wire?: string | null;
   rendered: JsonValue;
   milliseconds: number;
 };
