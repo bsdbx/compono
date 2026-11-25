@@ -632,6 +632,37 @@ def test_a_comparison_cant_take_its_operation_from_a_prop() -> None:
     ]
 
 
+def test_boolean_math_exports_the_wired_operation_and_b_even_when_preview_uses_not() -> (
+    None
+):
+    written = code(
+        [
+            node("input", "component-input"),
+            node("math", "boolean-math", values={"a": True}),
+            node("element", "element", exposed=["hidden"]),
+            node("output", "component-output"),
+        ],
+        [
+            wire("op", "input.operation", "math.op"),
+            wire("b", "input.flag", "math.b"),
+            wire("result", "math.result", "element.hidden"),
+            wire("render", "element.element", "output.render"),
+        ],
+        [
+            prop(
+                "operation",
+                "operation",
+                {"kind": "choice", "options": ["And", "Or", "Not"]},
+                default="Not",
+            ),
+            prop("flag", "flag", {"kind": "boolean"}),
+        ],
+    )
+
+    assert 'op === "Not" ? !a : op === "Or" ? a || b() : a && b()' in written
+    assert '((operation ?? "And"), true, () => ((flag ?? false)))' in written
+
+
 def test_export_reports_a_removed_template_used_in_the_render() -> None:
     with pytest.raises(CodeError) as raised:
         code(

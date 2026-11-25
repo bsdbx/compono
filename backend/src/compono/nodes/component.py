@@ -85,7 +85,9 @@ class RenderPath:
     refused: dict[str, str]
 
 
-def render_path(graph: Graph, refused: Mapping[str, str]) -> RenderPath:
+def render_path(
+    graph: Graph, refused: Mapping[str, str], inactive: frozenset[str] = frozenset()
+) -> RenderPath:
     """Follow accepted wires back from Render and collect errors on those inputs."""
     output = next(
         (node for node in graph.nodes if node.type == COMPONENT_OUTPUT.type), None
@@ -95,7 +97,7 @@ def render_path(graph: Graph, refused: Mapping[str, str]) -> RenderPath:
 
     sources: dict[str, list[str]] = {}
     for wire in graph.wires:
-        if wire.id not in refused:
+        if wire.id not in refused and wire.id not in inactive:
             sources.setdefault(wire.to.node, []).append(wire.from_.node)
 
     nodes = {output.id}
@@ -109,7 +111,7 @@ def render_path(graph: Graph, refused: Mapping[str, str]) -> RenderPath:
     errors = {
         wire.id: refused[wire.id]
         for wire in graph.wires
-        if wire.to.node in nodes and wire.id in refused
+        if wire.to.node in nodes and wire.id in refused and wire.id not in inactive
     }
     return RenderPath(output, nodes, errors)
 

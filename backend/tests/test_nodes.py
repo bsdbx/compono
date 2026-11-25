@@ -97,6 +97,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
+        ("boolean-math", "Logic"),
     ]
 
 
@@ -522,6 +523,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "nothing": ["value"],
         "switch": [],
         "compare": [],
+        "boolean-math": [],
     }
 
 
@@ -1075,3 +1077,32 @@ def test_compare_takes_the_type_wired_into_a_and_orders_only_like_kinds() -> Non
         evaluation.nodes["compare"].error
         == "Less needs two numbers, two texts or two dates"
     )
+
+
+@pytest.mark.parametrize(
+    ("operation", "results"),
+    [
+        ("And", (False, False, False, True)),
+        ("Or", (False, True, True, True)),
+        ("Not", (True, True, False, False)),
+    ],
+)
+def test_boolean_math_with_wired_a(operation: str, results: tuple[bool, ...]) -> None:
+    for (a, b), expected in zip(
+        [(False, False), (False, True), (True, False), (True, True)],
+        results,
+        strict=True,
+    ):
+        evaluation = run(
+            [
+                node("a", "boolean", properties={"value": a}),
+                node("math", "boolean-math", values={"op": operation, "b": b}),
+            ],
+            [wire("a", "a.value", "math.a")],
+        )
+
+        assert evaluation.wires == {}
+        assert output(evaluation, "math", "result") is expected
+        assert (("b", "Boolean") in inputs_of(evaluation, "math")) == (
+            operation != "Not"
+        )

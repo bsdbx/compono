@@ -171,7 +171,7 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
     """Evaluates a graph: every node's sockets and values, and the wires it refuses."""
     started = time.perf_counter()
     evaluation = evaluate(graph, types)
-    path = render_path(graph, evaluation.wires)
+    path = render_path(graph, evaluation.wires, evaluation.inactive_wires)
     milliseconds = (time.perf_counter() - started) * 1000
     rendered = (
         evaluation.nodes[path.output.id].inputs.get("render")

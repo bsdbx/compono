@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from compono.graph.model import Graph, Node, Wire
 from compono.graph.node_types import (
@@ -43,6 +43,7 @@ class Evaluation:
     wires: Mapping[str, str]
     # Runtime options for accepted Choice wires with a narrower destination.
     choice_options: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    inactive_wires: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -77,6 +78,11 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
         )
         outputs[node_id], inputs[node_id] = _values(node, nodes, outputs, graph)
 
+    inactive = {
+        (node_id, socket.id)
+        for node_id, node in nodes.items()
+        for socket in node.sockets.inactive_inputs
+    }
     return Evaluation(
         nodes={
             node_id: NodeResult(
@@ -90,6 +96,11 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
         },
         wires=refused,
         choice_options=choice_options,
+        inactive_wires=frozenset(
+            wire.id
+            for wire in graph.wires
+            if (wire.to.node, wire.to.socket) in inactive
+        ),
     )
 
 
@@ -233,6 +244,7 @@ def _sockets(
             node.error = str(error)
 
     accepted: dict[str, Wire] = {}
+    inactive = {socket.id for socket in node.sockets.inactive_inputs}
     for wire in candidates:
         reason = _refusal(
             wire,
@@ -241,10 +253,10 @@ def _sockets(
             wired_values.get(wire.to.socket),
             choice_options,
         )
-        if reason is None:
-            accepted[wire.to.socket] = wire
-        else:
+        if reason is not None:
             refused[wire.id] = reason
+        elif wire.to.socket not in inactive:
+            accepted[wire.to.socket] = wire
     node.wires = accepted
 
 
@@ -268,13 +280,11 @@ def _with_exposed(node: _Node, sockets: Sockets) -> Sockets:
         for prop in node.node_type.properties
         if prop.id in node.node.exposed
     )
-    return Sockets(
-        inputs=sockets.inputs + exposed, groups=sockets.groups, outputs=sockets.outputs
-    )
+    return replace(sockets, inputs=sockets.inputs + exposed)
 
 
 def _input_type(node: _Node, socket: str) -> SocketType | None:
-    for each in node.sockets.inputs:
+    for each in (*node.sockets.inputs, *node.sockets.inactive_inputs):
         if each.id == socket:
             return each.type
     # A row of a group, like children/<row id>
@@ -319,11 +329,9 @@ def _refusal(
         )
         return f"{label} can't be {value}"
 
-    return (
-        None
-        if accepts(into, output)
-        else f"{name_of(output)} can't go into {name_of(into)}"
-    )
+    if accepts(into, output):
+        return None
+    return f"{name_of(output)} can't go into {name_of(into)}"
 
 
 def _name(node: _Node) -> str:
