@@ -780,3 +780,38 @@ def test_number_check_exports_both_numeric_predicates_for_a_wired_operation() ->
         'operation === "Is finite" ? (Number.isFinite(value)) : Number.isInteger(value)'
         in written
     )
+
+
+def test_join_exports_the_saved_order_and_local_row_fallbacks() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node(
+                "join",
+                "join",
+                groups={"items": ["first", "absent", "middle", "empty", "last"]},
+                values={
+                    "separator": "/",
+                    "items/first": "Home",
+                    "items/middle": "Pricing",
+                    "items/empty": "",
+                    "items/last": "Pro",
+                },
+            ),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("separator", "input.glue", "join.separator"),
+            wire("absent", "input.optional", "join.items/absent"),
+            wire("middle", "input.label", "join.items/middle"),
+            wire("text", "join.text", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [prop(name, name, TEXT) for name in ("glue", "optional", "label")],
+    )
+
+    assert (
+        '["Home", optional, (label ?? "Pricing"), "", "Pro"]'
+        '.filter((item) => item != null).join((glue ?? "/"))'
+    ) in written

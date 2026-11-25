@@ -1,3 +1,4 @@
+import type { GroupSocket } from "@/api/types";
 import type { SocketType } from "./graph";
 
 /** Whether a wire may run from an output of the type `out` into an input of the type `into`, as the API decides. */
@@ -55,6 +56,12 @@ const SOCKET_NAMES: Record<Kind, string> = {
 /** A group's entries are named for the accepted type, independently of their connected values. */
 export function socketTypeName(type: SocketType): string {
   return SOCKET_NAMES[type.kind ?? "any"];
+}
+
+export function groupItemLabel(group: GroupSocket, index: number): string {
+  return group.item_label
+    ? `${group.item_label} ${index + 1}`
+    : socketTypeName(group.type);
 }
 
 export const SOCKET_COLOR: Record<Kind, string> = {

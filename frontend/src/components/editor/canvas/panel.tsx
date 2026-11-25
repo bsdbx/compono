@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { socketTypeName } from "./accepts";
+import { groupItemLabel } from "./accepts";
 import { type ChoiceMenu, choiceMenuOf } from "./choice-menus";
 import { defaultInputsOf, socketsOf, useCanvas, wiredChoices } from "./context";
 import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
@@ -65,6 +65,7 @@ const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
     switch: { true: "When true", false: "When false" },
     compare: { a: "Value to compare", b: "Compare against" },
     default: { fallback: "Default value" },
+    join: { separator: "Between items" },
   };
 
 const KINDS: Readonly<Record<string, string>> = {
@@ -969,16 +970,32 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       ...groups.map((group): PropertyRow => {
         const propertyId = groupPropertyId(group.id);
         const exposed = !node.unexposed?.includes(propertyId);
-        const connected = (node.groups[group.id] ?? []).filter(
-          (row) => exposed && accepted.has(`${group.id}/${row}`),
+        const editable = group.type.kind === "text";
+        const items = (node.groups[group.id] ?? []).filter(
+          (row) => editable || (exposed && accepted.has(`${group.id}/${row}`)),
         );
-        const visible = new Set(connected);
-        const typeLabel = socketTypeName(group.type);
-        const children = connected.map(
-          (row, index): PropertyRow => ({
+        const visible = new Set(items);
+        const itemFields = items.map((row, index): PropertyRow => {
+          const socket = `${group.id}/${row}`;
+          const defaultLabel = groupItemLabel(group, index);
+          const label = node.socketNames?.[socket] ?? defaultLabel;
+          return {
             id: row,
-            label: node.socketNames?.[`${group.id}/${row}`] ?? typeLabel,
-            gripLabel: `${group.label} ${index + 1}`,
+            label,
+            gripLabel: `${group.item_label ?? group.label} ${index + 1}`,
+            ...(group.item_label
+              ? { renameLabel: `${group.item_label} name` }
+              : {}),
+            field: editable
+              ? exposed && wired.has(socket)
+                ? wiredLabel
+                : inputField({
+                    id: socket,
+                    label,
+                    type: group.type,
+                    default: "",
+                  })
+              : null,
             onRename: (name) =>
               canvas.edit((graph) =>
                 renameSocket(
@@ -986,21 +1003,21 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
                   id,
                   group.id,
                   row,
-                  name === typeLabel ? "" : name,
+                  name === defaultLabel ? "" : name,
                 ),
               ),
-          }),
-        );
+          };
+        });
         return {
           id: propertyId,
           before: group.before,
           label: group.label,
           menu: `${exposed ? "group" : "hidden-group"}:${group.id}`,
           exposed,
-          count: children.length,
-          details: children.length > 0 && (
+          count: itemFields.length,
+          details: itemFields.length > 0 && (
             <PropertyList
-              fields={children}
+              fields={itemFields}
               label={`${group.label} order`}
               className="py-1 pr-2 pl-5 [&>ol]:gap-0.5"
               onPlace={(row, before) =>

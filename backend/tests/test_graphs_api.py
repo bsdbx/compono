@@ -272,6 +272,7 @@ def test_compono_node_types_say_where_they_belong(
         ("default", "Logic", False),
         ("check", "Logic", False),
         ("number-check", "Logic", False),
+        ("join", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
@@ -310,6 +311,14 @@ def test_compono_node_types_say_where_they_belong(
     ]
     assert not number_check.inputs[1].wire_only
     assert number_check.outputs[0].type == BooleanType()
+    join = listed["join"].sockets
+    assert [(each.id, each.type, each.default) for each in join.inputs] == [
+        ("separator", TEXT, ""),
+    ]
+    assert [(group.id, group.type, group.item_label) for group in join.groups] == [
+        ("items", TEXT, "Item"),
+    ]
+    assert [(each.label, each.type) for each in join.outputs] == [("Text", TEXT)]
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]

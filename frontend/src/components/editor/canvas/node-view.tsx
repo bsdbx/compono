@@ -375,17 +375,22 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const compactInputs: CompactSocket[] = [];
   const groupRows = (group: GroupSocket) => {
     rows.push(
-      <GroupSockets key={`group:${group.id}`} node={node} group={group} />,
+      <GroupSockets
+        key={`group:${group.id}`}
+        node={node}
+        group={group}
+        wired={wired}
+      />,
     );
     compactInputs.push(
       ...(node.groups[group.id] ?? []).map((row, index) => ({
         id: `${group.id}/${row}`,
-        label: `${group.label} ${index + 1}`,
+        label: `${group.item_label ?? group.label} ${index + 1}`,
         type: group.type,
       })),
       {
         id: addRow(group.id),
-        label: `Add ${group.label}`,
+        label: `Add ${group.item_label ?? group.label}`,
         type: group.type,
         add: group.id,
       },

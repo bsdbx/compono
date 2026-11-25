@@ -103,6 +103,7 @@ export type GroupSocket = {
   label: string;
   type: SocketTypeOutput;
   before: string | null;
+  item_label?: string | null;
 };
 
 export type HttpValidationError = {
