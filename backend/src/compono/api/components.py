@@ -25,7 +25,7 @@ from compono.api.projects import (
 )
 from compono.api.teams import NOT_SIGNED_IN, answers
 from compono.api.text import NO_NUL, refuse_nul
-from compono.graph.model import upgrade_number_presets
+from compono.graph.model import upgrade_graph
 from compono.models import COMPONENT_NAME_MAX_LENGTH
 from compono.permissions import ProjectAction
 
@@ -146,7 +146,7 @@ def component_of(found: models.Component) -> Component:
     return Component(
         id=found.id,
         name=found.name,
-        graph=upgrade_number_presets(found.graph),
+        graph=upgrade_graph(found.graph),
         screen_sizes=[ScreenSize.model_validate(size) for size in found.screen_sizes],
         version=found.version,
         updated_at=found.updated_at,

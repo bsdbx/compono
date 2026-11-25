@@ -257,6 +257,7 @@ def test_compono_node_types_say_where_they_belong(
         ("choice", "Values", False),
         ("object", "Objects", False),
         ("break-object", "Objects", False),
+        ("set-field", "Objects", False),
         ("nothing", "Values", False),
         ("switch", "Logic", False),
         ("compare", "Logic", False),
@@ -265,6 +266,14 @@ def test_compono_node_types_say_where_they_belong(
         ("subtype", False),
         ("value", True),
     ]
+    sockets = listed["set-field"].sockets
+    assert [(each.id, each.label) for each in sockets.inputs] == [
+        ("object", "Object"),
+        ("field", "Field Name"),
+        ("value", "Value"),
+    ]
+    assert sockets.inputs[1].type == ChoiceType(options=())
+    assert sockets.outputs[0].label == "Object"
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]

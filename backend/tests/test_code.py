@@ -138,6 +138,44 @@ def test_break_object_exports_an_access_to_the_wired_field() -> None:
     assert '<h2>{(content)?.["page/title"] ?? "Fallback"}</h2>' in written
 
 
+def test_set_field_exports_a_wired_field_selector() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("set", "set-field", values={"value": "Updated"}),
+            node("break", "break-object"),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("object", "input.card", "set.object"),
+            wire("field", "input.key", "set.field"),
+            wire("updated", "set.value", "break.object"),
+            wire("title", "break.field:title", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop(
+                "card",
+                "card",
+                {"kind": "object", "fields": {"title": TEXT, "subtitle": TEXT}},
+            ),
+            prop(
+                "key",
+                "key",
+                {"kind": "choice", "options": ["title", "subtitle"]},
+                default="title",
+            ),
+        ],
+    )
+
+    assert (
+        '["title", "subtitle"].includes(field) ? {...object, [field]: value} : object'
+        in written
+    )
+    assert ', key, "Updated")' in written
+
+
 def test_what_doesnt_take_a_prop_is_written_as_it_renders() -> None:
     written = code(
         [

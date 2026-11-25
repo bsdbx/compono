@@ -112,7 +112,7 @@ export function NumberField({
 /** A choice of options, like a tag. An empty option shows as None. */
 export function ChoiceField({
   label,
-  value,
+  value: storedValue,
   options,
   onChange,
   className,
@@ -138,11 +138,17 @@ export function ChoiceField({
   const listId = useId();
   const searchLabel = menu?.search ?? "Search options";
   const query = search.trim();
+  const value =
+    menu?.optional && !options.includes(storedValue) ? "" : storedValue;
   const nameOf = (option: string) =>
     (names && Object.hasOwn(names, option) ? names[option] : undefined) ??
     (option === "" ? "None" : option);
   const all = new Set(
-    value === "" || options.includes(value) ? options : [value, ...options],
+    menu?.optional
+      ? ["", ...options]
+      : value === "" || options.includes(value)
+        ? options
+        : [value, ...options],
   );
   const remaining = new Set(
     [...all].filter(
@@ -180,7 +186,7 @@ export function ChoiceField({
   }
 
   function choose(option: string) {
-    if (option !== value) onChange(option);
+    if (option !== storedValue) onChange(option);
     setOpen(false);
   }
 

@@ -24,6 +24,7 @@ from compono.graph.node_types import (
     text,
 )
 from compono.graph.sockets import (
+    AnyType,
     BooleanType,
     ChoiceType,
     NothingType,
@@ -31,6 +32,7 @@ from compono.graph.sockets import (
     ObjectType,
     SocketType,
     TextType,
+    accepts,
 )
 from compono.graph.values import Value
 
@@ -230,6 +232,107 @@ BREAK_OBJECT: Final = NodeType(
 )
 
 
+def _object_value(value: Value) -> dict[str, Value]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise NodeError("Expected an Object")
+    return value
+
+
+def _selectable_field_type(original: SocketType, replacement: SocketType) -> SocketType:
+    """A field selected at runtime can keep either its original or its replacement type."""
+    if isinstance(original, AnyType) or isinstance(replacement, AnyType):
+        return AnyType()
+    if accepts(original, replacement):
+        return original
+    if accepts(replacement, original):
+        return replacement
+    return AnyType()
+
+
+def _set_field_sockets(context: SocketsContext) -> Sockets:
+    fields = dict(_object_fields(context, "object"))
+    choice = ChoiceType(options=tuple(fields))
+    typed = context.typed.get("field")
+    local = typed if isinstance(typed, str) and typed in fields else ""
+    selector = context.wired.get("field")
+    wired = context.wired_values.get("field")
+    targets: set[str] = set()
+    if isinstance(selector, ChoiceType) and isinstance(wired, str) and wired in fields:
+        targets = set(selector.options).intersection(fields)
+    elif isinstance(selector, AnyType):
+        targets = set(fields)
+    name = wired if targets and isinstance(wired, str) and wired in fields else local
+    incoming = context.wired.get("value")
+    socket = (
+        fields.get(name, AnyType())
+        if incoming is None or isinstance(incoming, NothingType)
+        else incoming
+    )
+    empty: dict[str, Value] = {key: None for key in fields}
+    if targets:
+        if local:
+            targets.add(local)
+        for target in targets:
+            fields[target] = _selectable_field_type(fields[target], socket)
+    elif name:
+        fields[name] = socket
+    return Sockets(
+        inputs=(
+            Input("object", "Object", ANY_OBJECT, empty),
+            Input("field", "Field Name", choice, allow_stale_value=True),
+            Input("value", "Value", socket, allow_stale_value=True),
+        ),
+        outputs=(Output("value", "Object", ObjectType(fields=fields)),),
+    )
+
+
+def _set_field(context: EvaluateContext) -> Mapping[str, Value]:
+    original = _object_value(context.inputs["object"])
+    name = context.inputs["field"]
+    if isinstance(name, str) and name in original:
+        return {"value": {**original, name: context.inputs["value"]}}
+    return {"value": original}
+
+
+def _set_field_code(context: CodeContext) -> Mapping[str, Code]:
+    field = context.inputs["field"]
+    original = context.inputs["object"]
+    output_type = context.outputs[0].type
+    assert isinstance(output_type, ObjectType)
+    if not isinstance(field, Js) and (
+        not isinstance(field, str) or field not in output_type.fields
+    ):
+        return {"value": original}
+
+    expression_of = context.expression_of or js_of
+    source = expression_of(original)
+    value = expression_of(context.inputs["value"])
+    if source is None or value is None:
+        raise NodeError("Can't export the Object field")
+    if isinstance(field, Js):
+        allowed = ", ".join(map(literal, output_type.fields))
+        update = (
+            f"((object, field, value) => [{allowed}].includes(field) "
+            f"? {{...object, [field]: value}} : object)"
+            f"({source}, {expression(field)}, {value})"
+        )
+    else:
+        update = f"{{...({source}), {object_key(field)}: {value}}}"
+    return {"value": Js(update, nothing=False)}
+
+
+SET_FIELD: Final = NodeType(
+    type="set-field",
+    name="Set Field",
+    category=OBJECT_CATEGORY,
+    sockets=_set_field_sockets,
+    evaluate=_set_field,
+    code=_set_field_code,
+)
+
+
 NOTHING: Final = NodeType(
     type="nothing",
     name="Nothing",
@@ -248,4 +351,13 @@ NOTHING: Final = NodeType(
     evaluate=lambda _: {"value": None},
 )
 
-NODE_TYPES: Final = (BOOLEAN, NUMBER, TEXT, CHOICE, OBJECT, BREAK_OBJECT, NOTHING)
+NODE_TYPES: Final = (
+    BOOLEAN,
+    NUMBER,
+    TEXT,
+    CHOICE,
+    OBJECT,
+    BREAK_OBJECT,
+    SET_FIELD,
+    NOTHING,
+)
