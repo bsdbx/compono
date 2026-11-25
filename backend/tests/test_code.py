@@ -749,3 +749,34 @@ def test_check_exports_only_predicates_for_the_value_type() -> None:
     assert 'operation === "Is empty"' in written
     assert 'operation === "Is false"' not in written
     assert "value == null)" in written
+
+
+def test_number_check_exports_both_numeric_predicates_for_a_wired_operation() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("check", "number-check"),
+            node("heading", "element", values={"tag": "h2"}, exposed=["hidden"]),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.count", "check.value"),
+            wire("check", "input.predicate", "check.op"),
+            wire("hidden", "check.result", "heading.hidden"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("count", "count", {"kind": "number"}),
+            prop(
+                "predicate",
+                "predicate",
+                {"kind": "choice", "options": ["Is integer", "Is finite"]},
+                default="Is finite",
+            ),
+        ],
+    )
+
+    assert (
+        'operation === "Is finite" ? (Number.isFinite(value)) : Number.isInteger(value)'
+        in written
+    )

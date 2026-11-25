@@ -2,6 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from datetime import datetime
+from math import isfinite
 from operator import is_none, is_not_none
 from typing import Final
 
@@ -410,6 +411,7 @@ DEFAULT: Final = NodeType(
 PRESENCE_CHECKS: Final = ("Is nothing", "Is not nothing")
 EMPTY_CHECKS: Final = ("Is empty", "Is not empty")
 NUMBER_CHECKS: Final = ("Is zero", "Is positive", "Is negative")
+NUMBER_PREDICATES: Final = ("Is integer", "Is finite")
 CHECKS_BY_KIND: Final[Mapping[str, tuple[str, ...]]] = {
     "text": EMPTY_CHECKS,
     "object": EMPTY_CHECKS,
@@ -456,6 +458,13 @@ CHECKS: Final[Mapping[str, tuple[Callable[[Value], bool], str]]] = {
         'typeof value === "number" && value < 0',
     ),
     "Is whole": _IS_INTEGER,
+    "Is integer": _IS_INTEGER,
+    "Is finite": (
+        lambda value: (
+            type(value) is int or (isinstance(value, float) and isfinite(value))
+        ),
+        "Number.isFinite(value)",
+    ),
     "Is true": (lambda value: value is True, "value === true"),
     "Is false": (lambda value: value is False, "value === false"),
 }
@@ -532,4 +541,19 @@ CHECK: Final = NodeType(
     accepts_unselected_choices=("value",),
 )
 
-NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH, DEFAULT, CHECK)
+NUMBER_CHECK: Final = NodeType(
+    type="number-check",
+    name="Number Check",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(
+            Input("op", "Check", ChoiceType(options=NUMBER_PREDICATES), "Is integer"),
+            Input("value", "Value", NumberType()),
+        ),
+        outputs=(Output("result", "Result", BOOLEAN),),
+    ),
+    evaluate=_check,
+    code=_check_code,
+)
+
+NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH, DEFAULT, CHECK, NUMBER_CHECK)
