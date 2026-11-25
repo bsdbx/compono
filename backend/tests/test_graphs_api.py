@@ -278,6 +278,7 @@ def test_compono_node_types_say_where_they_belong(
         ("slice", "Text", False),
         ("case", "Text", False),
         ("trim", "Text", False),
+        ("pad", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
@@ -348,6 +349,14 @@ def test_compono_node_types_say_where_they_belong(
         ("Text", TEXT, ""),
     ]
     assert [(each.label, each.type) for each in trim.outputs] == [("Text", TEXT)]
+    pad = listed["pad"].sockets
+    assert [(each.label, each.type, each.default) for each in pad.inputs] == [
+        ("Side", ChoiceType(options=("Start", "End")), "Start"),
+        ("Text", TEXT, ""),
+        ("Length", NumberType(integer=True, minimum=0, maximum=100_000), 0),
+        ("Fill", TEXT, " "),
+    ]
+    assert [(each.label, each.type) for each in pad.outputs] == [("Text", TEXT)]
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]

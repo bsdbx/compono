@@ -70,6 +70,7 @@ const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
     slice: { text: "Text to slice", end: "End of text" },
     case: { text: "Text to change" },
     trim: { text: "Text to trim" },
+    pad: { text: "Text to pad", length: "Target length", fill: "Padding text" },
   };
 
 const KINDS: Readonly<Record<string, string>> = {

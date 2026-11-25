@@ -16,6 +16,7 @@ from compono.graph.node_types import (
     Sockets,
     expression,
     literal,
+    number,
     text,
 )
 from compono.graph.sockets import ChoiceType, NumberType, TextType
@@ -226,4 +227,78 @@ TRIM: Final = NodeType(
     code=lambda context: _mode_code(context, TRIM_MODES),
 )
 
-NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE, CASE, TRIM)
+MAX_PAD_LENGTH: Final = 100_000
+PAD_LENGTH_ERROR: Final = f"Length must be a whole number from 0 to {MAX_PAD_LENGTH}"
+PAD_SIDES: Final = ChoiceType(options=("Start", "End"))
+
+
+def _pad(context: EvaluateContext) -> Mapping[str, Value]:
+    source = text(context.inputs["text"])
+    fill = text(context.inputs["fill"])
+    length = number(context.inputs["length"]) or 0
+    if not 0 <= length <= MAX_PAD_LENGTH or length % 1 != 0:
+        raise NodeError(PAD_LENGTH_ERROR)
+
+    missing = int(length) - len(source)
+    if missing <= 0 or not fill:
+        return {"text": source}
+
+    copies, tail = divmod(missing, len(fill))
+    padding = fill * copies + fill[:tail]
+    return {
+        "text": source + padding if context.inputs["op"] == "End" else padding + source
+    }
+
+
+def _pad_code(context: CodeContext) -> Mapping[str, Code]:
+    source = _text_expression(context.inputs["text"])
+    fill = _text_expression(context.inputs["fill"])
+    length = context.inputs["length"]
+    target = (
+        expression(length) if isinstance(length, Js) else literal(_index(length) or 0)
+    )
+    side = context.inputs["op"]
+    at_end = (
+        f'{expression(side)} === "End"'
+        if isinstance(side, Js)
+        else literal(side == "End")
+    )
+
+    # Count and slice by code point, as Text Length and Slice do.
+    written = (
+        '((value, length, fill, atEnd) => { value ??= ""; length ??= 0; fill ??= ""; '
+        f"if (length < 0 || length > {MAX_PAD_LENGTH} || length % 1 !== 0) "
+        f"throw new RangeError({literal(PAD_LENGTH_ERROR)}); "
+        "const missing = length - [...value].length; "
+        'if (missing <= 0 || fill === "") return value; '
+        "const characters = [...fill]; const tail = missing % characters.length; "
+        'const padding = fill.repeat((missing - tail) / characters.length) + characters.slice(0, tail).join(""); '
+        "return atEnd ? value + padding : padding + value; "
+        f"}})({source}, {target}, {fill}, {at_end})"
+    )
+    return {"text": Js(written, nothing=False)}
+
+
+PAD: Final = NodeType(
+    type="pad",
+    name="Pad",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(
+            Input("op", "Side", PAD_SIDES, "Start"),
+            Input("text", "Text", TEXT, ""),
+            Input(
+                "length",
+                "Length",
+                NumberType(integer=True, minimum=0, maximum=MAX_PAD_LENGTH),
+                0,
+            ),
+            Input("fill", "Fill", TEXT, " "),
+        ),
+        outputs=(Output("text", "Text", TEXT),),
+    ),
+    evaluate=_pad,
+    code=_pad_code,
+)
+
+NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE, CASE, TRIM, PAD)
