@@ -24,8 +24,15 @@ from compono.graph.node_types import (
     markup,
     text,
 )
-from compono.graph.sockets import AnyType, BooleanType, ChoiceType, SocketType
-from compono.graph.values import Value
+from compono.graph.sockets import (
+    AnyType,
+    BooleanType,
+    ChoiceType,
+    NumberType,
+    SocketType,
+    TextType,
+)
+from compono.graph.values import Element, Value
 
 CATEGORY: Final = "Logic"
 
@@ -105,16 +112,49 @@ COMPARISONS: Final = {
     "Greater": ">",
     "Greater or equal": ">=",
 }
+EQUALITY: Final = ("Equal", "Not equal")
+COMPARABLE_KINDS: Final = ("boolean", "number", "text", "choice", "date")
+COMPARABLE: Final = AnyType(allowed_kinds=COMPARABLE_KINDS)
 
 
 def _compare_sockets(context: SocketsContext) -> Sockets:
-    # A and B are one type: what's wired into either
-    value = _following(context, "a", "b")
+    operands = [context.wired.get(side) for side in ("a", "b")]
+    value = next(
+        (
+            socket
+            for socket in operands
+            if socket is not None and socket.kind in COMPARABLE_KINDS
+        ),
+        COMPARABLE,
+    )
+    if isinstance(value, NumberType):
+        value = NumberType()
+    elif isinstance(value, TextType):
+        value = TextType()
+    elif isinstance(value, ChoiceType):
+        options = {
+            option: None
+            for socket in operands
+            if isinstance(socket, ChoiceType)
+            for option in socket.options
+        }
+        value = ChoiceType(options=tuple(options))
+
+    comparisons = (
+        EQUALITY if isinstance(value, BooleanType | ChoiceType) else tuple(COMPARISONS)
+    )
+    default = False if isinstance(value, BooleanType) else None
     return Sockets(
         inputs=(
-            Input("op", "Comparison", ChoiceType(options=tuple(COMPARISONS)), "Equal"),
-            Input("a", "A", value, None),
-            Input("b", "B", value, None),
+            Input(
+                "op",
+                "Comparison",
+                ChoiceType(options=comparisons),
+                "Equal",
+                allow_stale_value=True,
+            ),
+            Input("a", "A", value, default, allow_stale_value=True),
+            Input("b", "B", value, default, allow_stale_value=True),
         ),
         outputs=(Output("result", "Result", BOOLEAN),),
     )
@@ -140,8 +180,19 @@ def _order(a: Value, b: Value) -> int | None:
 
 
 def _compare(context: EvaluateContext) -> Mapping[str, Value]:
-    comparison = text(context.inputs["op"])
+    comparison = text(context.inputs["op"]) or "Equal"
+    if comparison not in COMPARISONS:
+        raise NodeError("Choose a comparison")
     a, b = context.inputs["a"], context.inputs["b"]
+    if isinstance(a, Element | dict) or isinstance(b, Element | dict):
+        raise NodeError("Compare needs Boolean, Number, Text, Choice or Date values")
+    if (
+        a is not None
+        and b is not None
+        and type(a) is not type(b)
+        and not (type(a) in (int, float) and type(b) in (int, float))
+    ):
+        raise NodeError("Compare needs two values of the same kind")
     if comparison == "Equal":
         return {"result": a == b}
 
@@ -178,7 +229,7 @@ def _compare_code(context: CodeContext) -> Mapping[str, Code]:
     if isinstance(comparison, Js) or markup(comparison):
         raise NodeError("Compare can't take its comparison from a prop in code yet")
 
-    name = text(known(comparison))
+    name = text(known(comparison)) or "Equal"
     sides = (context.inputs["a"], context.inputs["b"])
     operator = COMPARISONS[name]
     if name in ("Equal", "Not equal"):

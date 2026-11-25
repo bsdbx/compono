@@ -7,6 +7,7 @@ export type Account = {
 
 export type AnyType = {
   kind?: "any";
+  allowed_kinds?: Array<string> | null;
 };
 
 export type BooleanType = {

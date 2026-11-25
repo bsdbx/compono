@@ -3,6 +3,7 @@ export type ChoiceMenu = {
   groups?: Readonly<Record<string, readonly string[]>>;
   names?: Readonly<Record<string, string>>;
   optional?: boolean;
+  fallback?: string | ((options: readonly string[]) => string);
 };
 
 const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
@@ -55,11 +56,14 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
   compare: {
     op: {
       search: "Search comparisons",
+      fallback: "Equal",
       groups: {
         Equality: ["Equal", "Not equal"],
         Ordering: ["Less", "Less or equal", "Greater", "Greater or equal"],
       },
     },
+    a: { search: "Search values", optional: true },
+    b: { search: "Search values", optional: true },
   },
   "boolean-math": { op: { search: "Search operations" } },
   number: {

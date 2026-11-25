@@ -1,8 +1,9 @@
 """Socket types: what a socket accepts or gives. A type is a value, so Number carries its range and Object its fields."""
 
+from operator import is_none
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator
+from pydantic import BaseModel, ConfigDict, Discriminator, Field
 
 
 class _Type(BaseModel):
@@ -68,9 +69,10 @@ class NothingType(_Type):
 
 
 class AnyType(_Type):
-    """An input that takes whatever type is wired into it."""
+    """An inferred socket, optionally limited to certain kinds of inputs."""
 
     kind: Literal["any"] = "any"
+    allowed_kinds: tuple[str, ...] | None = Field(default=None, exclude_if=is_none)
 
 
 type SocketType = Annotated[
@@ -92,9 +94,12 @@ ObjectType.model_rebuild()
 
 def accepts(into: SocketType, out: SocketType) -> bool:
     """Whether a wire may run from an output of the type `out` into an input of the type `into`."""
-    # Any takes everything, and Nothing counts as no wire. An output still Any isn't known yet, so it's let through
-    if isinstance(into, AnyType) or isinstance(out, NothingType | AnyType):
+    # Nothing counts as no wire, and an output still Any isn't known yet.
+    if isinstance(out, NothingType | AnyType):
         return True
+
+    if isinstance(into, AnyType):
+        return into.allowed_kinds is None or out.kind in into.allowed_kinds
 
     # The place a component renders takes an Element
     if isinstance(into, SlotType):
