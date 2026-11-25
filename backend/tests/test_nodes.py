@@ -108,6 +108,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("slice", "Text"),
         ("case", "Text"),
         ("trim", "Text"),
+        ("pad", "Text"),
     ]
 
 
@@ -543,6 +544,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "slice": [],
         "case": [],
         "trim": [],
+        "pad": [],
     }
 
 
@@ -1476,6 +1478,49 @@ def test_trim_removes_whitespace_from_the_chosen_edges(
     evaluation = run([node("trim", "trim", values={"op": mode, "text": source})])
 
     assert output(evaluation, "trim", "text") == expected
+
+
+@pytest.mark.parametrize(
+    ("side", "source", "length", "fill", "expected"),
+    [
+        ("Start", "7", 2, "0", "07"),
+        ("End", "Total", 10, ".", "Total....."),
+        ("Start", "🚀", 4, "🙂x", "🙂x🙂🚀"),
+        ("End", "Total", 4, ".", "Total"),
+        ("End", "7", 3, "", "7"),
+    ],
+)
+def test_pad_repeats_fill_to_the_target_length(
+    side: str, source: str, length: int, fill: str, expected: str
+) -> None:
+    evaluation = run(
+        [
+            node(
+                "pad",
+                "pad",
+                values={"op": side, "text": source, "length": length, "fill": fill},
+            ),
+        ]
+    )
+
+    assert output(evaluation, "pad", "text") == expected
+
+
+def test_pad_rejects_an_oversized_wired_length() -> None:
+    evaluation = run(
+        [node("input", "component-input"), node("pad", "pad")],
+        [wire("length", "input.length", "pad.length")],
+        [
+            prop(
+                "length", "length", {"kind": "number", "integer": True}, default=100_001
+            )
+        ],
+    )
+
+    assert (
+        evaluation.nodes["pad"].error
+        == "Length must be a whole number from 0 to 100000"
+    )
 
 
 @pytest.mark.parametrize(

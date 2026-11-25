@@ -74,6 +74,7 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
   },
   case: { op: { search: "Search case modes" } },
   trim: { op: { search: "Search sides" } },
+  pad: { op: { search: "Search sides" } },
   number: {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },

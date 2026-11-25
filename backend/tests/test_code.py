@@ -945,3 +945,40 @@ def test_trim_exports_all_three_modes_when_wired() -> None:
     assert 'mode === "End" ? value.trimEnd()' in written
     assert ": value.trim()" in written
     assert '(title ?? "  Pro plan  ")' in written
+
+
+def test_pad_exports_wired_inputs_and_their_inline_fallbacks() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("pad", "pad", values={"text": "7", "length": 2, "fill": "0"}),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "pad.text"),
+            wire("length", "input.length", "pad.length"),
+            wire("fill", "input.fill", "pad.fill"),
+            wire("side", "input.side", "pad.op"),
+            wire("text", "pad.text", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("title", "title", TEXT),
+            prop("length", "length", {"kind": "number", "integer": True}),
+            prop("fill", "fill", TEXT),
+            prop(
+                "side",
+                "side",
+                {"kind": "choice", "options": ["Start", "End"]},
+                default="Start",
+            ),
+        ],
+    )
+
+    assert (
+        '(title ?? "7"), (length ?? 2), (fill ?? "0"), (side ?? "Start") === "End"'
+        in written
+    )
+    assert "length - [...value].length" in written
+    assert "const characters = [...fill]" in written
