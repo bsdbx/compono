@@ -581,7 +581,7 @@ export function removeRow(
   };
 }
 
-type FieldOrigin = "property" | "input" | "output-property" | "group";
+type FieldOrigin = "property" | "input" | "group";
 
 /** Restores a default input or group, or makes a property wireable. */
 export function expose(
@@ -616,15 +616,13 @@ export function unexpose(
   const key = origin === "group" ? groupPropertyId(field) : field;
   const next = replace(graph, id, (node) => {
     const hidden = node.unexposed ?? [];
-    const restoreInline =
-      origin === "output-property" && node.exposed.includes(field);
     return {
       ...node,
       exposed:
         origin === "group"
           ? node.exposed
           : node.exposed.filter((each) => each !== field),
-      ...(origin !== "property" && !restoreInline && !hidden.includes(key)
+      ...(origin !== "property" && !hidden.includes(key)
         ? { unexposed: [...hidden, key] }
         : {}),
     };
