@@ -4,14 +4,20 @@ from collections.abc import Mapping
 from typing import Final
 
 from compono.graph.node_types import (
+    Code,
+    CodeContext,
     EvaluateContext,
+    Input,
+    Js,
     NodeError,
     NodeType,
     Output,
     Property,
     Sockets,
     SocketsContext,
+    js_of,
     number,
+    object_key,
     text,
 )
 from compono.graph.sockets import (
@@ -19,6 +25,8 @@ from compono.graph.sockets import (
     ChoiceType,
     NothingType,
     NumberType,
+    ObjectType,
+    SocketType,
     TextType,
 )
 from compono.graph.values import Value
@@ -27,7 +35,7 @@ CATEGORY: Final = "Values"
 
 
 def _value_output(
-    socket_type: BooleanType | NumberType | TextType | ChoiceType | NothingType,
+    socket_type: SocketType,
 ) -> Sockets:
     return Sockets(outputs=(Output("value", "Value", socket_type),))
 
@@ -100,6 +108,71 @@ CHOICE: Final = NodeType(
     evaluate=lambda context: {"value": text(context.properties["value"]) or None},
 )
 
+
+def _object_sockets(context: SocketsContext) -> Sockets:
+    ids = {field.id for field in context.fields}
+    names = {field.name for field in context.fields}
+    if len(ids) != len(context.fields) or len(names) != len(context.fields):
+        raise NodeError("Object field names and socket IDs must be unique")
+    if any(not name.strip() for name in names):
+        raise NodeError("Object fields need names")
+
+    inputs: list[Input] = []
+    shape: dict[str, SocketType] = {}
+    for field in context.fields:
+        incoming = context.wired.get(field.id)
+        socket = (
+            field.type
+            if incoming is None or isinstance(incoming, NothingType)
+            else incoming
+        )
+        shape[field.name] = socket
+        default: Value = (
+            False
+            if isinstance(socket, BooleanType)
+            else ""
+            if isinstance(socket, TextType)
+            else None
+        )
+        inputs.append(
+            Input(
+                field.id,
+                field.name,
+                socket,
+                default,
+                allow_stale_value=socket != field.type,
+            )
+        )
+    return Sockets(
+        inputs=tuple(inputs),
+        outputs=(Output("value", "Object", ObjectType(fields=shape)),),
+    )
+
+
+def _object(context: EvaluateContext) -> Mapping[str, Value]:
+    return {"value": {field.name: context.inputs[field.id] for field in context.fields}}
+
+
+def _object_code(context: CodeContext) -> Mapping[str, Code]:
+    expression_of = context.expression_of or js_of
+    fields: list[str] = []
+    for field in context.fields:
+        value = expression_of(context.inputs[field.id])
+        if value is None:
+            raise NodeError(f"{field.name} can't contain markup in an exported Object")
+        fields.append(f"{object_key(field.name)}: {value}")
+    return {"value": Js("{" + ", ".join(fields) + "}", nothing=False)}
+
+
+OBJECT: Final = NodeType(
+    type="object",
+    name="Object",
+    category=CATEGORY,
+    sockets=_object_sockets,
+    evaluate=_object,
+    code=_object_code,
+)
+
 NOTHING: Final = NodeType(
     type="nothing",
     name="Nothing",
@@ -118,4 +191,4 @@ NOTHING: Final = NodeType(
     evaluate=lambda _: {"value": None},
 )
 
-NODE_TYPES: Final = (BOOLEAN, NUMBER, TEXT, CHOICE, NOTHING)
+NODE_TYPES: Final = (BOOLEAN, NUMBER, TEXT, CHOICE, OBJECT, NOTHING)

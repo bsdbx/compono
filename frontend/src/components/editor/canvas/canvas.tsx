@@ -946,10 +946,23 @@ function Flow({
     if (drag.cancelled || drag.picked) return;
     const ends = connectionEnds(connection);
     if (ends) {
-      edit((current) =>
-        connect(current, ends.from, groupDestination(current, ends.to)),
-      );
+      edit((current) => connectTo(current, ends.from, ends.to));
     }
+  }
+
+  function connectTo(
+    current: Graph,
+    from: Wire["from"],
+    to: Wire["to"],
+    id?: string,
+  ) {
+    return connect(
+      current,
+      from,
+      groupDestination(current, to),
+      id,
+      outputType(current, canvas, from.node, from.socket),
+    );
   }
 
   function onConnectStart(
@@ -1025,10 +1038,10 @@ function Flow({
           return;
         edit((current) =>
           current.wires.some((wire) => wire.id === picked.id)
-            ? connect(
+            ? connectTo(
                 disconnect(current, new Set([picked.id])),
                 picked.from,
-                groupDestination(current, destination),
+                destination,
                 picked.id,
               )
             : current,
@@ -1086,6 +1099,8 @@ function Flow({
             added,
             { node: from.node, socket: from.socket },
             { node: node.id, socket: input },
+            undefined,
+            from.type,
           )
         : added;
     setPlacement({

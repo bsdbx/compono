@@ -224,6 +224,13 @@ export type Node = {
   groups?: {
     [key: string]: Array<string>;
   };
+  fields?: Array<ObjectField>;
+};
+
+export type ObjectField = {
+  id: string;
+  name: string;
+  type: SocketTypeOutput;
 };
 
 export type NodeProperty = {

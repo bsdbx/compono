@@ -7,9 +7,9 @@ from datetime import datetime
 
 from pydantic import JsonValue
 
-from compono.graph.model import Prop
+from compono.graph.model import ObjectField, Prop
 from compono.graph.sockets import SocketType
-from compono.graph.values import Element, Value
+from compono.graph.values import Element, Value, from_json
 
 
 @dataclass(frozen=True)
@@ -20,6 +20,18 @@ class Input:
     label: str
     type: SocketType
     default: Value = None
+    # An inferred socket can leave a local value from a different type in storage.
+    allow_stale_value: bool = False
+
+    def local_value(self, stored: Mapping[str, JsonValue]) -> Value:
+        if self.id not in stored:
+            return self.default
+        try:
+            return from_json(stored[self.id], self.type)
+        except ValueError:
+            if self.allow_stale_value:
+                return self.default
+            raise
 
 
 @dataclass(frozen=True)
@@ -77,6 +89,7 @@ class SocketsContext:
     props: Sequence[Prop]
     # The values brought by incoming wires, by input, before checking their types
     wired_values: Mapping[str, Value] = field(default_factory=dict)
+    fields: Sequence[ObjectField] = ()
 
 
 @dataclass(frozen=True)
@@ -91,6 +104,7 @@ class EvaluateContext:
     properties: Mapping[str, Value]
     # The component's props
     props: Sequence[Prop]
+    fields: Sequence[ObjectField] = ()
 
 
 @dataclass(frozen=True)
@@ -138,6 +152,14 @@ class CodeContext:
     inputs: Mapping[str, Code]
     groups: Mapping[str, tuple[Code, ...]]
     properties: Mapping[str, Code]
+    fields: Sequence[ObjectField] = ()
+    expression_of: Callable[[Code], str] | None = None
+
+
+def object_key(name: str) -> str:
+    """A JavaScript object key, including the ordinary field named __proto__."""
+    quoted = json.dumps(name, ensure_ascii=False)
+    return f"[{quoted}]" if name == "__proto__" else quoted
 
 
 def literal(value: Value) -> str:
@@ -155,7 +177,7 @@ def literal(value: Value) -> str:
             return json.dumps(value.isoformat())
         case dict():
             fields = ", ".join(
-                f"{json.dumps(name)}: {literal(field)}" for name, field in value.items()
+                f"{object_key(name)}: {literal(field)}" for name, field in value.items()
             )
             return f"{{{fields}}}"
         case _:

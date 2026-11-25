@@ -6,16 +6,18 @@ import pytest
 from pydantic import JsonValue
 
 from compono.code import CodeError, component_name, generate
-from compono.graph.model import Graph
+from compono.graph.model import Graph, ObjectField
 from compono.graph.node_types import (
+    CodeContext,
     EvaluateContext,
     Input,
+    Js,
     NodeType,
     Output,
     Sockets,
     text,
 )
-from compono.graph.sockets import TextType
+from compono.graph.sockets import BooleanType, TextType
 from compono.graph.values import Value
 from compono.nodes import NODE_TYPES
 from compono.nodes.component import new_graph
@@ -64,6 +66,53 @@ def test_a_new_component_renders_nothing() -> None:
 
     assert generated.filename == "NavBar.jsx"
     assert generated.code == "export default function NavBar() {\n  return null;\n}\n"
+
+
+def test_object_code_uses_literals_for_keys_and_expressions_for_inputs() -> None:
+    writer = NODE_TYPES["object"].code
+    assert writer is not None
+    assert writer(
+        CodeContext(
+            inputs={"label-id": Js("title", fallback="New"), "flag-id": False},
+            groups={},
+            properties={},
+            fields=(
+                ObjectField(id="label-id", name="item label", type=TextType()),
+                ObjectField(id="flag-id", name="__proto__", type=BooleanType()),
+            ),
+        )
+    ) == {
+        "value": Js(
+            '{"item label": (title ?? "New"), ["__proto__"]: false}', nothing=False
+        )
+    }
+
+
+def test_an_inferred_element_field_exports_as_jsx_inside_the_object() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("label", "element", values={"tag": "strong"}),
+            node(
+                "object",
+                "object",
+                fields=[{"id": "field", "name": "badge", "type": {"kind": "any"}}],
+            ),
+            node("compare", "compare"),
+            node("wrapper", "element", exposed=["hidden"]),
+            node("output", "component-output"),
+        ],
+        [
+            wire("w1", "input.title", "label.text"),
+            wire("w2", "label.element", "object.field"),
+            wire("w3", "object.value", "compare.a"),
+            wire("w4", "compare.result", "wrapper.hidden"),
+            wire("w5", "wrapper.element", "output.render"),
+        ],
+        [prop("title", "title", TEXT)],
+    )
+
+    assert '"badge": (<strong>{title}</strong>)' in written
 
 
 def test_what_doesnt_take_a_prop_is_written_as_it_renders() -> None:

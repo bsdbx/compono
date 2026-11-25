@@ -30,7 +30,12 @@ export function TextField({
   return (
     <label className={cn(FIELD, className)}>
       {showLabel ? (
-        <span className="shrink-0 text-subtle-foreground">{label}</span>
+        <span
+          className="max-w-1/2 shrink-0 truncate text-subtle-foreground"
+          title={label}
+        >
+          {label}
+        </span>
       ) : null}
       <input
         aria-label={label}
@@ -69,7 +74,12 @@ export function NumberField({
   return (
     <label className={cn(FIELD, className)}>
       {showLabel ? (
-        <span className="shrink-0 text-subtle-foreground">{label}</span>
+        <span
+          className="max-w-1/2 shrink-0 truncate text-subtle-foreground"
+          title={label}
+        >
+          {label}
+        </span>
       ) : null}
       <input
         aria-label={label}
@@ -107,6 +117,7 @@ export function ChoiceField({
   onChange,
   className,
   menu,
+  showLabel = false,
   names = menu?.names,
 }: {
   label: string;
@@ -115,6 +126,7 @@ export function ChoiceField({
   onChange: (value: string) => void;
   className?: string;
   menu?: ChoiceMenu | undefined;
+  showLabel?: boolean;
   /** What an option shows as, when it isn't the option itself */
   names?: Readonly<Record<string, string>> | undefined;
 }) {
@@ -206,7 +218,19 @@ export function ChoiceField({
             className,
           )}
         >
-          <span className="truncate">{nameOf(value)}</span>
+          {showLabel && (
+            <span
+              className="max-w-1/2 shrink-0 truncate text-subtle-foreground"
+              title={label}
+            >
+              {label}
+            </span>
+          )}
+          <span
+            className={cn("min-w-0 truncate", showLabel && "flex-1 text-right")}
+          >
+            {nameOf(value)}
+          </span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
       </Popover.Trigger>

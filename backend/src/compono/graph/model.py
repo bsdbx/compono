@@ -74,6 +74,14 @@ class Position(BaseModel):
     y: float = 0
 
 
+class ObjectField(BaseModel):
+    """A named Object field with a socket ID that survives renaming."""
+
+    id: str
+    name: str
+    type: SocketType
+
+
 class Node(BaseModel):
     """One node. A socket of a group is named like `children/<row id>`."""
 
@@ -93,6 +101,7 @@ class Node(BaseModel):
     exposed: list[str] = []
     # The rows of each socket group, in order
     groups: dict[str, list[str]] = {}
+    fields: list[ObjectField] = []
 
 
 class End(BaseModel):
