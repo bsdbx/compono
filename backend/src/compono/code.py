@@ -387,6 +387,7 @@ class _Generator:
                     properties=properties,
                     fields=node.fields,
                     expression_of=self.printer.expression_of,
+                    outputs=result.sockets.outputs,
                 )
             )
         except NodeError as error:

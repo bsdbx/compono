@@ -1,7 +1,8 @@
-"""Nodes that give a value set on them: Boolean, Number, Text, Choice and Nothing."""
+"""Nodes that supply values or work with Object fields."""
 
 from collections.abc import Mapping
 from typing import Final
+from urllib.parse import quote
 
 from compono.graph.node_types import (
     Code,
@@ -15,7 +16,9 @@ from compono.graph.node_types import (
     Property,
     Sockets,
     SocketsContext,
+    expression,
     js_of,
+    literal,
     number,
     object_key,
     text,
@@ -32,6 +35,8 @@ from compono.graph.sockets import (
 from compono.graph.values import Value
 
 CATEGORY: Final = "Values"
+OBJECT_CATEGORY: Final = "Objects"
+ANY_OBJECT: Final = ObjectType(fields={})
 
 
 def _value_output(
@@ -167,11 +172,63 @@ def _object_code(context: CodeContext) -> Mapping[str, Code]:
 OBJECT: Final = NodeType(
     type="object",
     name="Object",
-    category=CATEGORY,
+    category=OBJECT_CATEGORY,
     sockets=_object_sockets,
     evaluate=_object,
     code=_object_code,
 )
+
+
+def _field_socket(name: str) -> str:
+    return "field:" + quote(name, safe="")
+
+
+def _object_fields(context: SocketsContext, socket: str) -> Mapping[str, SocketType]:
+    incoming = context.wired.get(socket)
+    return incoming.fields if isinstance(incoming, ObjectType) else {}
+
+
+def _break_object_sockets(context: SocketsContext) -> Sockets:
+    fields = _object_fields(context, "object")
+    return Sockets(
+        inputs=(Input("object", "Object", ANY_OBJECT),),
+        outputs=tuple(
+            Output(_field_socket(name), name, socket) for name, socket in fields.items()
+        ),
+    )
+
+
+def _break_object(context: EvaluateContext) -> Mapping[str, Value]:
+    value = context.inputs["object"]
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise NodeError("Break Object needs an Object")
+    return {_field_socket(name): item for name, item in value.items()}
+
+
+def _break_object_code(context: CodeContext) -> Mapping[str, Code]:
+    value = context.inputs["object"]
+    if isinstance(value, Js):
+        object_expression = expression(value)
+        return {
+            output.id: Js(f"({object_expression})?.[{literal(output.label)}]")
+            for output in context.outputs
+        }
+    if isinstance(value, dict):
+        return {_field_socket(name): item for name, item in value.items()}
+    return {}
+
+
+BREAK_OBJECT: Final = NodeType(
+    type="break-object",
+    name="Break Object",
+    category=OBJECT_CATEGORY,
+    sockets=_break_object_sockets,
+    evaluate=_break_object,
+    code=_break_object_code,
+)
+
 
 NOTHING: Final = NodeType(
     type="nothing",
@@ -191,4 +248,4 @@ NOTHING: Final = NodeType(
     evaluate=lambda _: {"value": None},
 )
 
-NODE_TYPES: Final = (BOOLEAN, NUMBER, TEXT, CHOICE, OBJECT, NOTHING)
+NODE_TYPES: Final = (BOOLEAN, NUMBER, TEXT, CHOICE, OBJECT, BREAK_OBJECT, NOTHING)

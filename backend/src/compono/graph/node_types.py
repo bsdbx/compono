@@ -154,6 +154,7 @@ class CodeContext:
     properties: Mapping[str, Code]
     fields: Sequence[ObjectField] = ()
     expression_of: Callable[[Code], str] | None = None
+    outputs: Sequence[Output] = ()
 
 
 def object_key(name: str) -> str:

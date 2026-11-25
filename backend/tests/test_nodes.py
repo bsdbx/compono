@@ -90,7 +90,8 @@ def test_the_node_types_and_their_categories() -> None:
         ("number", "Values"),
         ("text", "Values"),
         ("choice", "Values"),
-        ("object", "Values"),
+        ("object", "Objects"),
+        ("break-object", "Objects"),
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
@@ -513,6 +514,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "text": ["value"],
         "choice": ["value"],
         "object": [],
+        "break-object": [],
         "nothing": ["value"],
         "switch": [],
         "compare": [],
@@ -607,6 +609,63 @@ def test_an_object_field_follows_the_connected_type_and_subtype() -> None:
         assert sockets.outputs[0].type == ObjectType(fields={"field": expected})
         assert evaluation.wires == {}
     assert output(run([stored]), "object") == {"field": "Local"}
+
+
+def test_break_object_exposes_each_field_with_its_name_type_and_value() -> None:
+    nodes = [
+        node(
+            "object",
+            "object",
+            fields=[
+                {
+                    "id": "link",
+                    "name": "cta/link",
+                    "type": {"kind": "text", "link": True},
+                },
+                {
+                    "id": "count",
+                    "name": "count",
+                    "type": {"kind": "number", "integer": True},
+                },
+                {
+                    "id": "settings",
+                    "name": "settings",
+                    "type": {
+                        "kind": "object",
+                        "fields": {"featured": {"kind": "boolean"}},
+                    },
+                },
+            ],
+            values={"link": "/pricing", "count": 3, "settings": {"featured": True}},
+        ),
+        node("break", "break-object"),
+        node("cta", "element", values={"tag": "a"}),
+    ]
+    assert run(nodes).nodes["break"].sockets.outputs == ()
+    evaluation = run(
+        nodes,
+        [
+            wire("object", "object.value", "break.object"),
+            wire("href", "break.field:cta%2Flink", "cta.href"),
+        ],
+    )
+    result = evaluation.nodes["break"]
+    assert [
+        (socket.id, socket.label, socket.type) for socket in result.sockets.outputs
+    ] == [
+        ("field:cta%2Flink", "cta/link", LINK),
+        ("field:count", "count", NumberType(integer=True)),
+        ("field:settings", "settings", ObjectType(fields={"featured": BooleanType()})),
+    ]
+    assert result.outputs == {
+        "field:cta%2Flink": "/pricing",
+        "field:count": 3,
+        "field:settings": {"featured": True},
+    }
+    assert evaluation.wires == {}
+    assert output(evaluation, "cta", "element") == Element(
+        tag="a", attributes=(("href", "/pricing"),)
+    )
 
 
 def test_a_number_can_be_whole() -> None:

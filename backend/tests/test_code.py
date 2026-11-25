@@ -115,6 +115,29 @@ def test_an_inferred_element_field_exports_as_jsx_inside_the_object() -> None:
     assert '"badge": (<strong>{title}</strong>)' in written
 
 
+def test_break_object_exports_an_access_to_the_wired_field() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("break", "break-object"),
+            node("heading", "element", values={"tag": "h2", "text": "Fallback"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("w1", "input.content", "break.object"),
+            wire("w2", "break.field:page%2Ftitle", "heading.text"),
+            wire("w3", "heading.element", "output.render"),
+        ],
+        [
+            prop(
+                "content", "content", {"kind": "object", "fields": {"page/title": TEXT}}
+            )
+        ],
+    )
+
+    assert '<h2>{(content)?.["page/title"] ?? "Fallback"}</h2>' in written
+
+
 def test_what_doesnt_take_a_prop_is_written_as_it_renders() -> None:
     written = code(
         [
