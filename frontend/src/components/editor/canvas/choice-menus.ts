@@ -68,6 +68,7 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
   "boolean-math": { op: { search: "Search operations" } },
   default: { fallback: { search: "Search values", optional: true } },
   check: { op: { search: "Search checks", fallback: "Is nothing" } },
+  "number-check": { op: { search: "Search checks", fallback: "Is integer" } },
   number: {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },

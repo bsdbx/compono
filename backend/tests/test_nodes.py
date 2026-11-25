@@ -100,6 +100,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("boolean-math", "Logic"),
         ("default", "Logic"),
         ("check", "Logic"),
+        ("number-check", "Logic"),
     ]
 
 
@@ -528,6 +529,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "boolean-math": [],
         "default": [],
         "check": [],
+        "number-check": [],
     }
 
 
@@ -1297,3 +1299,38 @@ def test_check_distinguishes_missing_and_present_values(
 
     assert evaluation.wires == {}
     assert output(evaluation, "check", "result") is expected
+
+
+@pytest.mark.parametrize(
+    ("operation", "value", "expected"),
+    [
+        ("Is integer", 2.5, False),
+        ("Is integer", -2.0, True),
+        ("Is integer", None, False),
+        ("Is finite", 2.5, True),
+        ("Is finite", 0, True),
+        ("Is finite", None, False),
+    ],
+)
+def test_number_check_evaluates_typed_numbers(
+    operation: str, value: JsonValue, expected: bool
+) -> None:
+    evaluation = run(
+        [node("check", "number-check", values={"op": operation, "value": value})]
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "check", "result") is expected
+
+
+def test_number_check_uses_a_wired_number_over_the_local_value() -> None:
+    evaluation = run(
+        [
+            node("number", "number", properties={"subtype": "Integer", "value": 2}),
+            node("check", "number-check", values={"value": 2.5}),
+        ],
+        [wire("value", "number.value", "check.value")],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "check", "result") is True
