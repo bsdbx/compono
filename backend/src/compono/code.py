@@ -303,7 +303,11 @@ class _Generator:
         self._outputs: dict[str, Mapping[str, Code]] = {}
 
     def wires_into(self, node_id: str) -> list[Wire]:
-        return [wire for (to, _), wire in self.into.items() if to == node_id]
+        return [
+            wire
+            for (to, _), wire in self.into.items()
+            if to == node_id and wire.id not in self.evaluation.inactive_wires
+        ]
 
     def dynamic(self, node_id: str) -> bool:
         """Whether the node's outputs depend on the props."""
@@ -379,6 +383,17 @@ class _Generator:
             )
             for prop in node_type.properties
         }
+
+        def inactive_input(socket: str) -> Code:
+            for each in result.sockets.inactive_inputs:
+                if each.id == socket:
+                    try:
+                        typed = each.local_value(node.values)
+                    except ValueError as error:
+                        raise NodeError(f"{each.label} {error}") from error
+                    return self.value(node, socket, typed)
+            return None
+
         try:
             return node_type.code(
                 CodeContext(
@@ -388,6 +403,7 @@ class _Generator:
                     fields=node.fields,
                     expression_of=self.printer.expression_of,
                     outputs=result.sockets.outputs,
+                    inactive_input=inactive_input,
                 )
             )
         except NodeError as error:
@@ -400,7 +416,9 @@ def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Gen
     printer = _Printer({component, *(prop.name for prop in graph.props)})
     generator = _Generator(graph, node_types, printer)
 
-    path = render_path(graph, generator.evaluation.wires)
+    path = render_path(
+        graph, generator.evaluation.wires, generator.evaluation.inactive_wires
+    )
     errors = [f"Wire: {reason}" for reason in path.refused.values()]
     errors.extend(
         f"{prop.name} can't name a prop"

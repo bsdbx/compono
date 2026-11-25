@@ -61,6 +61,7 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
       },
     },
   },
+  "boolean-math": { op: { search: "Search operations" } },
   number: {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },

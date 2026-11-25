@@ -73,6 +73,8 @@ class Sockets:
     inputs: tuple[Input, ...] = ()
     groups: tuple[Group, ...] = ()
     outputs: tuple[Output, ...] = ()
+    # Inputs retained for other operations but unused in the current preview.
+    inactive_inputs: tuple[Input, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -155,6 +157,8 @@ class CodeContext:
     fields: Sequence[ObjectField] = ()
     expression_of: Callable[[Code], str] | None = None
     outputs: Sequence[Output] = ()
+    # Resolves a preview-inactive input if a runtime operation can use it.
+    inactive_input: Callable[[str], Code] | None = None
 
 
 def object_key(name: str) -> str:

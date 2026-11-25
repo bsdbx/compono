@@ -1,4 +1,4 @@
-"""Nodes that decide: Switch, and Compare."""
+"""Nodes that decide: Switch, Compare, Boolean Math."""
 
 from collections.abc import Mapping
 from datetime import datetime
@@ -20,6 +20,7 @@ from compono.graph.node_types import (
     expression,
     js_of,
     known,
+    literal,
     markup,
     text,
 )
@@ -216,4 +217,83 @@ COMPARE: Final = NodeType(
     code=_compare_code,
 )
 
-NODE_TYPES: Final = (SWITCH, COMPARE)
+BOOLEAN_OPERATIONS: Final = ("And", "Or", "Not")
+BOOLEAN_OPERATION: Final = Input(
+    "op", "Operation", ChoiceType(options=BOOLEAN_OPERATIONS), "And"
+)
+BOOLEAN_A: Final = Input("a", "A", BOOLEAN, False)
+BOOLEAN_B: Final = Input("b", "B", BOOLEAN, False)
+
+
+def _boolean_math_sockets(context: SocketsContext) -> Sockets:
+    operation = context.typed.get("op")
+    wired = context.wired_values.get("op")
+    if (
+        isinstance(wired, str)
+        and wired in BOOLEAN_OPERATIONS
+        and isinstance(context.wired.get("op"), ChoiceType | AnyType)
+    ):
+        operation = wired
+
+    inputs = (BOOLEAN_OPERATION, BOOLEAN_A)
+    unary = operation == "Not"
+    return Sockets(
+        inputs=inputs if unary else (*inputs, BOOLEAN_B),
+        outputs=(Output("result", "Result", BOOLEAN),),
+        inactive_inputs=(BOOLEAN_B,) if unary else (),
+    )
+
+
+def _boolean_math(context: EvaluateContext) -> Mapping[str, Value]:
+    operation = context.inputs["op"]
+    a = boolean(context.inputs["a"])
+    if operation == "Not":
+        return {"result": not a}
+    b = boolean(context.inputs["b"])
+    return {"result": (a or b) if operation == "Or" else (a and b)}
+
+
+def _boolean_operand(value: Code) -> str:
+    if isinstance(value, Js):
+        written = expression(value)
+        return f"({written} ?? false)" if value.may_be_nothing else written
+    if value is None or isinstance(value, bool):
+        return literal(boolean(value))
+    raise NodeError("Expected a Boolean input")
+
+
+def _boolean_math_code(context: CodeContext) -> Mapping[str, Code]:
+    operation = context.inputs["op"]
+    a = _boolean_operand(context.inputs["a"])
+    if operation == "Not":
+        return {"result": Js(f"!({a})", nothing=False)}
+
+    b_value = context.inputs.get("b")
+    if (
+        isinstance(operation, Js)
+        and "b" not in context.inputs
+        and context.inactive_input
+    ):
+        b_value = context.inactive_input("b")
+    b = _boolean_operand(b_value)
+    if isinstance(operation, Js):
+        code = (
+            '((op, a, b) => op === "Not" ? !a : op === "Or" ? a || b() : a && b())'
+            f"({expression(operation)}, {a}, () => ({b}))"
+        )
+    else:
+        operator = "||" if operation == "Or" else "&&"
+        code = f"({a} {operator} {b})"
+    return {"result": Js(code, nothing=False)}
+
+
+BOOLEAN_MATH: Final = NodeType(
+    type="boolean-math",
+    name="Boolean Math",
+    category=CATEGORY,
+    sockets=_boolean_math_sockets,
+    evaluate=_boolean_math,
+    code=_boolean_math_code,
+)
+
+NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH)

@@ -19,7 +19,13 @@ from compono.graph.node_types import (
     Property,
     Sockets,
 )
-from compono.graph.sockets import ChoiceType, ElementType, NumberType, TextType
+from compono.graph.sockets import (
+    BooleanType,
+    ChoiceType,
+    ElementType,
+    NumberType,
+    TextType,
+)
 from compono.graph.values import Element, Value
 from compono.nodes.component import new_graph
 
@@ -262,6 +268,7 @@ def test_compono_node_types_say_where_they_belong(
         ("nothing", "Values", False),
         ("switch", "Logic", False),
         ("compare", "Logic", False),
+        ("boolean-math", "Logic", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
@@ -275,6 +282,15 @@ def test_compono_node_types_say_where_they_belong(
     ]
     assert sockets.inputs[1].type == ChoiceType(options=())
     assert sockets.outputs[0].label == "Object"
+    boolean_math = listed["boolean-math"].sockets
+    assert [(each.id, each.type, each.default) for each in boolean_math.inputs] == [
+        ("op", ChoiceType(options=("And", "Or", "Not")), "And"),
+        ("a", BooleanType(), False),
+        ("b", BooleanType(), False),
+    ]
+    assert [(each.label, each.type) for each in boolean_math.outputs] == [
+        ("Result", BooleanType())
+    ]
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]
@@ -334,6 +350,36 @@ def test_only_refused_wires_on_the_render_path_block_rendering(
     assert evaluated.wires["loose-wire"] == "Boolean can't go into Text"
     assert evaluated.render_error_wire == ("title-wire" if blocked else None)
     assert (evaluated.rendered is None) == blocked
+
+
+@pytest.mark.parametrize("operation", ["Not", "Or"])
+def test_boolean_math_only_uses_b_for_binary_operations(
+    signed_in_with_compono_nodes: TestClient, operation: str
+) -> None:
+    graph: JsonValue = {
+        "nodes": [
+            node("choice", "choice", properties={"value": operation}),
+            node("text", "text", properties={"value": "Invalid"}),
+            node("math", "boolean-math", values={"a": True}),
+            node("element", "element", exposed=["hidden"], values={"text": "Visible"}),
+            node("output", "component-output"),
+        ],
+        "wires": [
+            wire("operator", "choice.value", "math.op"),
+            wire("b", "text.value", "math.b"),
+            wire("result", "math.result", "element.hidden"),
+            wire("render", "element.element", "output.render"),
+        ],
+    }
+    response = signed_in_with_compono_nodes.post("/api/evaluate", json=graph)
+
+    assert response.status_code == 200
+    evaluated = Evaluated.model_validate_json(response.text)
+    assert evaluated.render_error_wire == (None if operation == "Not" else "b")
+    assert (evaluated.rendered is not None) == (operation == "Not")
+    assert ("b" in [item.id for item in evaluated.nodes["math"].sockets.inputs]) == (
+        operation != "Not"
+    )
 
 
 def test_code_needs_a_session(client: TestClient) -> None:
