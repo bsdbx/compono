@@ -209,6 +209,9 @@ def _sockets(
     wired: dict[str, SocketType] = {}
     wired_values: dict[str, Value] = {}
     candidates: list[Wire] = []
+    accepts_unselected = (
+        () if node.node_type is None else node.node_type.accepts_unselected_choices
+    )
     for wire in wires:
         source = nodes[wire.from_.node]
         output = _output_type(source, wire.from_.socket)
@@ -218,6 +221,7 @@ def _sockets(
             and value is None
             and source.error is None
             and not source.skipped
+            and wire.to.socket not in accepts_unselected
         ):
             refused[wire.id] = "No choice selected"
             continue
@@ -315,6 +319,8 @@ def _refusal(
 
     if isinstance(into, ChoiceType) and isinstance(output, ChoiceType):
         if start.error is not None or start.skipped:
+            return None
+        if value is None and accepts(into, output):
             return None
         if isinstance(value, str) and value in into.options:
             options = tuple(

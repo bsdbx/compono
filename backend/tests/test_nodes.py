@@ -98,6 +98,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("switch", "Logic"),
         ("compare", "Logic"),
         ("boolean-math", "Logic"),
+        ("default", "Logic"),
     ]
 
 
@@ -524,6 +525,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "switch": [],
         "compare": [],
         "boolean-math": [],
+        "default": [],
     }
 
 
@@ -1160,3 +1162,66 @@ def test_boolean_math_with_wired_a(operation: str, results: tuple[bool, ...]) ->
         assert (("b", "Boolean") in inputs_of(evaluation, "math")) == (
             operation != "Not"
         )
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "fallback", "expected"),
+    [
+        ({"kind": "text"}, None, "Untitled", "Untitled"),
+        ({"kind": "text"}, "Custom title", "Untitled", "Custom title"),
+        ({"kind": "text"}, "", "Untitled", ""),
+        ({"kind": "number"}, 0, 5, 0),
+        ({"kind": "boolean"}, False, True, False),
+        ({"kind": "choice", "options": ["Small", "Large"]}, None, "Small", "Small"),
+    ],
+)
+def test_default_uses_fallback_only_for_nothing(
+    kind: JsonValue, value: JsonValue, fallback: JsonValue, expected: Value
+) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("default", "default", values={"fallback": fallback}),
+        ],
+        [wire("value", "input.value", "default.value")],
+        [prop("value", "value", kind, default=value)],
+    )
+
+    assert evaluation.wires == {}
+    result = output(evaluation, "default", "result")
+    assert result == expected and type(result) is type(expected)
+    assert evaluation.nodes["default"].sockets.outputs[0].type == (
+        evaluation.nodes["input"].sockets.outputs[0].type
+    )
+
+
+def test_a_fallback_wire_can_set_the_type_when_value_has_no_type() -> None:
+    nodes = [
+        node("default", "default", values={"value": "Ignored local value"}),
+        node("missing", "nothing"),
+        node("text", "text", properties={"value": "Untitled"}),
+    ]
+    assert inputs_of(run(nodes), "default") == [("value", "Any"), ("fallback", "Any")]
+    evaluation = run(
+        nodes,
+        [
+            wire("value", "missing.value", "default.value"),
+            wire("fallback", "text.value", "default.fallback"),
+        ],
+    )
+
+    assert evaluation.wires == {}
+    assert inputs_of(evaluation, "default") == [("value", "Text"), ("fallback", "Text")]
+    assert output(evaluation, "default", "result") == "Untitled"
+
+
+def test_default_uses_the_value_type_to_check_the_fallback() -> None:
+    evaluation = run(
+        [node("text", "text"), node("number", "number"), node("default", "default")],
+        [
+            wire("value", "text.value", "default.value"),
+            wire("fallback", "number.value", "default.fallback"),
+        ],
+    )
+
+    assert evaluation.wires == {"fallback": "Number can't go into Text"}

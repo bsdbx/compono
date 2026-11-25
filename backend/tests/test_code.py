@@ -676,3 +676,46 @@ def test_export_reports_a_removed_template_used_in_the_render() -> None:
         )
 
     assert raised.value.errors == ["A node: There's no template node"]
+
+
+def test_default_exports_nullish_coalescing_for_an_optional_prop() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("default", "default", values={"fallback": "Untitled"}),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "default.value"),
+            wire("label", "default.result", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [prop("title", "title", TEXT)],
+    )
+
+    assert '<h2>{title ?? "Untitled"}</h2>' in written
+
+
+def test_default_exports_a_fallback_element_for_a_switch_with_an_empty_branch() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("title", "element", values={"tag": "h2", "text": "Title"}),
+            node("other", "element", values={"tag": "p", "text": "Fallback"}),
+            node("switch", "switch"),
+            node("default", "default"),
+            node("output", "component-output"),
+        ],
+        [
+            wire("condition", "input.showTitle", "switch.condition"),
+            wire("title", "title.element", "switch.true"),
+            wire("value", "switch.result", "default.value"),
+            wire("fallback", "other.element", "default.fallback"),
+            wire("render", "default.result", "output.render"),
+        ],
+        [prop("showTitle", "showTitle", {"kind": "boolean"})],
+    )
+
+    assert "<h2>Title</h2>" in written
+    assert "?? (<p>Fallback</p>)" in written

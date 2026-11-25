@@ -64,6 +64,7 @@ const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
     choice: { value: "Option value" },
     switch: { true: "When true", false: "When false" },
     compare: { a: "Value to compare", b: "Compare against" },
+    default: { fallback: "Default value" },
   };
 
 const KINDS: Readonly<Record<string, string>> = {
@@ -920,6 +921,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
   }
 
   function inputField(input: InputSocket) {
+    if (input.wire_only) return null;
     return (
       <PanelField
         label={input.label}

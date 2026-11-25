@@ -118,6 +118,7 @@ export type InputSocket = {
   label: string;
   type: SocketTypeOutput;
   default: JsonValue;
+  wire_only?: boolean;
 };
 
 export type Invite = {

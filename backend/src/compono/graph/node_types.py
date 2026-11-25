@@ -22,9 +22,10 @@ class Input:
     default: Value = None
     # An inferred socket can leave a local value from a different type in storage.
     allow_stale_value: bool = False
+    wire_only: bool = False
 
     def local_value(self, stored: Mapping[str, JsonValue]) -> Value:
-        if self.id not in stored:
+        if self.wire_only or self.id not in stored:
             return self.default
         try:
             return from_json(stored[self.id], self.type)
@@ -274,6 +275,8 @@ class NodeType:
     single: bool = False
     # Its outputs as code, when its inputs depend on the props. A node without it can only take values known now
     code: Callable[[CodeContext], Mapping[str, Code]] | None = None
+    # Inputs that can accept an optional Choice with no selection yet.
+    accepts_unselected_choices: tuple[str, ...] = ()
 
 
 def text(value: Value) -> str:
