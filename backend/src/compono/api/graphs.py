@@ -17,7 +17,7 @@ from compono.graph.node_types import NodeError, NodeType, Sockets, SocketsContex
 from compono.graph.sockets import SocketType
 from compono.graph.values import to_json
 from compono.nodes import NODE_TYPES
-from compono.nodes.component import COMPONENT_OUTPUT
+from compono.nodes.component import render_path
 
 router = APIRouter()
 
@@ -158,7 +158,9 @@ class Evaluated(BaseModel):
 
     nodes: dict[str, EvaluatedNode]
     wires: dict[str, str]
-    # The value wired into Render when the graph has no refused wires
+    # A refused wire upstream of Render, if one blocks the preview
+    render_error_wire: str | None = None
+    # The value wired into Render when its inputs are valid
     rendered: JsonValue
     # How long evaluating took, without the request around it
     milliseconds: float
@@ -169,11 +171,11 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
     """Evaluates a graph: every node's sockets and values, and the wires it refuses."""
     started = time.perf_counter()
     evaluation = evaluate(graph, types)
+    path = render_path(graph, evaluation.wires)
     milliseconds = (time.perf_counter() - started) * 1000
-    outputs = [node.id for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
     rendered = (
-        evaluation.nodes[outputs[0]].inputs.get("render")
-        if not evaluation.wires and outputs and outputs[0] in evaluation.nodes
+        evaluation.nodes[path.output.id].inputs.get("render")
+        if path.output is not None and not path.refused
         else None
     )
     return Evaluated(
@@ -189,6 +191,7 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
             for node_id, result in evaluation.nodes.items()
         },
         wires=dict(evaluation.wires),
+        render_error_wire=next(iter(path.refused), None),
         rendered=to_json(rendered),
         milliseconds=milliseconds,
     )
@@ -205,7 +208,7 @@ class GeneratedCode(BaseModel):
     """The component as a JSX file, or why it can't be one yet."""
 
     filename: str
-    # None while a wire is refused or a node it renders has an error
+    # None when the render path has an error
     code: str | None
     errors: list[str]
 
