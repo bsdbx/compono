@@ -107,6 +107,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("text-length", "Text"),
         ("slice", "Text"),
         ("case", "Text"),
+        ("trim", "Text"),
     ]
 
 
@@ -541,6 +542,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "text-length": [],
         "slice": [],
         "case": [],
+        "trim": [],
     }
 
 
@@ -1456,6 +1458,24 @@ def test_case_transforms_the_text(mode: str, source: str, expected: str) -> None
     evaluation = run([node("case", "case", values={"op": mode, "text": source})])
 
     assert output(evaluation, "case", "text") == expected
+
+
+@pytest.mark.parametrize(
+    ("mode", "source", "expected"),
+    [
+        ("Both", "\t \ufeffPro  plan \u00a0\n", "Pro  plan"),
+        ("Start", "\t \ufeffPro  plan \u00a0\n", "Pro  plan \u00a0\n"),
+        ("End", "\t \ufeffPro  plan \u00a0\n", "\t \ufeffPro  plan"),
+        ("Both", "\t \ufeff", ""),
+        ("Both", " \x1c ", "\x1c"),
+    ],
+)
+def test_trim_removes_whitespace_from_the_chosen_edges(
+    mode: str, source: str, expected: str
+) -> None:
+    evaluation = run([node("trim", "trim", values={"op": mode, "text": source})])
+
+    assert output(evaluation, "trim", "text") == expected
 
 
 @pytest.mark.parametrize(

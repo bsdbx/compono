@@ -914,3 +914,34 @@ def test_case_exports_all_three_modes_when_wired() -> None:
     assert 'mode === "Capitalize first" ? value.replace(/^./su' in written
     assert ": value.toUpperCase()" in written
     assert '(title ?? "pro plan")' in written
+
+
+def test_trim_exports_all_three_modes_when_wired() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("trim", "trim", values={"text": "  Pro plan  "}),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "trim.text"),
+            wire("side", "input.side", "trim.op"),
+            wire("text", "trim.text", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("title", "title", TEXT),
+            prop(
+                "side",
+                "side",
+                {"kind": "choice", "options": ["Both", "Start", "End"]},
+                default="Both",
+            ),
+        ],
+    )
+
+    assert 'mode === "Start" ? value.trimStart()' in written
+    assert 'mode === "End" ? value.trimEnd()' in written
+    assert ": value.trim()" in written
+    assert '(title ?? "  Pro plan  ")' in written
