@@ -158,7 +158,7 @@ class Evaluated(BaseModel):
 
     nodes: dict[str, EvaluatedNode]
     wires: dict[str, str]
-    # What the component renders: the value wired into Component Output's Render, if any
+    # The value wired into Render when the graph has no refused wires
     rendered: JsonValue
     # How long evaluating took, without the request around it
     milliseconds: float
@@ -173,7 +173,7 @@ def evaluate_graph(graph: Graph, _: SignedIn, types: NodeTypes) -> Evaluated:
     outputs = [node.id for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
     rendered = (
         evaluation.nodes[outputs[0]].inputs.get("render")
-        if outputs and outputs[0] in evaluation.nodes
+        if not evaluation.wires and outputs and outputs[0] in evaluation.nodes
         else None
     )
     return Evaluated(
@@ -205,7 +205,7 @@ class GeneratedCode(BaseModel):
     """The component as a JSX file, or why it can't be one yet."""
 
     filename: str
-    # None while a node it renders has an error
+    # None while a wire is refused or a node it renders has an error
     code: str | None
     errors: list[str]
 

@@ -293,6 +293,30 @@ def test_evaluating_says_what_the_component_renders(
     }
 
 
+def test_a_refused_wire_blocks_rendering_even_outside_the_render_path(
+    signed_in_with_compono_nodes: TestClient,
+) -> None:
+    graph: JsonValue = {
+        "nodes": [
+            node("output", "component-output"),
+            node("title", "element", values={"tag": "h3", "text": "Pro"}),
+            node("flag", "boolean"),
+            node("loose", "element"),
+        ],
+        "wires": [
+            wire("render", "title.element", "output.render"),
+            wire("bad", "flag.value", "loose.text"),
+        ],
+    }
+
+    response = signed_in_with_compono_nodes.post("/api/evaluate", json=graph)
+
+    assert response.status_code == 200
+    evaluated = Evaluated.model_validate_json(response.text)
+    assert evaluated.wires == {"bad": "Boolean can't go into Text"}
+    assert evaluated.rendered is None
+
+
 def test_code_needs_a_session(client: TestClient) -> None:
     body: JsonValue = {"name": "Card", "graph": {}}
     response = client.post("/api/code", json=body)

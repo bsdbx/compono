@@ -49,19 +49,6 @@ beforeEach(() => {
       return Response.json(answer);
     }
 
-    if (path === "/api/node-types") {
-      return Response.json([
-        {
-          type: "get-field",
-          name: "Get Field",
-          category: "Objects",
-          single: false,
-          properties: [],
-          sockets: { inputs: [], groups: [], outputs: [] },
-        },
-      ]);
-    }
-
     return undefined;
   });
 });
@@ -145,10 +132,34 @@ test("nodes in error keep it from rendering, and Show node shows the first", asy
 
   expect(await screen.findByText("Can’t render")).toBeInTheDocument();
   expect(
-    await screen.findByText(
-      "Get Field: badge.tone no longer exists on plan. And 1 more.",
-    ),
-  ).toBeInTheDocument();
+    screen.queryByText(/badge\.tone no longer exists/),
+  ).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show node" }));
+  expect(onShowNode).toHaveBeenCalledWith("n1");
+});
+
+test("a refused wire shows the same concise error state", async () => {
+  answer.wires = { w1: "No choice selected" };
+  answer.rendered = { tag: "p", children: ["Outdated preview"] };
+  const { draft } = fakeDraft({
+    ...content,
+    graph: {
+      ...content.graph,
+      wires: [
+        {
+          id: "w1",
+          from: { node: "source", socket: "tag" },
+          to: { node: "n1", socket: "tag" },
+        },
+      ],
+    },
+  });
+  const onShowNode = vi.fn();
+  renderWithClient(<Preview draft={draft} onShowNode={onShowNode} />);
+
+  expect(await screen.findByText("Can’t render")).toBeInTheDocument();
+  expect(screen.queryByText(/No choice selected/)).not.toBeInTheDocument();
+  expect(screen.queryByTitle("Preview")).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Show node" }));
   expect(onShowNode).toHaveBeenCalledWith("n1");
 });

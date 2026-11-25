@@ -82,7 +82,7 @@ A wire is allowed from an output to an input when:
 - the input is Any, which then takes the output's socket type;
 - the input is a Slot and the output an Element.
 
-Any other wire is refused. The canvas shows the wire in red, and both the preview and JSX export use the destination's local value as they would without the wire. Changing a value's type takes a Convert node. This replaces the implicit conversions of `PROPOSAL.md`, whose example, Int to Float, subtypes cover.
+Any other wire is refused. The canvas shows the wire in red, and the preview and JSX export stop until every wire is valid. Changing a value's type takes a Convert node. This replaces the implicit conversions of `PROPOSAL.md`, whose example, Int to Float, subtypes cover.
 
 ### Nothing
 

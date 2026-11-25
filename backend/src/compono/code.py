@@ -384,15 +384,16 @@ class _Generator:
 
 
 def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Generated:
-    """The component as a JSX file. Raises CodeError if a node it renders has an error, or a prop can't be a name."""
+    """The component as JSX. Raises CodeError for refused wires, render errors, or invalid prop names."""
     generator = _Generator(graph, node_types)
     component = component_name(name)
 
-    errors = [
+    errors = [f"Wire: {reason}" for reason in generator.evaluation.wires.values()]
+    errors.extend(
         f"{prop.name} can't name a prop"
         for prop in graph.props
         if not re.fullmatch(r"[A-Za-z_$][\w$]*", prop.name) or prop.name in RESERVED
-    ]
+    )
     outputs = [node for node in graph.nodes if node.type == COMPONENT_OUTPUT.type]
     output = outputs[0] if outputs else None
     if output is not None:
