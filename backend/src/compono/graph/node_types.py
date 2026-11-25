@@ -108,6 +108,7 @@ class EvaluateContext:
     # The component's props
     props: Sequence[Prop]
     fields: Sequence[ObjectField] = ()
+    input_sockets: tuple[Input, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -160,6 +161,7 @@ class CodeContext:
     outputs: Sequence[Output] = ()
     # Resolves a preview-inactive input if a runtime operation can use it.
     inactive_input: Callable[[str], Code] | None = None
+    input_sockets: tuple[Input, ...] = ()
 
 
 def object_key(name: str) -> str:

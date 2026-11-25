@@ -719,3 +719,33 @@ def test_default_exports_a_fallback_element_for_a_switch_with_an_empty_branch() 
 
     assert "<h2>Title</h2>" in written
     assert "?? (<p>Fallback</p>)" in written
+
+
+def test_check_exports_only_predicates_for_the_value_type() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("check", "check"),
+            node("heading", "element", values={"tag": "h2"}, exposed=["hidden"]),
+            node("output", "component-output"),
+        ],
+        [
+            wire("value", "input.title", "check.value"),
+            wire("check", "input.predicate", "check.op"),
+            wire("hidden", "check.result", "heading.hidden"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [
+            prop("title", "title", TEXT),
+            prop(
+                "predicate",
+                "predicate",
+                {"kind": "choice", "options": ["Is nothing", "Is empty", "Is false"]},
+                default="Is empty",
+            ),
+        ],
+    )
+
+    assert 'operation === "Is empty"' in written
+    assert 'operation === "Is false"' not in written
+    assert "value == null)" in written

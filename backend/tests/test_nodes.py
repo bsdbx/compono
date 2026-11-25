@@ -99,6 +99,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("compare", "Logic"),
         ("boolean-math", "Logic"),
         ("default", "Logic"),
+        ("check", "Logic"),
     ]
 
 
@@ -526,6 +527,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "compare": [],
         "boolean-math": [],
         "default": [],
+        "check": [],
     }
 
 
@@ -1225,3 +1227,73 @@ def test_default_uses_the_value_type_to_check_the_fallback() -> None:
     )
 
     assert evaluation.wires == {"fallback": "Number can't go into Text"}
+
+
+@pytest.mark.parametrize(
+    ("kind", "extra"),
+    [
+        ({"kind": "text"}, ("Is empty", "Is not empty")),
+        ({"kind": "object", "fields": {}}, ("Is empty", "Is not empty")),
+        ({"kind": "boolean"}, ("Is true", "Is false")),
+        ({"kind": "number"}, ("Is zero", "Is positive", "Is negative", "Is whole")),
+        (
+            {"kind": "number", "integer": True},
+            ("Is zero", "Is positive", "Is negative"),
+        ),
+        ({"kind": "choice", "options": ["Small", "Large"]}, ()),
+    ],
+)
+def test_check_offers_predicates_for_the_wired_type(
+    kind: JsonValue, extra: tuple[str, ...]
+) -> None:
+    evaluation = run(
+        [node("input", "component-input"), node("check", "check")],
+        [wire("value", "input.value", "check.value")],
+        [prop("value", "value", kind)],
+    )
+
+    assert evaluation.wires == {}
+    assert evaluation.nodes["check"].sockets.inputs[0].type == ChoiceType(
+        options=("Is nothing", "Is not nothing", *extra)
+    )
+    assert output(evaluation, "check", "result") is True
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "operation", "expected"),
+    [
+        ({"kind": "text"}, "", "Is empty", True),
+        ({"kind": "text"}, " ", "Is empty", False),
+        ({"kind": "text"}, None, "Is empty", False),
+        ({"kind": "text"}, None, "Is not empty", False),
+        ({"kind": "object", "fields": {}}, {}, "Is empty", True),
+        (
+            {"kind": "object", "fields": {"key": {"kind": "text"}}},
+            {"key": None},
+            "Is not empty",
+            True,
+        ),
+        ({"kind": "boolean"}, False, "Is false", True),
+        ({"kind": "boolean"}, None, "Is false", False),
+        ({"kind": "boolean"}, False, "Is not nothing", True),
+        ({"kind": "boolean"}, None, "Is empty", True),
+        ({"kind": "number"}, 0, "Is zero", True),
+        ({"kind": "number"}, -2.5, "Is negative", True),
+        ({"kind": "number"}, 2.5, "Is positive", True),
+        ({"kind": "number"}, 2.5, "Is whole", False),
+    ],
+)
+def test_check_distinguishes_missing_and_present_values(
+    kind: JsonValue, value: JsonValue, operation: str, expected: bool
+) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("check", "check", values={"op": operation}),
+        ],
+        [wire("value", "input.value", "check.value")],
+        [prop("value", "value", kind, default=value)],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "check", "result") is expected
