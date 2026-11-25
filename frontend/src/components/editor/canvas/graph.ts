@@ -1,7 +1,8 @@
-import type { Prop, SocketTypeOutput, Wire } from "@/api/types";
+import type { ObjectField, Prop, SocketTypeOutput, Wire } from "@/api/types";
 import { nodeName, nodeWidth } from "./node-size";
 
 export type SocketType = SocketTypeOutput;
+export const OBJECT_FIELD_SOCKET = "field:new";
 
 export type XY = { x: number; y: number };
 
@@ -26,6 +27,7 @@ export type GraphNode = {
   /** Display order in the Properties panel, keyed by field IDs. */
   propertyOrder?: string[];
   groups: Record<string, string[]>;
+  fields?: ObjectField[];
 };
 
 /** A component's graph, as stored: format 1. */
@@ -68,6 +70,7 @@ export function readGraph(stored: Record<string, unknown>): Graph {
             : [],
         ),
       );
+      const fields = list(node.fields) as ObjectField[];
       return {
         id: String(node.id),
         type: String(node.type),
@@ -85,6 +88,7 @@ export function readGraph(stored: Record<string, unknown>): Graph {
         exposed: list(node.exposed).map(String),
         ...(unexposed.length ? { unexposed } : {}),
         ...(propertyOrder.length ? { propertyOrder } : {}),
+        ...(fields.length ? { fields } : {}),
         groups: Object.fromEntries(
           Object.entries(object(node.groups)).map(([group, rows]) => [
             group,
@@ -271,11 +275,18 @@ export function connect(
   from: Wire["from"],
   to: Wire["to"],
   id: string = crypto.randomUUID(),
+  sourceType?: SocketType,
 ): Graph {
   let next = graph;
   let socket = to.socket;
   const drop = groupDrop(socket);
-  if (drop) {
+  if (
+    socket === OBJECT_FIELD_SOCKET &&
+    graph.nodes.some((node) => node.id === to.node && node.type === "object")
+  ) {
+    socket = crypto.randomUUID();
+    next = addObjectField(next, to.node, socket, sourceType ?? { kind: "any" });
+  } else if (drop) {
     const { group, before } = drop;
     const row = crypto.randomUUID();
     socket = `${group}/${row}`;
@@ -630,12 +641,94 @@ export function unexpose(
   };
 }
 
+/** Materializes the Object's spare socket using the source type as its local fallback. */
+function addObjectField(
+  graph: Graph,
+  nodeId: string,
+  id: string,
+  type: SocketType,
+): Graph {
+  return replace(graph, nodeId, (node) => {
+    const fields = node.fields ?? [];
+    const name = freeNameAmong(fields, "field");
+    return {
+      ...node,
+      fields: [...fields, { id, name, type }],
+    };
+  });
+}
+
+export function renameObjectField(
+  graph: Graph,
+  nodeId: string,
+  id: string,
+  requested: string,
+): Graph {
+  return replace(graph, nodeId, (node) => {
+    const fields = node.fields ?? [];
+    const name = requested.trim();
+    if (!name || fields.some((field) => field.id !== id && field.name === name))
+      return node;
+    return {
+      ...node,
+      fields: fields.map((field) =>
+        field.id === id ? { ...field, name } : field,
+      ),
+    };
+  });
+}
+
+export function placeObjectField(
+  graph: Graph,
+  nodeId: string,
+  id: string,
+  before?: string,
+): Graph {
+  return replace(graph, nodeId, (node) => {
+    const fields = node.fields ?? [];
+    const order = fields.map((field) => field.id);
+    const next = reorderedRows(order, id, before);
+    return next === order
+      ? node
+      : { ...node, fields: [...inPropertyOrder(fields, next)] };
+  });
+}
+
+/** Deletes an Object input, its local value and its incoming wire. */
+export function removeObjectField(
+  graph: Graph,
+  nodeId: string,
+  id: string,
+): Graph {
+  const next = replace(graph, nodeId, (node) => {
+    const { [id]: _, ...values } = node.values;
+    return {
+      ...node,
+      fields: node.fields?.filter((field) => field.id !== id) ?? [],
+      values,
+    };
+  });
+  return {
+    ...next,
+    wires: next.wires.filter(
+      (wire) => wire.to.node !== nodeId || wire.to.socket !== id,
+    ),
+  };
+}
+
 /** A prop name, as Component Input takes it: a lowercase letter, then letters and digits, like ctaHref. */
 export const PROP_NAME = /^[a-z][A-Za-z0-9]*$/;
 
 /** The first of name, name2, name3… that no prop has. */
 export function freeName(graph: Graph, name: string): string {
-  const taken = new Set(graph.props.map((prop) => prop.name));
+  return freeNameAmong(graph.props, name);
+}
+
+function freeNameAmong(
+  fields: readonly { name: string }[],
+  name: string,
+): string {
+  const taken = new Set(fields.map((field) => field.name));
   if (!taken.has(name)) {
     return name;
   }

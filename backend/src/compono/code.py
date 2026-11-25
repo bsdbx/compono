@@ -22,6 +22,7 @@ from compono.graph.node_types import (
     known,
     literal,
     markup,
+    object_key,
 )
 from compono.graph.values import Element, Value, from_json
 from compono.nodes.component import COMPONENT_INPUT, COMPONENT_OUTPUT
@@ -242,6 +243,21 @@ class _Printer:
         written = js_of(code)
         return "null" if written is None else bare(written)
 
+    def expression_of(self, code: Code) -> str:
+        """A JavaScript expression, including JSX embedded in data."""
+        if isinstance(code, dict):
+            fields = ", ".join(
+                f"{object_key(name)}: {self.expression_of(value)}"
+                for name, value in code.items()
+            )
+            return "{" + fields + "}"
+        if markup(code):
+            written = self.branch(code, "")
+            return (
+                "(" + "\n".join(written) + ")" if isinstance(written, list) else written
+            )
+        return js_of(code) or "null"
+
     def choose(
         self, choose: Choose, indent: str, opening: str, closing: str
     ) -> list[str]:
@@ -265,9 +281,12 @@ class _Printer:
 
 
 class _Generator:
-    def __init__(self, graph: Graph, node_types: Mapping[str, NodeType]) -> None:
+    def __init__(
+        self, graph: Graph, node_types: Mapping[str, NodeType], printer: _Printer
+    ) -> None:
         self.graph = graph
         self.node_types = node_types
+        self.printer = printer
         self.evaluation: Evaluation = evaluate(graph, node_types)
         # The first of two nodes with one id, as evaluating takes it
         self.nodes: dict[str, Node] = {}
@@ -349,13 +368,7 @@ class _Generator:
             raise CodeError([f"{node_type.name} can't take a prop in code yet"])
 
         inputs = {
-            each.id: self.value(
-                node,
-                each.id,
-                from_json(node.values[each.id], each.type)
-                if each.id in node.values
-                else each.default,
-            )
+            each.id: self.value(node, each.id, each.local_value(node.values))
             for each in result.sockets.inputs
         }
         groups = {
@@ -377,7 +390,13 @@ class _Generator:
         }
         try:
             return node_type.code(
-                CodeContext(inputs=inputs, groups=groups, properties=properties)
+                CodeContext(
+                    inputs=inputs,
+                    groups=groups,
+                    properties=properties,
+                    fields=node.fields,
+                    expression_of=self.printer.expression_of,
+                )
             )
         except NodeError as error:
             raise CodeError([f"{node_type.name}: {error}"]) from error
@@ -385,8 +404,9 @@ class _Generator:
 
 def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Generated:
     """The component as JSX. Raises CodeError for refused wires, render errors, or invalid prop names."""
-    generator = _Generator(graph, node_types)
     component = component_name(name)
+    printer = _Printer({component, *(prop.name for prop in graph.props)})
+    generator = _Generator(graph, node_types, printer)
 
     errors = [f"Wire: {reason}" for reason in generator.evaluation.wires.values()]
     errors.extend(
@@ -408,7 +428,6 @@ def generate(graph: Graph, node_types: Mapping[str, NodeType], name: str) -> Gen
         raise CodeError(errors)
 
     render = None if output is None else generator.value(output, "render", None)
-    printer = _Printer({component, *(prop.name for prop in graph.props)})
     if isinstance(render, Jsx | Element):
         body = ["  return (", *printer.lines(render, "    "), "  );"]
     elif isinstance(render, Choose):

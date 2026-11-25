@@ -12,6 +12,7 @@ import {
   type GraphNode,
   groupDrop,
   groupPropertyId,
+  OBJECT_FIELD_SOCKET,
   type SocketType,
 } from "./graph";
 import type { NodeMatch } from "./node-find";
@@ -79,6 +80,32 @@ export type Known = Pick<CanvasState, "evaluated" | "nodeTypes">;
 
 /** The node type's own inputs, including those moved into the properties panel. */
 export function defaultInputsOf(canvas: Known, node: GraphNode): InputSocket[] {
+  if (node.type === "object") {
+    const evaluated = canvas.evaluated.get(node.id)?.sockets.inputs;
+    return [
+      ...(node.fields ?? []).map((field) => {
+        const socket = evaluated?.find((input) => input.id === field.id);
+        return {
+          id: field.id,
+          label: field.name,
+          type: socket?.type ?? field.type,
+          default: socket
+            ? socket.default
+            : field.type.kind === "boolean"
+              ? false
+              : field.type.kind === "text"
+                ? ""
+                : null,
+        };
+      }),
+      {
+        id: OBJECT_FIELD_SOCKET,
+        label: "Field",
+        type: { kind: "any" },
+        default: null,
+      },
+    ];
+  }
   const properties = canvas.nodeTypes.get(node.type)?.properties ?? [];
   return socketsOf(canvas, node.id, node.type).inputs.filter(
     (input) => !properties.some((property) => property.id === input.id),
@@ -153,7 +180,7 @@ export function wiredChoices(
     .filter((wire) => wire.from.node === node)
     .flatMap((wire) => {
       const into = canvas.graph.nodes.find((each) => each.id === wire.to.node);
-      if (!into) return [];
+      if (!into || into.type === "object") return [];
       const input = inputsOf(canvas, into).find(
         (each) => each.id === wire.to.socket,
       );

@@ -16,6 +16,7 @@ from compono.graph.sockets import (
     ElementType,
     NothingType,
     NumberType,
+    ObjectType,
     SlotType,
     TextType,
     name_of,
@@ -89,6 +90,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("number", "Values"),
         ("text", "Values"),
         ("choice", "Values"),
+        ("object", "Values"),
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
@@ -510,10 +512,101 @@ def test_values_set_on_a_node_show_there() -> None:
         "number": ["value"],
         "text": ["value"],
         "choice": ["value"],
+        "object": [],
         "nothing": ["value"],
         "switch": [],
         "compare": [],
     }
+
+
+def test_an_object_builds_its_shape_and_value_from_independent_inputs() -> None:
+    evaluation = run(
+        [
+            node("label", "text", properties={"value": "New"}),
+            node(
+                "object",
+                "object",
+                fields=[
+                    {"id": "label-id", "name": "label", "type": {"kind": "text"}},
+                    {
+                        "id": "count-id",
+                        "name": "count",
+                        "type": {"kind": "number", "integer": True},
+                    },
+                    {"id": "flag-id", "name": "highlight", "type": {"kind": "boolean"}},
+                ],
+                values={"label-id": "Old", "count-id": 3},
+            ),
+            node(
+                "outer",
+                "object",
+                fields=[
+                    {
+                        "id": "item",
+                        "name": "item",
+                        "type": {"kind": "object", "fields": {}},
+                    }
+                ],
+            ),
+        ],
+        [
+            wire("w1", "label.value", "object.label-id"),
+            wire("w2", "object.value", "outer.item"),
+        ],
+    )
+
+    sockets = evaluation.nodes["object"].sockets
+    assert [(each.id, each.label) for each in sockets.inputs] == [
+        ("label-id", "label"),
+        ("count-id", "count"),
+        ("flag-id", "highlight"),
+    ]
+    assert sockets.groups == ()
+    shape = ObjectType(
+        fields={
+            "label": TEXT,
+            "count": NumberType(integer=True),
+            "highlight": BooleanType(),
+        }
+    )
+    assert sockets.outputs[0].type == shape
+    assert evaluation.nodes["outer"].sockets.outputs[0].type == ObjectType(
+        fields={"item": shape}
+    )
+    assert output(evaluation, "outer") == {
+        "item": {"label": "New", "count": 3, "highlight": False}
+    }
+    assert evaluation.wires == {}
+
+
+def test_an_empty_object_has_an_empty_value_and_shape() -> None:
+    evaluation = run([node("object", "object")])
+
+    assert output(evaluation, "object") == {}
+    assert evaluation.nodes["object"].sockets.outputs[0].type == ObjectType(fields={})
+
+
+def test_an_object_field_follows_the_connected_type_and_subtype() -> None:
+    stored = node(
+        "object",
+        "object",
+        fields=[{"id": "field-id", "name": "field", "type": {"kind": "text"}}],
+        values={"field-id": "Local"},
+    )
+    number = node("number", "number", properties={"value": 3, "subtype": "Integer"})
+    link = node("link", "text", properties={"value": "/pricing", "subtype": "Link"})
+    for source, start, expected in [
+        (number, "number", NumberType(integer=True)),
+        (link, "link", LINK),
+    ]:
+        evaluation = run(
+            [stored, source], [wire("wire", f"{start}.value", "object.field-id")]
+        )
+        sockets = evaluation.nodes["object"].sockets
+        assert sockets.inputs[0].type == expected
+        assert sockets.outputs[0].type == ObjectType(fields={"field": expected})
+        assert evaluation.wires == {}
+    assert output(run([stored]), "object") == {"field": "Local"}
 
 
 def test_a_number_can_be_whole() -> None:

@@ -22,9 +22,12 @@ import {
   groupPropertyId,
   inPropertyOrder,
   PROP_NAME,
+  placeObjectField,
   placeProp,
   placeRow,
+  removeObjectField,
   removeProp,
+  renameObjectField,
   renameSocket,
   reorderedRows,
   type SocketType,
@@ -206,6 +209,8 @@ function Row({
   boxed = false,
   leading,
   onRename,
+  renameLabel = "Child name",
+  validateName,
   children,
 }: {
   label: string;
@@ -216,6 +221,8 @@ function Row({
   boxed?: boolean;
   leading?: ReactNode;
   onRename?: ((name: string) => void) | undefined;
+  renameLabel?: string | undefined;
+  validateName?: ((name: string) => boolean) | undefined;
   children: ReactNode;
 }) {
   const [renaming, setRenaming] = useState(false);
@@ -238,9 +245,10 @@ function Row({
         renaming ? (
           <NodeNameInput
             name={label}
-            label="Child name"
+            label={renameLabel}
             onSave={onRename}
             onDone={() => setRenaming(false)}
+            {...(validateName && { validate: validateName })}
           />
         ) : (
           <button
@@ -266,6 +274,9 @@ function Row({
           <div className="flex min-w-0 flex-1 items-center">{children}</div>
         </>
       )}
+      {onRename && children && (
+        <div className="ml-1.5 w-26 max-w-1/2 shrink-0">{children}</div>
+      )}
     </div>
   );
 }
@@ -281,6 +292,8 @@ type PropertyRow = {
   details?: ReactNode;
   gripLabel?: string;
   onRename?: (name: string) => void;
+  renameLabel?: string;
+  validateName?: (name: string) => boolean;
   renderHeader?: (grip: ReactNode) => ReactNode;
 };
 
@@ -373,6 +386,8 @@ function PropertyList({
                   exposed={row.exposed}
                   boxed={boxed}
                   onRename={row.onRename}
+                  renameLabel={row.renameLabel}
+                  validateName={row.validateName}
                   leading={grip}
                 >
                   {row.field}
@@ -436,15 +451,14 @@ export function PropertiesPlaceholder({ many = false }: { many?: boolean }) {
   );
 }
 
-/** A Choice prop's options, typed with commas between them. */
+/** Choice options, typed with commas between them. */
 function OptionsField({
-  prop,
   options,
+  onChange,
 }: {
-  prop: Prop;
   options: readonly string[];
+  onChange: (options: string[]) => void;
 }) {
-  const canvas = useCanvas();
   const [typed, setTyped] = useState<string>();
   return (
     <TextField
@@ -463,18 +477,7 @@ function OptionsField({
               .filter(Boolean),
           ),
         ];
-        canvas.edit(
-          (graph) =>
-            changeProp(graph, prop.id, {
-              type: { kind: "choice", options: next },
-              // A default that isn't an option any more is no default
-              ...(typeof prop.default === "string" &&
-              !next.includes(prop.default)
-                ? { default: null }
-                : {}),
-            }),
-          `prop:${prop.id}:options`,
-        );
+        onChange(next);
       }}
       onBlur={() => setTyped(undefined)}
     />
@@ -561,7 +564,18 @@ function PropDetails({ prop }: { prop: Prop }) {
       ) : null}
       {type.kind === "choice" ? (
         <Row label="Options">
-          <OptionsField prop={prop} options={type.options} />
+          <OptionsField
+            options={type.options}
+            onChange={(options) =>
+              change("options", {
+                type: { kind: "choice", options },
+                ...(typeof prop.default === "string" &&
+                !options.includes(prop.default)
+                  ? { default: null }
+                  : {}),
+              })
+            }
+          />
         </Row>
       ) : null}
       <Row label="Required">
@@ -738,6 +752,60 @@ function Props({
   );
 }
 
+function ObjectFields({
+  node,
+  menuOn,
+}: {
+  node: GraphNode;
+  menuOn: string | undefined;
+}) {
+  const canvas = useCanvas();
+  const entries = node.fields ?? [];
+  const sockets = canvas.evaluated.get(node.id)?.sockets.inputs;
+  const fields = entries.map((field): PropertyRow => {
+    const type =
+      sockets?.find((socket) => socket.id === field.id)?.type ?? field.type;
+    const typeName =
+      type.kind === "number"
+        ? type.integer
+          ? "Integer"
+          : "Decimal"
+        : type.kind === "text" && type.link
+          ? "Link"
+          : (KINDS[type.kind ?? "any"] ?? "Any");
+    return {
+      id: field.id,
+      label: field.name,
+      menu: `object-field:${field.id}`,
+      renameLabel: "Field name",
+      validateName: (name) =>
+        Boolean(name.trim()) &&
+        !entries.some(
+          (other) => other.id !== field.id && other.name === name.trim(),
+        ),
+      onRename: (name) =>
+        canvas.edit((graph) =>
+          renameObjectField(graph, node.id, field.id, name),
+        ),
+      field: (
+        <span className="block truncate text-right text-subtle-foreground text-xs">
+          {typeName}
+        </span>
+      ),
+    };
+  });
+  return (
+    <PropertyList
+      fields={fields}
+      activeMenu={menuOn}
+      label="Object field order"
+      onPlace={(row, before) =>
+        canvas.edit((graph) => placeObjectField(graph, node.id, row, before))
+      }
+    />
+  );
+}
+
 /** The selected node's fields and, for Component Input, the component's public props. */
 export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
   const canvas = useCanvas();
@@ -804,7 +872,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
     (a, b) => Number(b.on_node) - Number(a.on_node),
   );
   const hints = FIELD_HINTS[node.type];
-  const defaults = defaultInputsOf(canvas, node);
+  const defaults = node.type === "object" ? [] : defaultInputsOf(canvas, node);
   const groups = socketsOf(canvas, id, node.type).groups;
   const wiredLabel = (
     <span className="text-muted-foreground text-sm">Wired</span>
@@ -964,6 +1032,19 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
     const at = on.indexOf(":");
     const kind = on.slice(0, at);
     const target = on.slice(at + 1);
+    if (kind === "object-field") {
+      return (
+        <DropdownMenuItem
+          className={MENU_ITEM}
+          variant="destructive"
+          onSelect={() =>
+            canvas.edit((graph) => removeObjectField(graph, id, target))
+          }
+        >
+          Delete
+        </DropdownMenuItem>
+      );
+    }
     if (kind === "prop") {
       return (
         <>
@@ -1049,6 +1130,11 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
             <Props open={open} onOpen={setOpen} menuOn={menu?.on} />
           </section>
         ) : null}
+        {node.type === "object" && (
+          <section aria-label="Object fields" className="px-3.5 pt-3.5 pb-3">
+            <ObjectFields key={id} node={node} menuOn={menu?.on} />
+          </section>
+        )}
         {fields.length > 0 ? (
           <section aria-label="Properties" className="px-3.5 pt-2.5 pb-3">
             <PropertyList

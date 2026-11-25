@@ -23,7 +23,7 @@ export function accepts(into: SocketType, out: SocketType): boolean {
         out.kind === "object" &&
         Object.entries(into.fields).every(
           ([name, field]) =>
-            name in out.fields &&
+            Object.hasOwn(out.fields, name) &&
             accepts(field, out.fields[name] as SocketType),
         )
       );

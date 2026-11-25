@@ -9,7 +9,7 @@ import {
 import type { NodeTypeInfo } from "@/api/types";
 import { cn } from "@/lib/utils";
 import { accepts, SOCKET_COLOR } from "./accepts";
-import { addRow, type SocketType } from "./graph";
+import { addRow, OBJECT_FIELD_SOCKET, type SocketType } from "./graph";
 
 /** A node type to add, and the input a wire goes into, when it comes from a wire. */
 export type Choice = { nodeType: NodeTypeInfo; input?: string };
@@ -21,6 +21,14 @@ function inputFor(
   nodeType: NodeTypeInfo,
   from: SocketType,
 ): Option | undefined {
+  if (nodeType.type === "object") {
+    return {
+      nodeType,
+      input: OBJECT_FIELD_SOCKET,
+      label: "Field",
+      color: SOCKET_COLOR.any,
+    };
+  }
   const input = nodeType.sockets.inputs.find((each) =>
     accepts(each.type, from),
   );

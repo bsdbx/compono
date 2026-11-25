@@ -31,6 +31,7 @@ const TYPED: ReadonlySet<string> = new Set([
   "number",
   "text",
   "choice",
+  "date",
 ]);
 
 function AddSocket({
@@ -122,6 +123,7 @@ function Field({
   menu,
   onChange,
   showLabel = true,
+  showChoiceLabel = false,
 }: {
   label: string;
   type: SocketType;
@@ -129,6 +131,7 @@ function Field({
   menu?: ChoiceMenu | undefined;
   onChange: (value: unknown) => void;
   showLabel?: boolean;
+  showChoiceLabel?: boolean;
 }): ReactNode {
   switch (type.kind) {
     case "choice":
@@ -138,13 +141,19 @@ function Field({
           value={typeof value === "string" ? value : ""}
           options={type.options}
           menu={menu}
+          showLabel={showChoiceLabel}
           onChange={onChange}
         />
       );
     case "boolean":
       return (
         <span className="flex h-5.5 w-full items-center justify-between gap-2">
-          <span className="text-muted-foreground">{label}</span>
+          <span
+            className="min-w-0 truncate text-muted-foreground"
+            title={label}
+          >
+            {label}
+          </span>
           <Toggle label={label} value={value === true} onChange={onChange} />
         </span>
       );
@@ -157,6 +166,7 @@ function Field({
         />
       );
     case "text":
+    case "date":
       return (
         <TextField
           label={label}
@@ -218,6 +228,7 @@ function InputRow({
           type={input.type}
           value={value}
           menu={choiceMenuOf(node.type, input.id)}
+          showChoiceLabel={node.type === "object"}
           onChange={(next) =>
             canvas.edit(
               (graph) =>

@@ -224,6 +224,7 @@ def _sockets(
                     typed=node.node.values,
                     props=graph.props,
                     wired_values=wired_values,
+                    fields=node.node.fields,
                 )
             )
             node.sockets = _with_exposed(node, sockets)
@@ -346,25 +347,27 @@ def _values(
         node.skipped = True
         return {}, {}
 
-    def value(socket: str, typed_type: SocketType, default: Value) -> Value:
+    def brought(socket: str) -> Value:
         wire = wires.get(socket)
-        if wire is not None:
-            brought = outputs[wire.from_.node].get(wire.from_.socket)
-            # A wire that brings Nothing counts as no wire
-            if brought is not None:
-                return brought
-        if socket in node.node.values:
-            return from_json(node.node.values[socket], typed_type)
-        return default
+        return outputs[wire.from_.node].get(wire.from_.socket) if wire else None
+
+    def value(socket: Input) -> Value:
+        wired = brought(socket.id)
+        return socket.local_value(node.node.values) if wired is None else wired
+
+    def row_value(socket: str, socket_type: SocketType) -> Value:
+        wired = brought(socket)
+        return (
+            from_json(node.node.values.get(socket), socket_type)
+            if wired is None
+            else wired
+        )
 
     try:
-        inputs = {
-            each.id: value(each.id, each.type, each.default)
-            for each in node.sockets.inputs
-        }
+        inputs = {each.id: value(each) for each in node.sockets.inputs}
         groups = {
             group.id: tuple(
-                value(f"{group.id}/{row}", group.type, None)
+                row_value(f"{group.id}/{row}", group.type)
                 for row in node.node.groups.get(group.id, [])
             )
             for group in node.sockets.groups
@@ -380,7 +383,11 @@ def _values(
     try:
         computed = node.node_type.evaluate(
             EvaluateContext(
-                inputs=inputs, groups=groups, properties=properties, props=graph.props
+                inputs=inputs,
+                groups=groups,
+                properties=properties,
+                props=graph.props,
+                fields=node.node.fields,
             )
         )
     except NodeError as error:

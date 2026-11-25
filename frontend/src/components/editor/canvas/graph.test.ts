@@ -16,13 +16,17 @@ import {
   moveNodes,
   moveRow,
   newNode,
+  OBJECT_FIELD_SOCKET,
+  placeObjectField,
   placeRow,
   pruneDisconnectedRows,
   readGraph,
   removeNodes,
+  removeObjectField,
   removeProp,
   removeRow,
   renameNode,
+  renameObjectField,
   renameSocket,
   setNodeWidth,
   setProperty,
@@ -32,6 +36,60 @@ import {
 } from "./graph";
 
 const at = (node: string, socket: string) => ({ node, socket });
+
+test("Object fields retain their local values and wires through renaming, reordering and loading", () => {
+  const empty: Graph = {
+    format: 1,
+    props: [],
+    nodes: [
+      newNode("object", { x: 0, y: 0 }, "item"),
+      newNode("text", { x: 0, y: 0 }, "text"),
+    ],
+    wires: [],
+  };
+  const first = connect(
+    empty,
+    at("text", "value"),
+    at("item", OBJECT_FIELD_SOCKET),
+    "wire",
+    { kind: "text" },
+  );
+  const connected = connect(
+    first,
+    at("text", "value"),
+    at("item", OBJECT_FIELD_SOCKET),
+    "wire2",
+    { kind: "number", integer: true },
+  );
+  const labelId = connected.nodes[0]?.fields?.[0]?.id ?? "";
+  const countId = connected.nodes[0]?.fields?.[1]?.id ?? "";
+  expect(labelId).not.toBe(countId);
+  expect(connected.wires[0]?.to.socket).toBe(labelId);
+  const wired = setValue(connected, "item", labelId, "Local");
+  const renamed = renameObjectField(wired, "item", labelId, "label");
+  const ordered = placeObjectField(renamed, "item", countId, labelId);
+  const loaded = readGraph(ordered);
+  expect(loaded.nodes[0]?.fields?.map((field) => field.name)).toEqual([
+    "field2",
+    "label",
+  ]);
+  expect(loaded.nodes[0]?.fields?.[0]?.type).toEqual({
+    kind: "number",
+    integer: true,
+  });
+  expect(loaded.nodes[0]?.values).toEqual({ [labelId]: "Local" });
+  expect(loaded.wires).toEqual(wired.wires);
+
+  const disconnected = pruneDisconnectedRows(
+    loaded,
+    disconnect(loaded, new Set(["wire"])),
+  );
+  expect(disconnected.nodes[0]?.fields).toEqual(loaded.nodes[0]?.fields);
+  const removed = removeObjectField(loaded, "item", labelId);
+  expect(removed.nodes[0]?.fields?.map((field) => field.id)).toEqual([countId]);
+  expect(removed.nodes[0]?.values).toEqual({});
+  expect(removed.wires.map((wire) => wire.id)).toEqual(["wire2"]);
+});
 
 function graph(): Graph {
   return {
