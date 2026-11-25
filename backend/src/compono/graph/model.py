@@ -67,6 +67,29 @@ def upgrade_number_presets(graph: dict[str, object]) -> dict[str, object]:
     return upgraded
 
 
+def upgrade_graph(graph: dict[str, object]) -> dict[str, object]:
+    """Bring saved node settings up to date without changing canvas metadata."""
+    graph = upgrade_number_presets(graph)
+    stored_nodes = graph.get("nodes")
+    if not isinstance(stored_nodes, list):
+        return graph
+
+    nodes: list[object] = []
+    for stored in cast(list[object], stored_nodes):
+        node = _record(stored)
+        properties = _record(node.get("properties"))
+        if node.get("type") != "set-field" or "field" not in properties:
+            nodes.append(stored)
+            continue
+        properties = properties.copy()
+        name = properties.pop("field")
+        values = {**_record(node.get("values"))}
+        if isinstance(name, str):
+            values.setdefault("field", name.strip())
+        nodes.append({**node, "properties": properties, "values": values})
+    return {**graph, "nodes": nodes}
+
+
 class Position(BaseModel):
     """Where a node sits on the canvas."""
 
@@ -145,5 +168,5 @@ class Graph(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def legacy_number_presets(cls, data: object) -> object:
-        return upgrade_number_presets(_record(data)) if isinstance(data, dict) else data
+    def legacy_settings(cls, data: object) -> object:
+        return upgrade_graph(_record(data)) if isinstance(data, dict) else data

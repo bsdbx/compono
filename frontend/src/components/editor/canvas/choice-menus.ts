@@ -2,6 +2,7 @@ export type ChoiceMenu = {
   search: string;
   groups?: Readonly<Record<string, readonly string[]>>;
   names?: Readonly<Record<string, string>>;
+  optional?: boolean;
 };
 
 const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
@@ -64,6 +65,7 @@ const MENUS: Readonly<Record<string, Readonly<Record<string, ChoiceMenu>>>> = {
     subtype: { search: "Search subtypes", names: { Number: "Decimal" } },
   },
   text: { subtype: { search: "Search subtypes" } },
+  "set-field": { field: { search: "Search fields", optional: true } },
 };
 
 export function choiceMenuOf(

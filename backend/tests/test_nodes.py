@@ -92,6 +92,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("choice", "Values"),
         ("object", "Objects"),
         ("break-object", "Objects"),
+        ("set-field", "Objects"),
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
@@ -515,6 +516,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "choice": ["value"],
         "object": [],
         "break-object": [],
+        "set-field": [],
         "nothing": ["value"],
         "switch": [],
         "compare": [],
@@ -666,6 +668,87 @@ def test_break_object_exposes_each_field_with_its_name_type_and_value() -> None:
     assert output(evaluation, "cta", "element") == Element(
         tag="a", attributes=(("href", "/pricing"),)
     )
+
+
+@pytest.mark.parametrize("field", ["removed", "title", ""])
+def test_set_field_only_replaces_a_field_present_in_the_input(field: str) -> None:
+    original: dict[str, JsonValue] = {"title": "Pricing", "public": True}
+    shape = {"title": TEXT, "public": BooleanType()}
+    evaluation = run(
+        [
+            node("source", "component-input"),
+            node("rating", "number", properties={"value": 4, "subtype": "Integer"}),
+            node("set", "set-field", properties={"field": field}),
+            node("break", "break-object"),
+        ],
+        [
+            wire("object", "source.card", "set.object"),
+            wire("value", "rating.value", "set.value"),
+            wire("updated", "set.value", "break.object"),
+        ],
+        [
+            prop(
+                "card",
+                "card",
+                {
+                    "kind": "object",
+                    "fields": {
+                        "title": {"kind": "text"},
+                        "public": {"kind": "boolean"},
+                    },
+                },
+                default=original,
+            )
+        ],
+    )
+
+    values = dict(original)
+    if field in shape:
+        values[field] = 4
+        shape[field] = NumberType(integer=True)
+    assert evaluation.wires == {}
+    assert output(evaluation, "source", "card") == original
+    assert output(evaluation, "set") == values
+    sockets = evaluation.nodes["set"].sockets
+    assert [item.id for item in sockets.inputs] == ["object", "field", "value"]
+    assert sockets.inputs[1].type == ChoiceType(options=("title", "public"))
+    assert sockets.outputs[0].label == "Object"
+    assert [
+        (item.label, item.type) for item in evaluation.nodes["break"].sockets.outputs
+    ] == list(shape.items())
+
+
+@pytest.mark.parametrize("choice", ["subtitle", "obsolete", ""])
+def test_set_field_accepts_a_wired_choice_from_the_objects_fields(choice: str) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("selection", "choice", properties={"value": choice}),
+            node("set", "set-field", values={"field": "title", "value": "New"}),
+        ],
+        [
+            wire("object", "input.card", "set.object"),
+            wire("field", "selection.value", "set.field"),
+        ],
+        [
+            prop(
+                "card",
+                "card",
+                {
+                    "kind": "object",
+                    "fields": {"title": {"kind": "text"}, "subtitle": {"kind": "text"}},
+                },
+                default={"title": "Pricing", "subtitle": "Details"},
+            ),
+        ],
+    )
+
+    if choice == "subtitle":
+        assert evaluation.wires == {}
+        assert output(evaluation, "set") == {"title": "Pricing", "subtitle": "New"}
+    else:
+        assert "field" in evaluation.wires
+        assert output(evaluation, "set") == {"title": "New", "subtitle": "Details"}
 
 
 def test_a_number_can_be_whole() -> None:

@@ -228,7 +228,7 @@ function InputRow({
           type={input.type}
           value={value}
           menu={choiceMenuOf(node.type, input.id)}
-          showChoiceLabel={node.type === "object"}
+          showChoiceLabel={node.type === "object" || node.type === "set-field"}
           onChange={(next) =>
             canvas.edit(
               (graph) =>
