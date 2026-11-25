@@ -41,6 +41,28 @@ import { useRowDrag } from "./use-row-drag";
 
 const FIELD = "h-7 text-sm";
 
+const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
+  {
+    element: {
+      id: "Unique ID",
+      key: "React key",
+      title: "Tooltip text",
+      tabindex: "Tab order",
+      lang: "Language code",
+      text: "Visible text",
+      class: "Tailwind classes",
+      href: "Link destination",
+      src: "Image URL",
+      alt: "Image description",
+    },
+    fragment: { key: "React key" },
+    text: { value: "Hello" },
+    number: { value: "0" },
+    choice: { value: "Option value" },
+    switch: { true: "When true", false: "When false" },
+    compare: { a: "Value to compare", b: "Compare against" },
+  };
+
 const KINDS: Readonly<Record<string, string>> = {
   text: "Text",
   number: "Number",
@@ -82,11 +104,13 @@ function PanelField({
   label,
   type,
   value,
+  placeholder,
   onChange,
 }: {
   label: string;
   type: SocketType;
   value: unknown;
+  placeholder?: string | undefined;
   onChange: (value: unknown) => void;
 }): ReactNode {
   switch (type.kind) {
@@ -99,6 +123,7 @@ function PanelField({
         <NumberField
           label={label}
           value={typeof value === "number" ? value : null}
+          placeholder={placeholder}
           onChange={onChange}
           showLabel={false}
           className={FIELD}
@@ -120,6 +145,7 @@ function PanelField({
         <TextField
           label={label}
           value={typeof value === "string" ? value : ""}
+          placeholder={placeholder}
           onChange={onChange}
           showLabel={false}
           className={FIELD}
@@ -414,6 +440,7 @@ function NameField({ prop }: { prop: Prop }) {
     <TextField
       label="Name"
       value={shown}
+      placeholder="propName"
       showLabel={false}
       className={cn(FIELD, valid ? "" : "border-error")}
       onChange={(name) => {
@@ -443,6 +470,7 @@ function OptionsField({ prop, options }: { prop: Prop; options: string[] }) {
     <TextField
       label="Options"
       value={typed ?? options.join(", ")}
+      placeholder="Small, Large"
       showLabel={false}
       className={FIELD}
       onChange={(text) => {
@@ -486,6 +514,7 @@ function PropDetails({ prop }: { prop: Prop }) {
     <NumberField
       label={label}
       value={number?.[bound] ?? null}
+      placeholder="–"
       className={cn(FIELD, "min-w-0 flex-1")}
       onChange={(value) => {
         if (number && typeof value !== "string") {
@@ -574,6 +603,7 @@ function PropDetails({ prop }: { prop: Prop }) {
               : type
           }
           value={prop.default}
+          placeholder="Unset"
           onChange={(value) =>
             change("default", {
               default: value === "" ? null : (value ?? null),
@@ -585,6 +615,7 @@ function PropDetails({ prop }: { prop: Prop }) {
         <TextField
           label="Description"
           value={prop.description ?? ""}
+          placeholder="Usage notes"
           showLabel={false}
           className={FIELD}
           onChange={(description) => change("description", { description })}
@@ -716,6 +747,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
   const properties = nodeType.properties.toSorted(
     (a, b) => Number(b.on_node) - Number(a.on_node),
   );
+  const hints = FIELD_HINTS[node.type];
   const defaults = defaultInputsOf(canvas, node);
   const groups = socketsOf(canvas, id, node.type).groups;
   const wiredLabel = (
@@ -749,6 +781,13 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         label={property.label}
         type={property.type}
         value={value}
+        placeholder={
+          node?.type === "text" &&
+          property.id === "value" &&
+          node.properties.subtype === "Link"
+            ? "Link destination"
+            : hints?.[property.id]
+        }
         onChange={setOn(property.id)}
       />
     );
@@ -760,6 +799,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         label={input.label}
         type={input.type}
         value={node?.values[input.id] ?? input.default}
+        placeholder={hints?.[input.id]}
         onChange={(value) =>
           canvas.edit(
             (graph) => setValue(graph, id, input.id, value),
