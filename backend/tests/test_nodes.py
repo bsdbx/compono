@@ -18,6 +18,7 @@ from compono.graph.sockets import (
     NumberType,
     ObjectType,
     SlotType,
+    SocketType,
     TextType,
     name_of,
 )
@@ -101,6 +102,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("default", "Logic"),
         ("check", "Logic"),
         ("number-check", "Logic"),
+        ("convert", "Logic"),
         ("join", "Text"),
     ]
 
@@ -531,6 +533,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "default": [],
         "check": [],
         "number-check": [],
+        "convert": [],
         "join": [],
     }
 
@@ -1370,3 +1373,102 @@ def test_join_uses_order_and_skips_only_nothing() -> None:
     assert output(evaluation, "join", "text") == "Home/Pricing//Pro"
     assert output(run(nodes), "join", "text") == "Home/Old//Pro"
     assert output(run([node("join", "join")]), "join", "text") == ""
+
+
+@pytest.mark.parametrize(
+    ("kind", "value", "target", "socket", "expected"),
+    [
+        ({"kind": "text"}, "\ufeff +2.5e1 ", "Number", NumberType(), 25.0),
+        ({"kind": "text"}, "12px", "Number", NumberType(), None),
+        ({"kind": "text"}, "  ", "Number", NumberType(), None),
+        ({"kind": "text"}, "1e309", "Number", NumberType(), None),
+        ({"kind": "text"}, "2.5", "Text", NumberType(), 2.5),
+        ({"kind": "boolean"}, False, "Number", NumberType(integer=True), 0),
+        ({"kind": "boolean"}, True, "Text", NumberType(integer=True), 1),
+        ({"kind": "number"}, -0.0, "Text", TEXT, "0"),
+        ({"kind": "number"}, 0.000001, "Text", TEXT, "0.000001"),
+        ({"kind": "number"}, 0.0000001, "Text", TEXT, "1e-7"),
+        ({"kind": "text"}, "false", "Boolean", BooleanType(), True),
+        ({"kind": "text"}, "", "Boolean", BooleanType(), False),
+        ({"kind": "number"}, 0, "Boolean", BooleanType(), False),
+        ({"kind": "choice", "options": ["1"]}, None, "Number", NumberType(), None),
+    ],
+)
+def test_convert_scalars(
+    kind: JsonValue, value: JsonValue, target: str, socket: SocketType, expected: Value
+) -> None:
+    evaluation = run(
+        [
+            node("input", "component-input"),
+            node("convert", "convert", values={"to": target}),
+        ],
+        [wire("value", "input.value", "convert.value")],
+        [prop("value", "value", kind, default=value)],
+    )
+
+    assert evaluation.wires == {}
+    result = output(evaluation, "convert", "result")
+    assert result == expected and type(result) is type(expected)
+    assert evaluation.nodes["convert"].sockets.outputs[0].type == socket
+
+
+@pytest.mark.parametrize(
+    ("kind", "options"),
+    [
+        ({"kind": "text"}, ("Number", "Boolean")),
+        ({"kind": "number"}, ("Text", "Boolean")),
+        ({"kind": "boolean"}, ("Number",)),
+    ],
+)
+def test_convert_offers_only_targets_that_change_the_wired_type(
+    kind: JsonValue, options: tuple[str, ...]
+) -> None:
+    evaluation = run(
+        [node("input", "component-input"), node("convert", "convert")],
+        [wire("value", "input.value", "convert.value")],
+        [prop("value", "value", kind)],
+    )
+
+    assert evaluation.nodes["convert"].sockets.inputs[1].type == ChoiceType(
+        options=options
+    )
+    assert evaluation.nodes["convert"].sockets.outputs[0].label == options[0]
+
+
+def test_convert_preserves_saved_targets_when_they_still_apply() -> None:
+    stored: dict[str, JsonValue] = {
+        "nodes": [
+            node("convert", "convert", properties={"to": "Decimal"}, exposed=["to"])
+        ],
+    }
+    graph = Graph.model_validate(stored)
+
+    assert graph.nodes[0].values == {"to": "Number"}
+    assert not graph.nodes[0].properties
+    assert not graph.nodes[0].exposed
+
+
+def test_convert_checks_object_truthiness_without_coercing_objects_to_text() -> None:
+    evaluation = run(
+        [
+            node("object", "object"),
+            node("boolean", "convert", values={"to": "Text"}),
+        ],
+        [
+            wire("boolean", "object.value", "boolean.value"),
+        ],
+    )
+
+    assert output(evaluation, "boolean", "result") is True
+    assert evaluation.wires == {}
+    assert evaluation.nodes["boolean"].sockets.inputs[1].type == ChoiceType(
+        options=("Boolean",)
+    )
+    assert (
+        output(
+            run([node("absent", "convert", values={"to": "Boolean"})]),
+            "absent",
+            "result",
+        )
+        is False
+    )

@@ -78,15 +78,31 @@ def upgrade_graph(graph: dict[str, object]) -> dict[str, object]:
     for stored in cast(list[object], stored_nodes):
         node = _record(stored)
         properties = _record(node.get("properties"))
-        if node.get("type") != "set-field" or "field" not in properties:
+        kind = node.get("type")
+        field = "field" if kind == "set-field" else "to" if kind == "convert" else None
+        exposed = node.get("exposed")
+        legacy_exposed = (
+            cast(list[object], exposed)
+            if kind == "convert" and isinstance(exposed, list)
+            else []
+        )
+        if field is None or (field not in properties and "to" not in legacy_exposed):
             nodes.append(stored)
             continue
         properties = properties.copy()
-        name = properties.pop("field")
+        name = properties.pop(field, None)
         values = {**_record(node.get("values"))}
         if isinstance(name, str):
-            values.setdefault("field", name.strip())
-        nodes.append({**node, "properties": properties, "values": values})
+            value = (
+                "Number"
+                if kind == "convert" and name in ("Decimal", "Integer")
+                else name.strip()
+            )
+            values.setdefault(field, value)
+        upgraded = {**node, "properties": properties, "values": values}
+        if "to" in legacy_exposed:
+            upgraded["exposed"] = [entry for entry in legacy_exposed if entry != "to"]
+        nodes.append(upgraded)
     return {**graph, "nodes": nodes}
 
 

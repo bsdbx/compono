@@ -815,3 +815,27 @@ def test_join_exports_the_saved_order_and_local_row_fallbacks() -> None:
         '["Home", optional, (label ?? "Pricing"), "", "Pro"]'
         '.filter((item) => item != null).join((glue ?? "/"))'
     ) in written
+
+
+def test_convert_exports_strict_numeric_parsing_and_text_conversion() -> None:
+    written = code(
+        [
+            node("input", "component-input"),
+            node("parse", "convert", values={"to": "Number"}),
+            node("display", "convert"),
+            node("heading", "element", values={"tag": "h2"}),
+            node("output", "component-output"),
+        ],
+        [
+            wire("raw", "input.amount", "parse.value"),
+            wire("number", "parse.result", "display.value"),
+            wire("display", "display.result", "heading.text"),
+            wire("render", "heading.element", "output.render"),
+        ],
+        [prop("amount", "amount", TEXT)],
+    )
+
+    assert 'typeof value === "string" ? value.trim()' in written
+    assert ".test(input) ? +input" in written
+    assert "number - number === 0 ? number : null" in written
+    assert "`${value}` : null" in written

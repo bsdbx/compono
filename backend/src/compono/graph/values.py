@@ -3,6 +3,7 @@
 import math
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Final
 
 from pydantic import JsonValue
 
@@ -19,6 +20,12 @@ from compono.graph.sockets import (
     SocketType,
     TextType,
     name_of,
+)
+
+# Characters removed by JavaScript's trim methods, including the byte order mark.
+JS_WHITESPACE: Final = (
+    "\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
+    "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 )
 
 
