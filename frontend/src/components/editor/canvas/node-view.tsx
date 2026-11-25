@@ -433,7 +433,10 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
                   />
                 ))
               ) : (
-                <span className="truncate text-muted-foreground">
+                <span
+                  className="truncate text-muted-foreground"
+                  title={output.label}
+                >
                   {output.label}
                 </span>
               )}
@@ -442,6 +445,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
                 id={output.id}
                 socket={output.type}
                 side="right"
+                label={output.label}
               />
             </div>
           ))}
