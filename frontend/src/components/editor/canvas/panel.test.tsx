@@ -440,6 +440,7 @@ test("unexposing a value input restores its inline field", () => {
   const inline = within(properties).getByRole("textbox", { name: "Value" });
   expect(inline.closest("[data-menu]")).not.toHaveAttribute("data-exposed");
   fireEvent.contextMenu(inline);
+  expect(screen.queryByRole("menuitem", { name: "Unexpose" })).toBeNull();
   fireEvent.click(screen.getByRole("menuitem", { name: "Expose" }));
   const exposed = initial.edited();
   expect(exposed?.nodes[0]?.exposed).toEqual(["value"]);
@@ -458,23 +459,12 @@ test("unexposing a value input restores its inline field", () => {
   expect(restored?.nodes[0]).toEqual(graphWithText.nodes[0]);
   showExposed.unmount();
 
-  const showRestored = show(["text"], restored);
+  show(["text"], restored);
   const restoredValue = within(
     screen.getByRole("region", { name: "Properties" }),
   ).getByRole("textbox", { name: "Value" });
   fireEvent.contextMenu(restoredValue);
-  fireEvent.click(screen.getByRole("menuitem", { name: "Unexpose" }));
-  const hidden = showRestored.edited();
-  expect(hidden?.nodes[0]?.exposed).toEqual([]);
-  expect(hidden?.nodes[0]?.unexposed).toEqual(["value"]);
-  showRestored.unmount();
-  show(["text"], hidden);
-  expect(
-    within(screen.getByRole("region", { name: "Properties" })).getByRole(
-      "textbox",
-      { name: "Value" },
-    ),
-  ).toHaveValue("Hello");
+  expect(screen.queryByRole("menuitem", { name: "Unexpose" })).toBeNull();
 });
 
 test("Component Input lists the props, and adds one", () => {

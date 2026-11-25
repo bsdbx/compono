@@ -941,13 +941,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
     [
       ...properties.map((property) => {
         const exposed = node.exposed.includes(property.id);
-        const inline =
-          property.on_node && !node.unexposed?.includes(property.id);
-        const kind = exposed
-          ? "exposed"
-          : inline
-            ? "output-property"
-            : "property";
+        const kind = exposed ? "exposed" : "property";
         return {
           id: property.id,
           label: property.label,
@@ -1073,13 +1067,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
     const property = nodeType?.properties.find(
       (property) => property.id === target,
     );
-    const origin = group
-      ? "group"
-      : defaultInput
-        ? "input"
-        : property?.on_node
-          ? "output-property"
-          : "property";
+    const origin = group ? "group" : defaultInput ? "input" : "property";
     const value = defaultInput
       ? (node?.values[target] ??
         defaults.find((input) => input.id === target)?.default)
@@ -1088,8 +1076,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       <>
         {kind === "property" ||
         kind === "hidden-input" ||
-        kind === "hidden-group" ||
-        kind === "output-property" ? (
+        kind === "hidden-group" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
             onSelect={() =>
@@ -1099,10 +1086,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
             Expose
           </DropdownMenuItem>
         ) : null}
-        {kind === "exposed" ||
-        kind === "input" ||
-        kind === "group" ||
-        kind === "output-property" ? (
+        {kind === "exposed" || kind === "input" || kind === "group" ? (
           <DropdownMenuItem
             className={MENU_ITEM}
             onSelect={() =>
