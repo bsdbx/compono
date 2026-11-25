@@ -670,6 +670,15 @@ export function changeProp(
   };
 }
 
+/** Moves a component prop by ID, keeping its value and connected wires. */
+export function placeProp(graph: Graph, id: string, before?: string): Graph {
+  const current = graph.props.map((prop) => prop.id);
+  const order = reorderedRows(current, id, before);
+  return order === current
+    ? graph
+    : { ...graph, props: [...inPropertyOrder(graph.props, order)] };
+}
+
 /** Takes a prop away, with the wires out of Component Input that brought it. */
 export function removeProp(graph: Graph, id: string): Graph {
   const inputs = new Set(

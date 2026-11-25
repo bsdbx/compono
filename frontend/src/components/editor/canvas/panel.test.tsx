@@ -462,12 +462,16 @@ test("inline output values can become inputs or move into Properties", () => {
 test("Component Input lists the props, and adds one", () => {
   const { edited } = show(["input"]);
 
+  expect(screen.getAllByRole("heading")).toHaveLength(1);
+  expect(
+    screen.getByRole("heading", { name: "Properties" }),
+  ).toBeInTheDocument();
   const props = screen.getByRole("region", { name: "Props" });
   expect(
-    within(props).getByRole("button", { name: /price/ }),
+    within(props).getByRole("button", { name: "Rename price" }).closest("li"),
   ).toHaveTextContent("Number · Integer");
   expect(
-    within(props).getByRole("button", { name: /ctaHref/ }),
+    within(props).getByRole("button", { name: "Rename ctaHref" }).closest("li"),
   ).toHaveTextContent("Text · Link");
 
   fireEvent.click(within(props).getByRole("button", { name: "Add prop" }));
@@ -478,23 +482,37 @@ test("Component Input lists the props, and adds one", () => {
   ]);
 });
 
-test("a prop opens to edit it, and takes only a free name for React", async () => {
-  const { edit, edited } = show(["input"]);
+test("a Component Input grip reorders props without changing their wires", () => {
+  const original = graph();
+  const panel = show(["input"], original);
+  const grip = screen.getByRole("button", { name: "Reorder price" });
+  fireEvent.keyDown(grip, { key: "ArrowDown", altKey: true });
 
-  fireEvent.click(screen.getByRole("button", { name: /price/ }));
-  const name = screen.getByLabelText("Name");
-  expect(name).toHaveValue("price");
+  const reordered = panel.edited();
+  expect(reordered?.props).toEqual(original.props.toReversed());
+  expect(reordered?.wires).toEqual(original.wires);
+  panel.unmount();
+
+  show(["input"], readGraph(reordered ?? {}));
+  const list = screen.getByRole("list", { name: "Component prop order" });
+  expect(
+    within(list)
+      .getAllByRole("listitem")
+      .map((row) => row.dataset.row),
+  ).toEqual(["p2", "p1"]);
+});
+
+test("a prop's chevron opens its settings", async () => {
+  const { edited } = show(["input"]);
+
+  const chevron = screen.getByRole("button", { name: "Expand price settings" });
+  fireEvent.click(chevron);
+  expect(chevron).toHaveAttribute("aria-expanded", "true");
+  expect(screen.queryByRole("textbox", { name: "Name" })).toBeNull();
   const defaultValue = screen.getByRole("textbox", { name: "Default" });
   expect(defaultValue).toHaveValue("");
   expect(defaultValue).toHaveAttribute("placeholder", "Unset");
   expect(screen.getByLabelText("Max")).toBeInTheDocument();
-
-  // Taken, then not a name
-  fireEvent.change(name, { target: { value: "ctaHref" } });
-  fireEvent.change(name, { target: { value: "2 dollars" } });
-  expect(edit).not.toHaveBeenCalled();
-  fireEvent.change(name, { target: { value: "amount" } });
-  expect(edited()?.props[0]?.name).toBe("amount");
 
   fireEvent.keyDown(screen.getByRole("combobox", { name: "Type" }), {
     key: "ArrowDown",
@@ -503,10 +521,77 @@ test("a prop opens to edit it, and takes only a free name for React", async () =
   expect(edited()?.props[0]?.type).toEqual({ kind: "choice", options: [] });
 });
 
+test("Choice prop options and defaults are set manually", async () => {
+  const open = () =>
+    fireEvent.click(
+      screen.getByRole("button", { name: "Expand size settings" }),
+    );
+  const first = show(
+    ["input"],
+    graph({
+      props: [
+        {
+          id: "p1",
+          name: "size",
+          type: { kind: "choice", options: [] },
+          default: null,
+        },
+      ],
+    }),
+  );
+  open();
+  fireEvent.change(screen.getByRole("textbox", { name: "Options" }), {
+    target: { value: "Small, Large" },
+  });
+  const withOptions = first.edited();
+  expect(withOptions?.props[0]).toMatchObject({
+    default: null,
+    type: { kind: "choice", options: ["Small", "Large"] },
+  });
+  first.unmount();
+
+  const { edited } = show(["input"], readGraph(withOptions ?? {}));
+  open();
+  const choice = screen.getByRole("combobox", { name: "Default" });
+  expect(choice).toHaveTextContent("None");
+  fireEvent.keyDown(choice, { key: "ArrowDown" });
+  fireEvent.click(await screen.findByRole("option", { name: "Large" }));
+  expect(edited()?.props[0]?.default).toBe("Large");
+});
+
+test("a prop title renames inline and accepts only a valid, unused name", () => {
+  const original = graph();
+  const { edit, edited } = show(["input"], original);
+  const title = () => screen.getByRole("button", { name: "Rename ctaHref" });
+  const field = () => screen.getByRole("textbox", { name: "Prop name" });
+
+  fireEvent.doubleClick(title());
+  expect(field()).toHaveFocus();
+  expect(field()).toHaveValue("ctaHref");
+  expect(
+    screen.getByRole("button", { name: "Expand ctaHref settings" }),
+  ).toHaveAttribute("aria-expanded", "false");
+  for (const value of ["price", "2 dollars"]) {
+    fireEvent.change(field(), { target: { value } });
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(field()).toHaveAttribute("aria-invalid", "true");
+    expect(edit).not.toHaveBeenCalled();
+  }
+  fireEvent.keyDown(field(), { key: "Escape" });
+  expect(title()).toBeInTheDocument();
+
+  fireEvent.keyDown(title(), { key: "F2" });
+  fireEvent.change(field(), { target: { value: "buttonUrl" } });
+  expect(edit).not.toHaveBeenCalled();
+  fireEvent.keyDown(field(), { key: "Enter" });
+  expect(edited()?.props[1]?.name).toBe("buttonUrl");
+  expect(edited()?.wires).toEqual(original.wires);
+});
+
 test("a prop's menu duplicates and deletes it", () => {
   const { edited } = show(["input"]);
 
-  fireEvent.contextMenu(screen.getByRole("button", { name: /ctaHref/ }));
+  fireEvent.contextMenu(screen.getByRole("button", { name: "Rename ctaHref" }));
   fireEvent.click(screen.getByRole("menuitem", { name: "Delete" }));
   const deleted = edited();
   expect(deleted?.props.map((prop) => prop.name)).toEqual(["price"]);

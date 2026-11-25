@@ -277,6 +277,14 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
   const canvas = useCanvas();
   const node = canvas.graph.nodes.find((each) => each.id === id);
   const sockets = node && socketsOf(canvas, id, node.type);
+  const outputs =
+    sockets &&
+    (node?.type === "component-input"
+      ? inPropertyOrder(
+          sockets.outputs,
+          canvas.graph.props.map((prop) => prop.id),
+        )
+      : sockets.outputs);
   const inputs =
     node &&
     sockets &&
@@ -306,13 +314,15 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
         : row.id,
     )
     .join("\n");
+  const outputOrder = outputs?.map((output) => output.id).join("\n");
   const updateNodeInternals = useUpdateNodeInternals();
   useLayoutEffect(() => {
     // Socket positions can change while the node's outer dimensions stay the same.
-    if (inputOrder !== undefined) updateNodeInternals(id);
-  }, [id, inputOrder, updateNodeInternals]);
+    if (inputOrder !== undefined && outputOrder !== undefined)
+      updateNodeInternals(id);
+  }, [id, inputOrder, outputOrder, updateNodeInternals]);
 
-  if (!node || !inputs || !sockets) {
+  if (!node || !inputs || !outputs) {
     return null;
   }
   const nodeType = canvas.nodeTypes.get(node.type);
@@ -367,10 +377,7 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
     );
     compactInputs.push(input);
   }
-  const compactHeight = collapsedHeight(
-    compactInputs.length,
-    sockets.outputs.length,
-  );
+  const compactHeight = collapsedHeight(compactInputs.length, outputs.length);
 
   return (
     <NodeFrame
@@ -384,12 +391,12 @@ function NodeViewContent({ id, selected }: NodeProps<CanvasNode>) {
       {node.collapsed ? (
         <CollapsedSockets
           inputs={compactInputs}
-          outputs={sockets.outputs}
+          outputs={outputs}
           height={compactHeight}
         />
       ) : (
         <div className="flex flex-col gap-1 pt-2 pb-2.5">
-          {sockets.outputs.map((output, index) => (
+          {outputs.map((output, index) => (
             <div
               key={output.id}
               className={cn(
