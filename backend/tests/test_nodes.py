@@ -93,6 +93,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("object", "Objects"),
         ("break-object", "Objects"),
         ("set-field", "Objects"),
+        ("merge-objects", "Objects"),
         ("nothing", "Values"),
         ("switch", "Logic"),
         ("compare", "Logic"),
@@ -517,6 +518,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "object": [],
         "break-object": [],
         "set-field": [],
+        "merge-objects": [],
         "nothing": ["value"],
         "switch": [],
         "compare": [],
@@ -749,6 +751,61 @@ def test_set_field_accepts_a_wired_choice_from_the_objects_fields(choice: str) -
     else:
         assert "field" in evaluation.wires
         assert output(evaluation, "set") == {"title": "New", "subtitle": "Details"}
+
+
+@pytest.mark.parametrize("provided", [True, False])
+def test_merge_objects_takes_shared_values_and_types_from_override(
+    provided: bool,
+) -> None:
+    evaluation = run(
+        [
+            node("source", "component-input"),
+            node("merge", "merge-objects"),
+            node("break", "break-object"),
+        ],
+        [
+            wire("base", "source.base", "merge.base"),
+            wire("override", "source.override", "merge.override"),
+            wire("merged", "merge.value", "break.object"),
+        ],
+        [
+            prop(
+                "base",
+                "base",
+                {
+                    "kind": "object",
+                    "fields": {"title": {"kind": "text"}, "rating": {"kind": "text"}},
+                },
+                default={"title": "Pricing", "rating": "Unrated"},
+            ),
+            prop(
+                "override",
+                "override",
+                {
+                    "kind": "object",
+                    "fields": {
+                        "rating": {"kind": "number", "integer": True},
+                        "link": {"kind": "text", "link": True},
+                    },
+                },
+                default={"rating": 4, "link": "/pricing"} if provided else None,
+            ),
+        ],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "source", "base") == {
+        "title": "Pricing",
+        "rating": "Unrated",
+    }
+    assert output(evaluation, "merge") == {
+        "title": "Pricing",
+        "rating": 4 if provided else None,
+        "link": "/pricing" if provided else None,
+    }
+    assert [
+        (item.label, item.type) for item in evaluation.nodes["break"].sockets.outputs
+    ] == [("title", TEXT), ("rating", NumberType(integer=True)), ("link", LINK)]
 
 
 def test_a_number_can_be_whole() -> None:
