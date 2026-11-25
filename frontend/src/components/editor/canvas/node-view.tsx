@@ -7,7 +7,13 @@ import { memo, type ReactNode, useLayoutEffect } from "react";
 import type { GroupSocket, InputSocket, NodeProperty } from "@/api/types";
 import { cn } from "@/lib/utils";
 import { choiceOptions, inputsOf, socketsOf, useCanvas } from "./context";
-import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
+import {
+  ChoiceField,
+  NUMBER_SUBTYPE_NAMES,
+  NumberField,
+  TextField,
+  Toggle,
+} from "./fields";
 import {
   addRow,
   type GraphNode,
@@ -118,12 +124,14 @@ function Field({
   label,
   type,
   value,
+  names,
   onChange,
   showLabel = true,
 }: {
   label: string;
   type: SocketType;
   value: unknown;
+  names?: Readonly<Record<string, string>> | undefined;
   onChange: (value: unknown) => void;
   showLabel?: boolean;
 }): ReactNode {
@@ -134,6 +142,7 @@ function Field({
           label={label}
           value={typeof value === "string" ? value : ""}
           options={type.options}
+          names={names}
           onChange={onChange}
         />
       );
@@ -213,6 +222,11 @@ function InputRow({
           label={input.label}
           type={input.type}
           value={value}
+          names={
+            node.type === "number" && input.id === "subtype"
+              ? NUMBER_SUBTYPE_NAMES
+              : undefined
+          }
           onChange={(next) =>
             canvas.edit(
               (graph) =>

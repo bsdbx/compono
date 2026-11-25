@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils";
 const FIELD =
   "nodrag nopan flex h-6 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-node-field px-2";
 
+// The Number subtype keeps its stored value for existing graphs and wires.
+export const NUMBER_SUBTYPE_NAMES = { Number: "Decimal" };
+
 /** A text field on a node: its label to the left, the value to the right. */
 export function TextField({
   label,
@@ -111,7 +114,7 @@ export function ChoiceField({
   onChange: (value: string) => void;
   className?: string;
   /** What an option shows as, when it isn't the option itself */
-  names?: Readonly<Record<string, string>>;
+  names?: Readonly<Record<string, string>> | undefined;
 }) {
   const all =
     options.includes(value) || value === "" ? options : [value, ...options];

@@ -516,17 +516,11 @@ def test_values_set_on_a_node_show_there() -> None:
     }
 
 
-def test_a_number_can_be_whole_or_a_constant() -> None:
+def test_a_number_can_be_whole() -> None:
     evaluation = run(
         [
             node("whole", "number", properties={"subtype": "Integer", "value": 24.0}),
             node("half", "number", properties={"subtype": "Integer", "value": 2.5}),
-            node("pi", "number", properties={"constant": "Pi", "value": 1}),
-            node(
-                "whole_pi",
-                "number",
-                properties={"subtype": "Integer", "constant": "Pi"},
-            ),
             node("price", "element"),
         ],
         [wire("w1", "whole.value", "price.text")],
@@ -535,9 +529,25 @@ def test_a_number_can_be_whole_or_a_constant() -> None:
     assert output(evaluation, "whole") == 24
     assert evaluation.nodes["whole"].sockets.outputs[0].type == NumberType(integer=True)
     assert evaluation.nodes["half"].error == "2.5 isn't a whole number"
-    assert output(evaluation, "pi") == math.pi
-    assert evaluation.nodes["whole_pi"].error == "Pi isn't a whole number"
     assert evaluation.wires == {"w1": "Integer can't go into Text"}
+
+
+def test_old_number_presets_load_as_editable_values() -> None:
+    evaluation = run(
+        [
+            node("pi", "number", properties={"constant": "Pi", "value": 1}),
+            node("e", "number", properties={"constant": "E"}, exposed=["constant"]),
+            node("custom", "number", properties={"constant": "Custom", "value": 4}),
+            node("choice", "choice", properties={"value": "Pi"}),
+        ],
+        [wire("retired", "choice.value", "e.constant")],
+    )
+
+    assert output(evaluation, "pi") == math.pi
+    assert output(evaluation, "e") == math.e
+    assert output(evaluation, "custom") == 4
+    assert evaluation.nodes["e"].sockets.inputs == ()
+    assert evaluation.wires == {}
 
 
 def test_a_text_can_be_a_link() -> None:

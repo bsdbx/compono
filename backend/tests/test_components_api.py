@@ -1,5 +1,6 @@
 """Tests of components through the API."""
 
+import math
 from datetime import UTC, datetime, timedelta
 from typing import NamedTuple
 from uuid import UUID, uuid4
@@ -317,6 +318,51 @@ def test_saving_and_opening_a_component(client: TestClient, session: Session) ->
         Saved.model_validate_json(save(client, acme_.card.id, content(2)).text).version
         == 3
     )
+
+
+def test_an_old_number_preset_loads_as_an_editable_value(
+    client: TestClient, session: Session
+) -> None:
+    acme_ = acme(client, session)
+    legacy: dict[str, object] = {
+        "nodes": [
+            {
+                "id": "number",
+                "type": "number",
+                "name": "Circle ratio",
+                "properties": {"constant": "Pi", "value": 1},
+                "exposed": ["constant"],
+                "propertyOrder": ["constant", "value"],
+            }
+        ],
+        "wires": [
+            {
+                "id": "retired",
+                "from": {"node": "choice", "socket": "value"},
+                "to": {"node": "number", "socket": "constant"},
+            }
+        ],
+    }
+    acme_.card.graph = legacy
+    session.flush()
+
+    opened = Component.model_validate_json(
+        client.get(f"{COMPONENTS}/{acme_.card.id}").text
+    )
+    assert opened.graph == {
+        "nodes": [
+            {
+                "id": "number",
+                "type": "number",
+                "name": "Circle ratio",
+                "properties": {"value": math.pi},
+                "exposed": [],
+                "propertyOrder": ["value"],
+            }
+        ],
+        "wires": [],
+    }
+    assert acme_.card.graph == legacy
 
 
 def test_node_display_names_survive_saving_and_reopening(

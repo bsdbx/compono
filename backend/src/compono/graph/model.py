@@ -1,10 +1,70 @@
 """A component's graph, as it's stored: format 1."""
 
-from typing import Literal
+import math
+from typing import Final, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 from compono.graph.sockets import SocketType
+
+_NUMBER_PRESETS: Final = {"Pi": math.pi, "E": math.e}
+
+
+def _record(value: object) -> dict[str, object]:
+    return cast(dict[str, object], value) if isinstance(value, dict) else {}
+
+
+def upgrade_number_presets(graph: dict[str, object]) -> dict[str, object]:
+    """Turn a saved Number preset into a value and remove its retired input."""
+    stored_nodes = graph.get("nodes")
+    if not isinstance(stored_nodes, list):
+        return graph
+
+    numbers: set[str] = set()
+    nodes: list[object] = []
+    for stored in cast(list[object], stored_nodes):
+        node = _record(stored)
+        node_id = node.get("id")
+        if node.get("type") != "number" or not isinstance(node_id, str):
+            nodes.append(stored)
+            continue
+
+        numbers.add(node_id)
+        updated = node.copy()
+        properties = _record(node.get("properties"))
+        if "constant" in properties:
+            properties = properties.copy()
+            preset = properties.pop("constant")
+            if isinstance(preset, str) and preset in _NUMBER_PRESETS:
+                properties["value"] = _NUMBER_PRESETS[preset]
+            updated["properties"] = properties
+        for field in ("exposed", "propertyOrder"):
+            fields = node.get(field)
+            if isinstance(fields, list):
+                updated[field] = [
+                    entry for entry in cast(list[object], fields) if entry != "constant"
+                ]
+        nodes.append(updated)
+
+    if not numbers:
+        return graph
+
+    upgraded = {**graph, "nodes": nodes}
+    stored_wires = graph.get("wires")
+    if isinstance(stored_wires, list):
+        wires: list[object] = []
+        for wire in cast(list[object], stored_wires):
+            target = _record(_record(wire).get("to"))
+            node_id = target.get("node")
+            if (
+                target.get("socket") == "constant"
+                and isinstance(node_id, str)
+                and node_id in numbers
+            ):
+                continue
+            wires.append(wire)
+        upgraded["wires"] = wires
+    return upgraded
 
 
 class Position(BaseModel):
@@ -73,3 +133,8 @@ class Graph(BaseModel):
     props: list[Prop] = []
     nodes: list[Node] = []
     wires: list[Wire] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_number_presets(cls, data: object) -> object:
+        return upgrade_number_presets(_record(data)) if isinstance(data, dict) else data

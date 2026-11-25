@@ -261,7 +261,6 @@ def test_compono_node_types_say_where_they_belong(
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
-        ("constant", False),
         ("value", True),
     ]
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
