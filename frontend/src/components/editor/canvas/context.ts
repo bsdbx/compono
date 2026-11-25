@@ -6,6 +6,7 @@ import type {
   NodeTypeInfo,
   Wire,
 } from "@/api/types";
+import { choiceMenuOf } from "./choice-menus";
 import {
   type Graph,
   type GraphNode,
@@ -144,18 +145,30 @@ export function outputType(
 }
 
 /** The options a Choice node offers: those of the inputs it's wired into. */
-export function choiceOptions(
+export function wiredChoices(
   canvas: Known & Pick<CanvasState, "graph">,
   node: string,
-): string[] {
-  const options = canvas.graph.wires
+) {
+  const choices = canvas.graph.wires
     .filter((wire) => wire.from.node === node)
     .flatMap((wire) => {
       const into = canvas.graph.nodes.find((each) => each.id === wire.to.node);
-      const input =
-        into &&
-        inputsOf(canvas, into).find((each) => each.id === wire.to.socket);
-      return input?.type.kind === "choice" ? input.type.options : [];
+      if (!into) return [];
+      const input = inputsOf(canvas, into).find(
+        (each) => each.id === wire.to.socket,
+      );
+      return input?.type.kind === "choice"
+        ? [
+            {
+              options: input.type.options,
+              menu: choiceMenuOf(into.type, input.id),
+            },
+          ]
+        : [];
     });
-  return [...new Set(options)];
+  const menu = choices[0]?.menu;
+  return {
+    options: [...new Set(choices.flatMap((choice) => choice.options))],
+    menu: choices.every((choice) => choice.menu === menu) ? menu : undefined,
+  };
 }

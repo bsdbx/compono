@@ -1,13 +1,13 @@
-import { ChevronDown } from "lucide-react";
-import { Select } from "radix-ui";
-import { useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
+import { Popover } from "radix-ui";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import { Highlight } from "@/components/highlight";
+import { textMatches } from "@/lib/text-matches";
 import { cn } from "@/lib/utils";
+import type { ChoiceMenu } from "./choice-menus";
 
 const FIELD =
   "nodrag nopan flex h-6 w-full min-w-0 items-center gap-2 rounded-md border border-input bg-node-field px-2";
-
-// The Number subtype keeps its stored value for existing graphs and wires.
-export const NUMBER_SUBTYPE_NAMES = { Number: "Decimal" };
 
 /** A text field on a node: its label to the left, the value to the right. */
 export function TextField({
@@ -106,60 +106,202 @@ export function ChoiceField({
   options,
   onChange,
   className,
-  names = {},
+  menu,
+  names = menu?.names,
 }: {
   label: string;
   value: string;
   options: readonly string[];
   onChange: (value: string) => void;
   className?: string;
+  menu?: ChoiceMenu | undefined;
   /** What an option shows as, when it isn't the option itself */
   names?: Readonly<Record<string, string>> | undefined;
 }) {
-  const all =
-    options.includes(value) || value === "" ? options : [value, ...options];
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [active, setActive] = useState<string>();
+  const input = useRef<HTMLInputElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const listId = useId();
+  const searchLabel = menu?.search ?? "Search options";
+  const query = search.trim();
+  const nameOf = (option: string) =>
+    (names && Object.hasOwn(names, option) ? names[option] : undefined) ??
+    (option === "" ? "None" : option);
+  const all = new Set(
+    value === "" || options.includes(value) ? options : [value, ...options],
+  );
+  const remaining = new Set(
+    [...all].filter(
+      (option) => !query || textMatches(nameOf(option), query).length > 0,
+    ),
+  );
+  const sections = Object.entries(menu?.groups ?? {}).map(
+    ([heading, group]) => ({
+      heading,
+      options: group.filter((option) => remaining.delete(option)),
+    }),
+  );
+  sections.push({ heading: "", options: [...remaining] });
+  const visible = sections.flatMap((section) => section.options);
+  const indices = new Map(visible.map((option, index) => [option, index]));
+  const current = Math.max(
+    active === undefined ? -1 : (indices.get(active) ?? -1),
+    0,
+  );
+  const activeId = visible.length > 0 ? `${listId}-${current}` : undefined;
+
+  useEffect(() => {
+    if (open && activeId)
+      input.current?.ownerDocument
+        .getElementById(activeId)
+        ?.scrollIntoView?.({ block: "nearest" });
+  }, [open, activeId]);
+
+  function changeOpen(next: boolean) {
+    if (next) {
+      setSearch("");
+      setActive(all.has(value) ? value : undefined);
+    }
+    setOpen(next);
+  }
+
+  function choose(option: string) {
+    if (option !== value) onChange(option);
+    setOpen(false);
+  }
+
+  function navigate(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const option = visible[current];
+      if (option !== undefined) choose(option);
+    } else if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const next = current + (event.key === "ArrowDown" ? 1 : -1);
+      setActive(visible[Math.max(0, Math.min(next, visible.length - 1))]);
+    }
+  }
+
   return (
-    <Select.Root
-      value={all.includes(value) ? `option:${value}` : ""}
-      onValueChange={(next) => onChange(next.slice(7))}
-    >
-      <Select.Trigger
-        aria-label={label}
-        className={cn(
-          FIELD,
-          "justify-between text-foreground outline-none focus-visible:border-primary",
-          className,
-        )}
-      >
-        <span className="truncate">
-          <Select.Value placeholder="None" />
-        </span>
-        <Select.Icon asChild>
-          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-        </Select.Icon>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content
-          position="popper"
-          sideOffset={4}
-          className="nodrag nopan nowheel z-50 max-h-72 min-w-(--radix-select-trigger-width) overflow-hidden rounded-lg border border-foreground/10 bg-popover p-1 text-foreground shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+    <Popover.Root open={open} onOpenChange={changeOpen}>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-label={label}
+          aria-expanded={open}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+              event.preventDefault();
+              event.stopPropagation();
+              changeOpen(true);
+            }
+          }}
+          className={cn(
+            FIELD,
+            "justify-between text-foreground outline-none focus-visible:border-foreground/25",
+            className,
+          )}
         >
-          <Select.Viewport>
-            {all.map((option) => (
-              <Select.Item
-                key={option}
-                value={`option:${option}`}
-                className="relative flex h-6.5 cursor-default items-center rounded-md px-2 text-xs outline-none data-highlighted:bg-highlight data-[state=checked]:text-primary"
-              >
-                <Select.ItemText>
-                  {names[option] ?? (option === "" ? "None" : option)}
-                </Select.ItemText>
-              </Select.Item>
-            ))}
-          </Select.Viewport>
-        </Select.Content>
-      </Select.Portal>
-    </Select.Root>
+          <span className="truncate">{nameOf(value)}</span>
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          aria-label={label}
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            input.current?.focus({ preventScroll: true });
+          }}
+          className="nodrag nopan nowheel z-50 flex max-h-[min(22rem,var(--radix-popover-content-available-height))] w-(--radix-popover-trigger-width) flex-col overflow-hidden rounded-lg border border-foreground/10 bg-popover p-1 text-foreground shadow-xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
+          <label className="mb-1 flex h-7 shrink-0 items-center gap-2 rounded-md border border-input bg-node-field px-2">
+            <Search className="size-3.5 shrink-0 text-subtle-foreground" />
+            <input
+              ref={input}
+              role="combobox"
+              aria-label={searchLabel}
+              aria-controls={listId}
+              aria-expanded="true"
+              aria-autocomplete="list"
+              aria-activedescendant={activeId}
+              placeholder={searchLabel}
+              autoComplete="off"
+              spellCheck={false}
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setActive(undefined);
+                if (list.current) list.current.scrollTop = 0;
+              }}
+              onKeyDown={navigate}
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            />
+          </label>
+          <div
+            ref={list}
+            id={listId}
+            role="listbox"
+            aria-label={label}
+            className="min-h-0 overflow-y-auto overscroll-contain"
+          >
+            {sections
+              .filter((section) => section.options.length > 0)
+              .map((section) => (
+                <fieldset key={section.heading} className="min-w-0">
+                  {section.heading && (
+                    <legend className="px-2 pt-2 pb-0.5 text-subtle-foreground text-xs">
+                      {section.heading}
+                    </legend>
+                  )}
+                  {section.options.map((option) => {
+                    const index = indices.get(option);
+                    const name = nameOf(option);
+                    return (
+                      <button
+                        key={option}
+                        id={`${listId}-${index}`}
+                        type="button"
+                        role="option"
+                        aria-selected={option === value}
+                        aria-label={name}
+                        title={name}
+                        tabIndex={-1}
+                        onPointerEnter={() => setActive(option)}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => choose(option)}
+                        className={cn(
+                          "flex h-6.5 w-full cursor-default items-center rounded-md px-2 text-left text-xs outline-none",
+                          index === current && "bg-highlight",
+                        )}
+                      >
+                        <span className="truncate">
+                          <Highlight text={name} query={query} />
+                        </span>
+                      </button>
+                    );
+                  })}
+                </fieldset>
+              ))}
+          </div>
+          {visible.length === 0 && (
+            <p
+              role="status"
+              className="px-2 py-1.5 text-subtle-foreground text-xs"
+            >
+              No matching options
+            </p>
+          )}
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
   );
 }
 
