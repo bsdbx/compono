@@ -1058,7 +1058,7 @@ def test_compare(comparison: str, a: JsonValue, b: JsonValue, result: bool) -> N
     assert output(evaluation, "compare", "result") is result
 
 
-def test_compare_takes_the_type_wired_into_a_and_orders_only_like_kinds() -> None:
+def test_compare_falls_back_to_equality_for_booleans() -> None:
     evaluation = run(
         [
             node("input", "component-input"),
@@ -1073,9 +1073,63 @@ def test_compare_takes_the_type_wired_into_a_and_orders_only_like_kinds() -> Non
         ("a", "Boolean"),
         ("b", "Boolean"),
     ]
-    assert (
-        evaluation.nodes["compare"].error
-        == "Less needs two numbers, two texts or two dates"
+    assert evaluation.nodes["compare"].sockets.inputs[0].type == ChoiceType(
+        options=("Equal", "Not equal")
+    )
+    assert output(evaluation, "compare", "result") is False
+
+
+def test_compare_refuses_element_and_object_operands() -> None:
+    evaluation = run(
+        [
+            node("element", "element"),
+            node("object", "object"),
+            node("compare", "compare"),
+        ],
+        [
+            wire("a", "element.element", "compare.a"),
+            wire("b", "object.value", "compare.b"),
+        ],
+    )
+
+    assert evaluation.wires == {
+        "a": "Compare doesn't accept Element",
+        "b": "Compare doesn't accept Object",
+    }
+    assert inputs_of(evaluation, "compare")[1:] == [("a", "Any"), ("b", "Any")]
+
+
+def test_compare_can_compare_an_integer_to_a_decimal() -> None:
+    evaluation = run(
+        [
+            node("integer", "number", properties={"value": 1, "subtype": "Integer"}),
+            node("decimal", "number", properties={"value": 1.5}),
+            node("compare", "compare", values={"op": "Less"}),
+        ],
+        [
+            wire("a", "integer.value", "compare.a"),
+            wire("b", "decimal.value", "compare.b"),
+        ],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "compare", "result") is True
+
+
+def test_compare_accepts_two_distinct_choices() -> None:
+    evaluation = run(
+        [
+            node("small", "choice", properties={"value": "Small"}),
+            node("large", "choice", properties={"value": "Large"}),
+            node("compare", "compare", values={"op": "Not equal"}),
+        ],
+        [wire("a", "small.value", "compare.a"), wire("b", "large.value", "compare.b")],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "compare", "result") is True
+    assert evaluation.nodes["compare"].sockets.inputs[0].type == ChoiceType(
+        options=("Equal", "Not equal")
     )
 
 

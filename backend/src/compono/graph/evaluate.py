@@ -13,7 +13,7 @@ from compono.graph.node_types import (
     Sockets,
     SocketsContext,
 )
-from compono.graph.sockets import ChoiceType, SocketType, accepts, name_of
+from compono.graph.sockets import AnyType, ChoiceType, SocketType, accepts, name_of
 from compono.graph.values import Value, from_json
 
 logger = logging.getLogger(__name__)
@@ -331,6 +331,8 @@ def _refusal(
 
     if accepts(into, output):
         return None
+    if isinstance(into, AnyType):
+        return f"{_name(node)} doesn't accept {name_of(output)}"
     return f"{name_of(output)} can't go into {name_of(into)}"
 
 

@@ -138,8 +138,12 @@ export function ChoiceField({
   const listId = useId();
   const searchLabel = menu?.search ?? "Search options";
   const query = search.trim();
-  const value =
-    menu?.optional && !options.includes(storedValue) ? "" : storedValue;
+  const fallback = menu?.fallback;
+  const value = options.includes(storedValue)
+    ? storedValue
+    : typeof fallback === "function"
+      ? fallback(options)
+      : (fallback ?? (menu?.optional ? "" : storedValue));
   const nameOf = (option: string) =>
     (names && Object.hasOwn(names, option) ? names[option] : undefined) ??
     (option === "" ? "None" : option);

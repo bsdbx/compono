@@ -2,11 +2,15 @@ import type { SocketType } from "./graph";
 
 /** Whether a wire may run from an output of the type `out` into an input of the type `into`, as the API decides. */
 export function accepts(into: SocketType, out: SocketType): boolean {
-  // Any takes everything, and Nothing counts as no wire. An output still Any isn't known yet, so it's let through
-  if (into.kind === "any" || out.kind === "nothing" || out.kind === "any") {
+  // Nothing counts as no wire, and an output still Any isn't known yet.
+  if (out.kind === "nothing" || out.kind === "any") {
     return true;
   }
   switch (into.kind) {
+    case "any":
+      return (
+        !into.allowed_kinds || into.allowed_kinds.includes(out.kind ?? "any")
+      );
     case "slot":
       return out.kind === "element";
     case "number":

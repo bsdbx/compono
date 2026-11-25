@@ -45,6 +45,12 @@ test.each<[SocketType, SocketType, boolean]>([
   [{ kind: "slot" }, TEXT, false],
   [{ kind: "element" }, { kind: "slot" }, false],
   [{ kind: "any" }, { kind: "date" }, true],
+  [{ kind: "any", allowed_kinds: ["number", "text"] }, NUMBER, true],
+  [
+    { kind: "any", allowed_kinds: ["number", "text"] },
+    { kind: "element" },
+    false,
+  ],
   [NUMBER, { kind: "nothing" }, true],
   [NUMBER, { kind: "any" }, true],
   [{ kind: "nothing" }, NUMBER, false],
