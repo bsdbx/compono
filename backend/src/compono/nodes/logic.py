@@ -1,7 +1,8 @@
-"""Nodes that decide: Switch, Compare, Boolean Math, and Default."""
+"""Nodes that decide: Switch, Compare, Boolean Math, Default and Check."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime
+from operator import is_none, is_not_none
 from typing import Final
 
 from compono.graph.node_types import (
@@ -406,4 +407,129 @@ DEFAULT: Final = NodeType(
     accepts_unselected_choices=("value", "fallback"),
 )
 
-NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH, DEFAULT)
+PRESENCE_CHECKS: Final = ("Is nothing", "Is not nothing")
+EMPTY_CHECKS: Final = ("Is empty", "Is not empty")
+NUMBER_CHECKS: Final = ("Is zero", "Is positive", "Is negative")
+CHECKS_BY_KIND: Final[Mapping[str, tuple[str, ...]]] = {
+    "text": EMPTY_CHECKS,
+    "object": EMPTY_CHECKS,
+    "number": NUMBER_CHECKS,
+    "boolean": ("Is true", "Is false"),
+}
+
+# The same predicates in the preview and in exported JavaScript, where the input is `value`.
+_SIZE: Final = (
+    '(typeof value === "string" ? value.length : '
+    'value != null && typeof value === "object" ? Object.keys(value).length : null)'
+)
+_IS_INTEGER: Final[tuple[Callable[[Value], bool], str]] = (
+    lambda value: (
+        type(value) is int or (isinstance(value, float) and value.is_integer())
+    ),
+    "Number.isInteger(value)",
+)
+CHECKS: Final[Mapping[str, tuple[Callable[[Value], bool], str]]] = {
+    "Is nothing": (is_none, "value == null"),
+    "Is not nothing": (is_not_none, "value != null"),
+    "Is empty": (
+        lambda value: isinstance(value, str | dict) and not value,
+        f"{_SIZE} === 0",
+    ),
+    "Is not empty": (
+        lambda value: isinstance(value, str | dict) and bool(value),
+        f"{_SIZE} > 0",
+    ),
+    "Is zero": (
+        lambda value: type(value) in (int, float) and value == 0,
+        "value === 0",
+    ),
+    "Is positive": (
+        lambda value: (
+            isinstance(value, int | float) and not isinstance(value, bool) and value > 0
+        ),
+        'typeof value === "number" && value > 0',
+    ),
+    "Is negative": (
+        lambda value: (
+            isinstance(value, int | float) and not isinstance(value, bool) and value < 0
+        ),
+        'typeof value === "number" && value < 0',
+    ),
+    "Is whole": _IS_INTEGER,
+    "Is true": (lambda value: value is True, "value === true"),
+    "Is false": (lambda value: value is False, "value === false"),
+}
+
+
+def _check_sockets(context: SocketsContext) -> Sockets:
+    value = context.wired.get("value", AnyType())
+    options = (*PRESENCE_CHECKS, *CHECKS_BY_KIND.get(value.kind, ()))
+    if isinstance(value, NumberType) and not value.integer:
+        options += ("Is whole",)
+    return Sockets(
+        inputs=(
+            Input(
+                "op",
+                "Check",
+                ChoiceType(options=options),
+                "Is nothing",
+                allow_stale_value=True,
+            ),
+            Input("value", "Value", value, wire_only=True),
+        ),
+        outputs=(Output("result", "Result", BOOLEAN),),
+    )
+
+
+def _check_options(sockets: tuple[Input, ...]) -> tuple[str, ...]:
+    choice = next((socket.type for socket in sockets if socket.id == "op"), None)
+    return choice.options if isinstance(choice, ChoiceType) else PRESENCE_CHECKS
+
+
+def _check_operation(value: Code, options: tuple[str, ...]) -> str:
+    return value if isinstance(value, str) and value in options else options[0]
+
+
+def _check(context: EvaluateContext) -> Mapping[str, Value]:
+    operation = _check_operation(
+        context.inputs["op"], _check_options(context.input_sockets)
+    )
+    return {"result": CHECKS[operation][0](context.inputs["value"])}
+
+
+def _check_code(context: CodeContext) -> Mapping[str, Code]:
+    operation = context.inputs["op"]
+    value = context.inputs["value"]
+    expression_of = context.expression_of or js_of
+    written = expression_of(value)
+    if written is None:
+        raise NodeError("Can't export Check's value")
+
+    options = _check_options(context.input_sockets)
+    if isinstance(operation, Js):
+        default, *other = options
+        tests = " ".join(
+            f"operation === {literal(option)} ? ({CHECKS[option][1]}) :"
+            for option in other
+        )
+        code = (
+            f"((operation, value) => {tests} {CHECKS[default][1]})"
+            f"({expression(operation)}, {written})"
+        )
+    else:
+        predicate = CHECKS[_check_operation(operation, options)][1]
+        code = f"((value) => {predicate})({written})"
+    return {"result": Js(code, nothing=False)}
+
+
+CHECK: Final = NodeType(
+    type="check",
+    name="Check",
+    category=CATEGORY,
+    sockets=_check_sockets,
+    evaluate=_check,
+    code=_check_code,
+    accepts_unselected_choices=("value",),
+)
+
+NODE_TYPES: Final = (SWITCH, COMPARE, BOOLEAN_MATH, DEFAULT, CHECK)

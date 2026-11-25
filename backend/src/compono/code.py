@@ -404,6 +404,7 @@ class _Generator:
                     expression_of=self.printer.expression_of,
                     outputs=result.sockets.outputs,
                     inactive_input=inactive_input,
+                    input_sockets=result.sockets.inputs,
                 )
             )
         except NodeError as error:

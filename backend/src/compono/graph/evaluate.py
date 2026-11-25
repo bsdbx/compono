@@ -404,6 +404,7 @@ def _values(
                 properties=properties,
                 props=graph.props,
                 fields=node.node.fields,
+                input_sockets=node.sockets.inputs,
             )
         )
     except NodeError as error:

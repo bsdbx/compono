@@ -270,6 +270,7 @@ def test_compono_node_types_say_where_they_belong(
         ("compare", "Logic", False),
         ("boolean-math", "Logic", False),
         ("default", "Logic", False),
+        ("check", "Logic", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
@@ -296,6 +297,11 @@ def test_compono_node_types_say_where_they_belong(
         ("value", True),
         ("fallback", False),
     ]
+    check = listed["check"].sockets
+    assert check.inputs[0].type == ChoiceType(options=("Is nothing", "Is not nothing"))
+    assert check.inputs[0].default == "Is nothing"
+    assert check.inputs[1].wire_only
+    assert check.outputs[0].type == BooleanType()
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]
