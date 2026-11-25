@@ -97,4 +97,54 @@ TEXT_LENGTH: Final = NodeType(
     code=_length_code,
 )
 
-NODE_TYPES: Final = (JOIN, TEXT_LENGTH)
+
+def _index(value: Code) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    raise NodeError("Start and End need whole numbers")
+
+
+def _slice(context: EvaluateContext) -> Mapping[str, Value]:
+    source = text(context.inputs["text"])
+    start = _index(context.inputs["start"])
+    end = _index(context.inputs["end"])
+    return {"text": source[start:end]}
+
+
+def _slice_code(context: CodeContext) -> Mapping[str, Code]:
+    characters = _characters(context.inputs["text"])
+    start = context.inputs["start"]
+    end = context.inputs["end"]
+    bounds = expression(start) if isinstance(start, Js) else literal(_index(start) or 0)
+    if isinstance(end, Js):
+        stop = expression(end)
+        if end.may_be_nothing:
+            stop = f"(({stop}) ?? void 0)"
+        bounds += f", {stop}"
+    elif end is not None:
+        bounds += f", {literal(_index(end))}"
+
+    return {"text": Js(f'{characters}.slice({bounds}).join("")', nothing=False)}
+
+
+SLICE: Final = NodeType(
+    type="slice",
+    name="Slice",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(
+            Input("text", "Text", TEXT, ""),
+            Input("start", "Start", NumberType(integer=True), 0),
+            Input("end", "End", NumberType(integer=True)),
+        ),
+        outputs=(Output("text", "Text", TEXT),),
+    ),
+    evaluate=_slice,
+    code=_slice_code,
+)
+
+NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE)

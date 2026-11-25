@@ -275,6 +275,7 @@ def test_compono_node_types_say_where_they_belong(
         ("convert", "Logic", False),
         ("join", "Text", False),
         ("text-length", "Text", False),
+        ("slice", "Text", False),
     ]
     assert [(each.id, each.on_node) for each in listed["number"].properties] == [
         ("subtype", False),
@@ -327,6 +328,13 @@ def test_compono_node_types_say_where_they_belong(
         ("items", TEXT, "Item"),
     ]
     assert [(each.label, each.type) for each in join.outputs] == [("Text", TEXT)]
+    slice_node = listed["slice"].sockets
+    assert [(each.id, each.type, each.default) for each in slice_node.inputs] == [
+        ("text", TEXT, ""),
+        ("start", NumberType(integer=True), 0),
+        ("end", NumberType(integer=True), None),
+    ]
+    assert [(each.label, each.type) for each in slice_node.outputs] == [("Text", TEXT)]
     assert [(group.id, group.before) for group in listed["element"].sockets.groups] == [
         ("children", "class")
     ]

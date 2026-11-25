@@ -105,6 +105,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("convert", "Logic"),
         ("join", "Text"),
         ("text-length", "Text"),
+        ("slice", "Text"),
     ]
 
 
@@ -537,6 +538,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "convert": [],
         "join": [],
         "text-length": [],
+        "slice": [],
     }
 
 
@@ -1405,6 +1407,37 @@ def test_wired_text_length_uses_the_typed_value_when_the_wire_is_nothing(
 
     assert evaluation.wires == {}
     assert output(evaluation, "count", "length") == length
+
+
+@pytest.mark.parametrize(
+    ("source", "start", "end", "expected"),
+    [
+        ("Pro plan", 0, 3, "Pro"),
+        ("Pro plan", -4, None, "plan"),
+        ("Pro plan", None, -5, "Pro"),
+        ("Pro plan", 0, 0, ""),
+        ("Pro plan", -99, 99, "Pro plan"),
+        ("Pro plan", 4, 2, ""),
+        ("🙂Pro🙂", 1, -1, "Pro"),
+        ("🙂Pro🙂", 0, 1, "🙂"),
+    ],
+)
+def test_slice_uses_exclusive_end_and_code_point_indexes(
+    source: str, start: int | None, end: int | None, expected: str
+) -> None:
+    evaluation = run(
+        [node("slice", "slice", values={"text": source, "start": start, "end": end})]
+    )
+
+    assert output(evaluation, "slice", "text") == expected
+
+
+def test_slice_requires_whole_numbers_for_indexes() -> None:
+    evaluation = run(
+        [node("slice", "slice", values={"text": "Pro plan", "start": 2.5})]
+    )
+
+    assert evaluation.nodes["slice"].error == "A value typed in isn't a whole number"
 
 
 @pytest.mark.parametrize(
