@@ -10,19 +10,9 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
 import { socketTypeName } from "./accepts";
-import {
-  choiceOptions,
-  defaultInputsOf,
-  socketsOf,
-  useCanvas,
-} from "./context";
-import {
-  ChoiceField,
-  NUMBER_SUBTYPE_NAMES,
-  NumberField,
-  TextField,
-  Toggle,
-} from "./fields";
+import { type ChoiceMenu, choiceMenuOf } from "./choice-menus";
+import { defaultInputsOf, socketsOf, useCanvas, wiredChoices } from "./context";
+import { ChoiceField, NumberField, TextField, Toggle } from "./fields";
 import {
   addProp,
   changeProp,
@@ -115,14 +105,14 @@ function PanelField({
   type,
   value,
   placeholder,
-  names,
+  menu,
   onChange,
 }: {
   label: string;
   type: SocketType;
   value: unknown;
   placeholder?: string | undefined;
-  names?: Readonly<Record<string, string>> | undefined;
+  menu?: ChoiceMenu | undefined;
   onChange: (value: unknown) => void;
 }): ReactNode {
   switch (type.kind) {
@@ -147,7 +137,7 @@ function PanelField({
           label={label}
           value={typeof value === "string" ? value : ""}
           options={type.options}
-          names={names}
+          menu={menu}
           onChange={onChange}
           className={FIELD}
         />
@@ -524,6 +514,7 @@ function PropDetails({ prop }: { prop: Prop }) {
           value={type.kind ?? "any"}
           options={Object.keys(PROP_TYPES)}
           names={KINDS}
+          menu={{ search: "Search types" }}
           className={FIELD}
           onChange={(kind) =>
             change("type", {
@@ -826,16 +817,17 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
 
   function propertyField(property: NodeProperty) {
     const value = node?.properties[property.id] ?? property.default;
-    const options =
+    const choices =
       node?.type === "choice" && property.on_node
-        ? choiceOptions(canvas, id)
-        : [];
-    if (options.length > 0) {
+        ? wiredChoices(canvas, id)
+        : undefined;
+    if (choices && choices.options.length > 0) {
       return (
         <ChoiceField
           label={property.label}
           value={typeof value === "string" ? value : ""}
-          options={options}
+          options={choices.options}
+          menu={choices.menu}
           className={FIELD}
           onChange={setOn(property.id)}
         />
@@ -846,11 +838,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         label={property.label}
         type={property.type}
         value={value}
-        names={
-          node?.type === "number" && property.id === "subtype"
-            ? NUMBER_SUBTYPE_NAMES
-            : undefined
-        }
+        menu={node && choiceMenuOf(node.type, property.id)}
         placeholder={
           node?.type === "text" &&
           property.id === "value" &&
@@ -869,6 +857,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
         label={input.label}
         type={input.type}
         value={node?.values[input.id] ?? input.default}
+        menu={node && choiceMenuOf(node.type, input.id)}
         placeholder={hints?.[input.id]}
         onChange={(value) =>
           canvas.edit(
