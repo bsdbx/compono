@@ -1,14 +1,15 @@
-import { GripVertical } from "lucide-react";
+import { ChevronRight, GripVertical, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { InputSocket, NodeProperty, Prop } from "@/api/types";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { SOCKET_COLOR, socketTypeName } from "./accepts";
+import { socketTypeName } from "./accepts";
 import {
   choiceOptions,
   defaultInputsOf,
@@ -25,6 +26,7 @@ import {
   groupPropertyId,
   inPropertyOrder,
   PROP_NAME,
+  placeProp,
   placeRow,
   removeProp,
   renameSocket,
@@ -40,6 +42,8 @@ import { MENU_ITEM, MENU_SEPARATOR, PointerMenu } from "./pointer-menu";
 import { useRowDrag } from "./use-row-drag";
 
 const FIELD = "h-7 text-sm";
+const ROW_STYLE =
+  "flex h-8.5 items-center rounded-md px-1.5 transition-colors duration-100";
 
 const FIELD_HINTS: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
@@ -223,7 +227,8 @@ function Row({
       data-row-drag-surface
       data-exposed={exposed ? "true" : undefined}
       className={cn(
-        "relative flex h-8.5 items-center rounded-md px-1.5 transition-colors duration-100",
+        ROW_STYLE,
+        "relative",
         !leading && "-mx-1.5",
         active ? "bg-highlight" : "hover:bg-highlight",
       )}
@@ -277,6 +282,7 @@ type PropertyRow = {
   details?: ReactNode;
   gripLabel?: string;
   onRename?: (name: string) => void;
+  renderHeader?: (grip: ReactNode) => ReactNode;
 };
 
 function PropertyList({
@@ -310,6 +316,40 @@ function PropertyList({
           const row = byId.get(id);
           if (!row) return null;
           const boxed = Boolean(row.details);
+          const grip = (
+            <button
+              type="button"
+              aria-label={`Reorder ${row.gripLabel ?? row.label}`}
+              aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
+              title="Drag to reorder (Alt+Up/Down)"
+              disabled={saved.length < 2}
+              className="mr-1 flex size-5 shrink-0 touch-none cursor-grab items-center justify-center rounded text-subtle-foreground hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
+              onPointerDown={(event) => {
+                const focused = document.activeElement;
+                if (
+                  event.button === 0 &&
+                  focused instanceof HTMLInputElement &&
+                  drag.region.current?.contains(focused)
+                )
+                  focused.blur();
+                drag.start(event, id);
+              }}
+              onKeyDown={(event) => {
+                const { key, altKey } = event;
+                if (!altKey || (key !== "ArrowUp" && key !== "ArrowDown"))
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                const index = saved.indexOf(id);
+                if (key === "ArrowUp" && index > 0)
+                  onPlace(id, saved[index - 1]);
+                if (key === "ArrowDown" && index < saved.length - 1)
+                  onPlace(id, saved[index + 2]);
+              }}
+            >
+              <GripVertical className="size-3.5" />
+            </button>
+          );
           return (
             <li
               key={id}
@@ -323,51 +363,22 @@ function PropertyList({
                 preview?.row === id && "opacity-40",
               )}
             >
-              <Row
-                label={row.label}
-                count={row.count}
-                menu={row.menu}
-                active={row.menu !== undefined && activeMenu === row.menu}
-                exposed={row.exposed}
-                boxed={boxed}
-                onRename={row.onRename}
-                leading={
-                  <button
-                    type="button"
-                    aria-label={`Reorder ${row.gripLabel ?? row.label}`}
-                    aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"
-                    title="Drag to reorder (Alt+Up/Down)"
-                    disabled={saved.length < 2}
-                    className="mr-1 flex size-5 shrink-0 touch-none cursor-grab items-center justify-center rounded text-subtle-foreground hover:text-foreground active:cursor-grabbing disabled:cursor-default disabled:opacity-40"
-                    onPointerDown={(event) => {
-                      const focused = document.activeElement;
-                      if (
-                        event.button === 0 &&
-                        focused instanceof HTMLInputElement &&
-                        drag.region.current?.contains(focused)
-                      )
-                        focused.blur();
-                      drag.start(event, id);
-                    }}
-                    onKeyDown={(event) => {
-                      const { key, altKey } = event;
-                      if (!altKey || (key !== "ArrowUp" && key !== "ArrowDown"))
-                        return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      const index = saved.indexOf(id);
-                      if (key === "ArrowUp" && index > 0)
-                        onPlace(id, saved[index - 1]);
-                      if (key === "ArrowDown" && index < saved.length - 1)
-                        onPlace(id, saved[index + 2]);
-                    }}
-                  >
-                    <GripVertical className="size-3.5" />
-                  </button>
-                }
-              >
-                {row.field}
-              </Row>
+              {row.renderHeader ? (
+                row.renderHeader(grip)
+              ) : (
+                <Row
+                  label={row.label}
+                  count={row.count}
+                  menu={row.menu}
+                  active={row.menu !== undefined && activeMenu === row.menu}
+                  exposed={row.exposed}
+                  boxed={boxed}
+                  onRename={row.onRename}
+                  leading={grip}
+                >
+                  {row.field}
+                </Row>
+              )}
               {row.details}
             </li>
           );
@@ -426,44 +437,14 @@ export function PropertiesPlaceholder({ many = false }: { many?: boolean }) {
   );
 }
 
-/** A prop's name, which only a name for React that no other prop has changes it to. */
-function NameField({ prop }: { prop: Prop }) {
-  const canvas = useCanvas();
-  const [typed, setTyped] = useState<string>();
-  const shown = typed ?? prop.name;
-  const valid =
-    PROP_NAME.test(shown) &&
-    !canvas.graph.props.some(
-      (other) => other.id !== prop.id && other.name === shown,
-    );
-  return (
-    <TextField
-      label="Name"
-      value={shown}
-      placeholder="propName"
-      showLabel={false}
-      className={cn(FIELD, valid ? "" : "border-error")}
-      onChange={(name) => {
-        setTyped(name);
-        const free =
-          PROP_NAME.test(name) &&
-          !canvas.graph.props.some(
-            (other) => other.id !== prop.id && other.name === name,
-          );
-        if (free) {
-          canvas.edit(
-            (graph) => changeProp(graph, prop.id, { name }),
-            `prop:${prop.id}:name`,
-          );
-        }
-      }}
-      onBlur={() => setTyped(undefined)}
-    />
-  );
-}
-
 /** A Choice prop's options, typed with commas between them. */
-function OptionsField({ prop, options }: { prop: Prop; options: string[] }) {
+function OptionsField({
+  prop,
+  options,
+}: {
+  prop: Prop;
+  options: readonly string[];
+}) {
   const canvas = useCanvas();
   const [typed, setTyped] = useState<string>();
   return (
@@ -511,23 +492,23 @@ function PropDetails({ prop }: { prop: Prop }) {
     );
   const number = type.kind === "number" ? type : undefined;
   const range = (bound: "minimum" | "maximum" | "step", label: string) => (
-    <NumberField
-      label={label}
-      value={number?.[bound] ?? null}
-      placeholder="–"
-      className={cn(FIELD, "min-w-0 flex-1")}
-      onChange={(value) => {
-        if (number && typeof value !== "string") {
-          change(bound, { type: { ...number, [bound]: value ?? null } });
-        }
-      }}
-    />
+    <Row label={label}>
+      <NumberField
+        label={label}
+        value={number?.[bound] ?? null}
+        placeholder="–"
+        showLabel={false}
+        className={FIELD}
+        onChange={(value) => {
+          if (number && typeof value !== "string") {
+            change(bound, { type: { ...number, [bound]: value ?? null } });
+          }
+        }}
+      />
+    </Row>
   );
   return (
-    <div className="border-input border-b px-3.5 py-1">
-      <Row label="Name">
-        <NameField prop={prop} />
-      </Row>
+    <div className="px-2.5 pt-0.5 pb-2">
       <Row label="Type">
         <ChoiceField
           label="Type"
@@ -573,18 +554,14 @@ function PropDetails({ prop }: { prop: Prop }) {
               }
             />
           </Row>
-          <Row label="Range">
-            <div className="flex min-w-0 flex-1 gap-1">
-              {range("minimum", "Min")}
-              {range("maximum", "Max")}
-              {range("step", "Step")}
-            </div>
-          </Row>
+          {range("minimum", "Min")}
+          {range("maximum", "Max")}
+          {range("step", "Step")}
         </>
       ) : null}
       {type.kind === "choice" ? (
         <Row label="Options">
-          <OptionsField prop={prop} options={[...type.options]} />
+          <OptionsField prop={prop} options={type.options} />
         </Row>
       ) : null}
       <Row label="Required">
@@ -636,39 +613,112 @@ function Props({
   menuOn: string | undefined;
 }) {
   const canvas = useCanvas();
-  return (
-    <div className="mt-1 overflow-hidden rounded-lg border border-input">
-      {canvas.graph.props.map((prop) => {
-        const type = prop.type as SocketType;
-        return (
-          <div key={prop.id}>
-            <button
-              type="button"
-              data-menu={`prop:${prop.id}`}
-              aria-expanded={open === prop.id}
-              onClick={() => onOpen(open === prop.id ? undefined : prop.id)}
-              className={cn(
-                "flex h-8 w-full items-center gap-2 border-input border-b px-3.5 text-left",
-                menuOn === `prop:${prop.id}` ? "bg-accent" : "",
+  const [renaming, setRenaming] = useState<string>();
+  const fields = canvas.graph.props.map((prop): PropertyRow => {
+    const type = prop.type as SocketType;
+    const expanded = open === prop.id;
+    const menuKey = `prop:${prop.id}`;
+    const action = expanded ? "Collapse" : "Expand";
+    const rename = () => setRenaming(prop.id);
+    const nameAvailable = (name: string, graph = canvas.graph) =>
+      PROP_NAME.test(name) &&
+      !graph.props.some((other) => other.id !== prop.id && other.name === name);
+    return {
+      id: prop.id,
+      label: prop.name,
+      details: expanded && <PropDetails prop={prop} />,
+      renderHeader: (grip) => (
+        <div
+          data-row-drag-surface
+          data-menu={menuKey}
+          className={cn(
+            ROW_STYLE,
+            "pr-2.5",
+            menuOn === menuKey ? "bg-highlight" : "hover:bg-highlight",
+          )}
+        >
+          {grip}
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              {renaming === prop.id ? (
+                <NodeNameInput
+                  name={prop.name}
+                  label="Prop name"
+                  className="field-sizing-content h-5.5 min-w-4 flex-initial leading-5.5"
+                  validate={nameAvailable}
+                  onSave={(name) =>
+                    canvas.edit((graph) => {
+                      const current = graph.props.find(
+                        (entry) => entry.id === prop.id,
+                      );
+                      return current &&
+                        name !== current.name &&
+                        nameAvailable(name, graph)
+                        ? changeProp(graph, prop.id, { name })
+                        : graph;
+                    })
+                  }
+                  onDone={() => setRenaming(undefined)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`Rename ${prop.name}`}
+                  title={`${prop.name} · Double-click to rename`}
+                  className="h-5.5 min-w-0 cursor-text truncate rounded-sm text-left text-sm leading-5.5"
+                  onDoubleClick={rename}
+                  onClick={(event) => {
+                    if (event.detail === 0) rename();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "F2") return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    rename();
+                  }}
+                >
+                  {prop.name}
+                </button>
               )}
-            >
-              <span
-                className={cn(
-                  "size-2 shrink-0 rounded-full",
-                  SOCKET_COLOR[type.kind ?? "any"],
-                )}
-              />
-              <span className="min-w-0 flex-1 truncate text-sm">
-                {prop.name}
-              </span>
-              <span className="shrink-0 text-subtle-foreground text-xs">
-                {summary(type)}
-              </span>
-            </button>
-            {open === prop.id ? <PropDetails prop={prop} /> : null}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="size-5.5 cursor-pointer hover:bg-foreground/10 active:bg-foreground/16 aria-expanded:text-foreground"
+                aria-label={`${action} ${prop.name} settings`}
+                title={`${action} settings`}
+                aria-expanded={expanded}
+                onClick={() => onOpen(expanded ? undefined : prop.id)}
+              >
+                <ChevronRight
+                  aria-hidden
+                  className={cn(
+                    "size-3.5 transition-transform duration-150",
+                    expanded && "rotate-90",
+                  )}
+                />
+              </Button>
+            </div>
+            <span className="shrink-0 text-subtle-foreground text-xs leading-5.5">
+              {summary(type)}
+            </span>
           </div>
-        );
-      })}
+        </div>
+      ),
+    };
+  });
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      {fields.length > 0 && (
+        <PropertyList
+          fields={fields}
+          label="Component prop order"
+          onPlace={(row, before) =>
+            canvas.edit((graph) => placeProp(graph, row, before))
+          }
+        />
+      )}
       <button
         type="button"
         onClick={() => {
@@ -676,8 +726,12 @@ function Props({
           canvas.edit((graph) => addProp(graph, id));
           onOpen(id);
         }}
-        className="flex h-8 w-full items-center px-3.5 text-left text-muted-foreground text-sm hover:bg-accent"
+        className={cn(
+          ROW_STYLE,
+          "-mx-1.5 gap-2 text-left text-muted-foreground text-sm hover:bg-highlight hover:text-foreground",
+        )}
       >
+        <Plus aria-hidden className="size-3.5 shrink-0" />
         Add prop
       </button>
     </div>
@@ -986,13 +1040,7 @@ export function PropertiesPanel({ selected }: { selected: readonly string[] }) {
       <PropertiesHeading />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {node.type === "component-input" ? (
-          <section
-            aria-label="Props"
-            className="border-border border-b px-3.5 pt-2.5 pb-3 last:border-b-0"
-          >
-            <h3 className="mb-1 flex h-5 items-center font-semibold text-base">
-              Props
-            </h3>
+          <section aria-label="Props" className="px-3.5 pt-3.5 pb-3">
             <Props open={open} onOpen={setOpen} menuOn={menu?.on} />
           </section>
         ) : null}
