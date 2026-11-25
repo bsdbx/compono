@@ -1,4 +1,4 @@
-"""Evaluating a graph: first every node's sockets and wires, then every node's values."""
+"""Evaluating a graph: each node's sockets, wires and values, in dependency order."""
 
 import logging
 from collections.abc import Mapping
@@ -41,6 +41,8 @@ class Evaluation:
 
     nodes: Mapping[str, NodeResult]
     wires: Mapping[str, str]
+    # Runtime options for accepted Choice wires with a narrower destination.
+    choice_options: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
 
 @dataclass
@@ -51,6 +53,7 @@ class _Node:
     node_type: NodeType | None
     properties: dict[str, Value]
     sockets: Sockets = field(default_factory=Sockets)
+    sockets_ready: bool = False
     error: str | None = None
     skipped: bool = False
     # The accepted wire into each input, by input
@@ -64,17 +67,15 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
     wires = _wires(graph, nodes, refused)
     order = _order(nodes, wires)
 
-    # 1. Every node's sockets, and whether its wires fit them
-    for node_id in order:
-        _sockets(nodes[node_id], nodes, wires.get(node_id, []), refused, graph)
-
-    # 2. Every node's values, after the nodes it takes them from
     outputs: dict[str, Mapping[str, Value]] = {}
     inputs: dict[str, Mapping[str, Value]] = {}
+    choice_options: dict[str, tuple[str, ...]] = {}
     for node_id in order:
-        outputs[node_id], inputs[node_id] = _values(
-            nodes[node_id], nodes, outputs, graph
+        node = nodes[node_id]
+        _sockets(
+            node, nodes, wires.get(node_id, []), outputs, refused, choice_options, graph
         )
+        outputs[node_id], inputs[node_id] = _values(node, nodes, outputs, graph)
 
     return Evaluation(
         nodes={
@@ -88,6 +89,7 @@ def evaluate(graph: Graph, node_types: Mapping[str, NodeType]) -> Evaluation:
             for node_id in order
         },
         wires=refused,
+        choice_options=choice_options,
     )
 
 
@@ -186,16 +188,32 @@ def _sockets(
     node: _Node,
     nodes: Mapping[str, _Node],
     wires: list[Wire],
+    outputs: Mapping[str, Mapping[str, Value]],
     refused: dict[str, str],
+    choice_options: dict[str, tuple[str, ...]],
     graph: Graph,
 ) -> None:
     """Works out the node's sockets from its properties and the types wired into it, then refuses the wires that don't fit."""
-    # What each wire brings, from the sockets of the nodes before
+    # What each wire brings from the nodes already evaluated
     wired: dict[str, SocketType] = {}
+    wired_values: dict[str, Value] = {}
+    candidates: list[Wire] = []
     for wire in wires:
-        output = _output_type(nodes[wire.from_.node], wire.from_.socket)
+        source = nodes[wire.from_.node]
+        output = _output_type(source, wire.from_.socket)
+        value = outputs[wire.from_.node].get(wire.from_.socket)
+        if (
+            isinstance(output, ChoiceType)
+            and value is None
+            and source.error is None
+            and not source.skipped
+        ):
+            refused[wire.id] = "No choice selected"
+            continue
+        candidates.append(wire)
         if output is not None:
             wired[wire.to.socket] = output
+            wired_values[wire.to.socket] = value
 
     if node.node_type is not None and node.error is None:
         try:
@@ -205,15 +223,23 @@ def _sockets(
                     wired=wired,
                     typed=node.node.values,
                     props=graph.props,
+                    wired_values=wired_values,
                 )
             )
             node.sockets = _with_exposed(node, sockets)
+            node.sockets_ready = True
         except NodeError as error:
             node.error = str(error)
 
     accepted: dict[str, Wire] = {}
-    for wire in wires:
-        reason = _refusal(wire, nodes, node)
+    for wire in candidates:
+        reason = _refusal(
+            wire,
+            nodes[wire.from_.node],
+            node,
+            wired_values.get(wire.to.socket),
+            choice_options,
+        )
         if reason is None:
             accepted[wire.to.socket] = wire
         else:
@@ -258,11 +284,16 @@ def _input_type(node: _Node, socket: str) -> SocketType | None:
     return None
 
 
-def _refusal(wire: Wire, nodes: Mapping[str, _Node], node: _Node) -> str | None:
+def _refusal(
+    wire: Wire,
+    start: _Node,
+    node: _Node,
+    value: Value,
+    choice_options: dict[str, tuple[str, ...]],
+) -> str | None:
     """Why the wire can't be used, if it can't."""
-    start = nodes[wire.from_.node]
-    # Unknown until the nodes they connect are fixed
-    if start.error is not None or node.error is not None:
+    # A value error still leaves sockets that can be checked.
+    if not start.sockets_ready or not node.sockets_ready:
         return None
     output = _output_type(start, wire.from_.socket)
     if output is None:
@@ -270,20 +301,28 @@ def _refusal(wire: Wire, nodes: Mapping[str, _Node], node: _Node) -> str | None:
     into = _input_type(node, wire.to.socket)
     if into is None:
         return f"{_name(node)} has no input {wire.to.socket}"
-    if not accepts(into, output):
-        return _mismatch(node, wire.to.socket, into, output)
-    return None
 
-
-def _mismatch(node: _Node, socket: str, into: SocketType, output: SocketType) -> str:
-    """Why an output's type doesn't fit an input's."""
-    # Both Choices: an option the input doesn't have
     if isinstance(into, ChoiceType) and isinstance(output, ChoiceType):
-        option = next(each for each in output.options if each not in into.options)
-        label = next(each.label for each in node.sockets.inputs if each.id == socket)
-        return f"{label} can't be {option}"
+        if start.error is not None or start.skipped:
+            return None
+        if isinstance(value, str) and value in into.options:
+            options = tuple(
+                option for option in output.options if option in into.options
+            )
+            if len(options) < len(output.options):
+                choice_options[wire.id] = options
+            return None
+        label = next(
+            (each.label for each in node.sockets.inputs if each.id == wire.to.socket),
+            wire.to.socket,
+        )
+        return f"{label} can't be {value}"
 
-    return f"{name_of(output)} can't go into {name_of(into)}"
+    return (
+        None
+        if accepts(into, output)
+        else f"{name_of(output)} can't go into {name_of(into)}"
+    )
 
 
 def _name(node: _Node) -> str:

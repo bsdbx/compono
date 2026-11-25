@@ -25,6 +25,7 @@ from compono.graph.node_types import (
 )
 from compono.graph.values import Element, Value, from_json
 from compono.nodes.component import COMPONENT_INPUT, COMPONENT_OUTPUT
+from compono.nodes.elements import VOID
 
 # Words JavaScript keeps for itself, which can't name a prop
 RESERVED: Final = frozenset(
@@ -202,6 +203,15 @@ class _Printer:
         if not children:
             return [f"{indent}<{tag}{attributes} />" if tag else f"{indent}<></>"]
 
+        if isinstance(jsx.tag, Js):
+            # A caller can supply a void tag even when the preview has children.
+            body = (
+                children[0] if len(children) == 1 else Jsx("", children=tuple(children))
+            )
+            void_tags: list[str] = sorted(VOID)
+            is_void = Js(f"{json.dumps(void_tags)}.includes({tag})")
+            children = [Choose(is_void, None, body)]
+
         texts = [self._text(child) for child in children]
         one_line = (
             f"{indent}<{tag}{attributes}>{''.join(t or '' for t in texts)}</{tag}>"
@@ -263,7 +273,7 @@ class _Generator:
         self.nodes: dict[str, Node] = {}
         for node in graph.nodes:
             self.nodes.setdefault(node.id, node)
-        # The wires evaluating used, by the input they go into
+        # The wires evaluation accepted, by the input they go into.
         self.into: dict[tuple[str, str], Wire] = {
             (wire.to.node, wire.to.socket): wire
             for wire in graph.wires
@@ -301,6 +311,15 @@ class _Generator:
             return typed
 
         brought = self.output(wire.from_.node, wire.from_.socket)
+        options = self.evaluation.choice_options.get(wire.id)
+        if options is not None:
+            if isinstance(brought, Js):
+                value = expression(brought)
+                allowed = ", ".join(map(literal, options))
+                brought = Js(f"([{allowed}].includes({value}) ? {value} : undefined)")
+            elif not isinstance(brought, str) or brought not in options:
+                return typed
+
         if isinstance(brought, Js):
             # A wire that never brings Nothing needs nothing to fall back to
             if not brought.may_be_nothing:

@@ -29,7 +29,7 @@ export type CanvasState = {
   nodeTypes: ReadonlyMap<string, NodeTypeInfo>;
   /** The API's word on each node, once it's evaluated */
   evaluated: ReadonlyMap<string, EvaluatedNode>;
-  /** Wires the API refused, or whose types don't fit */
+  /** Wires the evaluator refused */
   refused: ReadonlySet<string>;
   /** Changes the graph. Changes with one key in a row undo together, like typing in a field */
   edit: (change: (graph: Graph) => Graph, key?: string) => void;

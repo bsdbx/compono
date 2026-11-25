@@ -40,7 +40,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from "@/components/ui/dropdown-menu";
-import { accepts, WIRE_COLOR } from "./accepts";
+import { WIRE_COLOR } from "./accepts";
 import { AddNodeMenu, type Choice } from "./add-node-menu";
 import { useBoxSelection } from "./box-selection";
 import {
@@ -837,27 +837,10 @@ function Flow({
     flow,
   ]);
 
-  // A wire is refused when the API refuses it, or when its types plainly don't fit
-  const refused = useMemo(() => {
-    const known = { evaluated, nodeTypes };
-    return new Set(
-      graph.wires
-        .filter((wire) => {
-          const out = outputType(
-            graph,
-            known,
-            wire.from.node,
-            wire.from.socket,
-          );
-          const into = inputType(graph, known, wire.to.node, wire.to.socket);
-          return (
-            evaluation?.wires[wire.id] !== undefined ||
-            (out !== undefined && into !== undefined && !accepts(into, out))
-          );
-        })
-        .map((wire) => wire.id),
-    );
-  }, [graph, evaluated, nodeTypes, evaluation]);
+  const refused = useMemo(
+    () => new Set(Object.keys(evaluation?.wires ?? {})),
+    [evaluation],
+  );
 
   const canvas: CanvasState = useMemo(
     () => ({
