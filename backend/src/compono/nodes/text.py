@@ -19,7 +19,7 @@ from compono.graph.node_types import (
     text,
 )
 from compono.graph.sockets import ChoiceType, NumberType, TextType
-from compono.graph.values import Value
+from compono.graph.values import JS_WHITESPACE, Value
 
 CATEGORY: Final = "Text"
 TEXT: Final = TextType()
@@ -205,4 +205,25 @@ CASE: Final = NodeType(
     code=lambda context: _mode_code(context, CASE_MODES),
 )
 
-NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE, CASE)
+TRIM_MODES: Final[TextModes] = {
+    "Both": (lambda value: value.strip(JS_WHITESPACE), ".trim()"),
+    "Start": (lambda value: value.lstrip(JS_WHITESPACE), ".trimStart()"),
+    "End": (lambda value: value.rstrip(JS_WHITESPACE), ".trimEnd()"),
+}
+
+TRIM: Final = NodeType(
+    type="trim",
+    name="Trim",
+    category=CATEGORY,
+    sockets=lambda _: Sockets(
+        inputs=(
+            Input("op", "Side", ChoiceType(options=tuple(TRIM_MODES)), "Both"),
+            Input("text", "Text", TEXT, ""),
+        ),
+        outputs=(Output("text", "Text", TEXT),),
+    ),
+    evaluate=lambda context: _apply_mode(context, TRIM_MODES),
+    code=lambda context: _mode_code(context, TRIM_MODES),
+)
+
+NODE_TYPES: Final = (JOIN, TEXT_LENGTH, SLICE, CASE, TRIM)
