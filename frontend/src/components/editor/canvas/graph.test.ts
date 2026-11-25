@@ -505,6 +505,42 @@ test("rows move up and down, and go with their wire", () => {
   expect(removed.wires.map((wire) => wire.id)).toEqual(["w1", "w3"]);
 });
 
+test("disconnecting a typed row preserves its fallback and deleting it clears that value", () => {
+  const start: Graph = {
+    format: 1,
+    props: [],
+    nodes: [
+      newNode("text", { x: 0, y: 0 }, "source"),
+      {
+        ...newNode("join", { x: 0, y: 0 }, "join"),
+        groups: { items: ["typed", "wire-only"] },
+        values: { "items/typed": "", separator: "/" },
+        socketNames: { "items/typed": "Optional", "items/wire-only": "Wired" },
+      },
+    ],
+    wires: ["typed", "wire-only"].map((id) => ({
+      id,
+      from: at("source", "value"),
+      to: at("join", `items/${id}`),
+    })),
+  };
+  const disconnected = pruneDisconnectedRows(
+    start,
+    disconnect(start, new Set(["typed", "wire-only"])),
+  );
+  expect(disconnected.nodes[1]).toMatchObject({
+    groups: { items: ["typed"] },
+    values: { "items/typed": "", separator: "/" },
+    socketNames: { "items/typed": "Optional" },
+  });
+  expect(disconnected.nodes[1]?.socketNames).not.toHaveProperty(
+    "items/wire-only",
+  );
+  expect(
+    removeRow(disconnected, "join", "items", "typed").nodes[1]?.values,
+  ).toEqual({ separator: "/" });
+});
+
 test("exposing a property makes it an input, once; unexposing takes its wire away too", () => {
   const exposed = expose(
     expose(setProperty(graph(), "card", "title", "Pricing"), "card", "title"),

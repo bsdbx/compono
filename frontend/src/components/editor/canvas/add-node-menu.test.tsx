@@ -51,3 +51,44 @@ test("mouse category navigation keeps search focused and node choices still clic
   fireEvent.click(screen.getByRole("menuitem", { name: /^Text/ }));
   expect(choose).toHaveBeenCalledWith({ nodeType: text });
 });
+
+test("adding Join from a text wire connects it as an item", () => {
+  const choose = vi.fn();
+  const socket = { kind: "text" } as const;
+  const join: NodeTypeInfo = {
+    ...text,
+    type: "join",
+    name: "Join",
+    category: "Text",
+    sockets: {
+      inputs: [
+        { id: "separator", label: "Separator", type: socket, default: "" },
+      ],
+      groups: [
+        {
+          id: "items",
+          label: "Items",
+          item_label: "Item",
+          type: socket,
+          before: null,
+        },
+      ],
+      outputs: [],
+    },
+  };
+  render(
+    <AddNodeMenu
+      x={0}
+      y={0}
+      nodeTypes={[join]}
+      from={socket}
+      unavailable={new Set()}
+      onChoose={choose}
+      onClose={() => {}}
+    />,
+  );
+  fireEvent.click(screen.getByRole("menuitem", { name: /^Join\s*Item$/ }));
+  expect(choose).toHaveBeenCalledWith(
+    expect.objectContaining({ nodeType: join, input: "items/+" }),
+  );
+});

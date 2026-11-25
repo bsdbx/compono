@@ -32,7 +32,10 @@ function inputFor(
   const input = nodeType.sockets.inputs.find((each) =>
     accepts(each.type, from),
   );
-  if (input) {
+  const group = nodeType.sockets.groups.find((each) =>
+    accepts(each.type, from),
+  );
+  if (input && !group?.item_label) {
     return {
       nodeType,
       input: input.id,
@@ -40,14 +43,11 @@ function inputFor(
       color: SOCKET_COLOR[input.type.kind ?? "any"],
     };
   }
-  const group = nodeType.sockets.groups.find((each) =>
-    accepts(each.type, from),
-  );
   if (group) {
     return {
       nodeType,
       input: addRow(group.id),
-      label: group.label,
+      label: group.item_label ?? group.label,
       color: SOCKET_COLOR[group.type.kind ?? "any"],
     };
   }

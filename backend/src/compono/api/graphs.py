@@ -2,7 +2,7 @@
 
 import time
 from collections.abc import Mapping
-from operator import not_
+from operator import is_none, not_
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -48,6 +48,7 @@ class GroupSocket(BaseModel):
     type: SocketType
     # The input it shows before on the node. None puts it after them all
     before: str | None
+    item_label: str | None = Field(default=None, exclude_if=is_none)
 
 
 class OutputSocket(BaseModel):
@@ -76,7 +77,11 @@ def sockets_of(sockets: Sockets) -> NodeSockets:
         ],
         groups=[
             GroupSocket(
-                id=group.id, label=group.label, type=group.type, before=group.before
+                id=group.id,
+                label=group.label,
+                type=group.type,
+                before=group.before,
+                item_label=group.item_label,
             )
             for group in sockets.groups
         ],

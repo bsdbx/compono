@@ -12,6 +12,7 @@ from compono.graph.node_types import (
     Choose,
     Code,
     CodeContext,
+    Group,
     Js,
     Jsx,
     NodeError,
@@ -366,10 +367,19 @@ class _Generator:
             each.id: self.value(node, each.id, each.local_value(node.values))
             for each in result.sockets.inputs
         }
+
+        def group_value(group: Group, row: str) -> Code:
+            socket = f"{group.id}/{row}"
+            try:
+                typed = from_json(node.values.get(socket), group.type)
+            except ValueError:
+                # The preview only accepts a stale local value while its wire is supplying the input.
+                typed = None
+            return self.value(node, socket, typed)
+
         groups = {
             group.id: tuple(
-                self.value(node, f"{group.id}/{row}", None)
-                for row in node.groups.get(group.id, [])
+                group_value(group, row) for row in node.groups.get(group.id, [])
             )
             for group in result.sockets.groups
         }

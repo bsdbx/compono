@@ -44,6 +44,8 @@ class Group:
     type: SocketType
     # The input it shows before on the node. None puts it after them all
     before: str | None = None
+    # A numbered label such as Item. Other groups use the socket type for their row labels.
+    item_label: str | None = None
 
 
 @dataclass(frozen=True)

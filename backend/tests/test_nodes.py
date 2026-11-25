@@ -101,6 +101,7 @@ def test_the_node_types_and_their_categories() -> None:
         ("default", "Logic"),
         ("check", "Logic"),
         ("number-check", "Logic"),
+        ("join", "Text"),
     ]
 
 
@@ -530,6 +531,7 @@ def test_values_set_on_a_node_show_there() -> None:
         "default": [],
         "check": [],
         "number-check": [],
+        "join": [],
     }
 
 
@@ -1334,3 +1336,37 @@ def test_number_check_uses_a_wired_number_over_the_local_value() -> None:
 
     assert evaluation.wires == {}
     assert output(evaluation, "check", "result") is True
+
+
+def test_join_uses_order_and_skips_only_nothing() -> None:
+    nodes = [
+        node("input", "component-input"),
+        node("middle", "text", properties={"value": "Pricing"}),
+        node(
+            "join",
+            "join",
+            groups={
+                "items": ["first", "absent", "middle", "empty", "last", "untouched"]
+            },
+            values={
+                "separator": "/",
+                "items/last": "Pro",
+                "items/first": "Home",
+                "items/middle": "Old",
+                "items/empty": "",
+            },
+        ),
+    ]
+    evaluation = run(
+        nodes,
+        [
+            wire("middle", "middle.value", "join.items/middle"),
+            wire("absent", "input.missing", "join.items/absent"),
+        ],
+        [prop("missing", "missing", {"kind": "text"})],
+    )
+
+    assert evaluation.wires == {}
+    assert output(evaluation, "join", "text") == "Home/Pricing//Pro"
+    assert output(run(nodes), "join", "text") == "Home/Old//Pro"
+    assert output(run([node("join", "join")]), "join", "text") == ""

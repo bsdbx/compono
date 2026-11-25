@@ -319,7 +319,7 @@ export function insertGroupRow(
   });
 }
 
-/** Finish an edit atomically: remove inputs whose last wire was removed, keeping manual empty slots. */
+/** Drop disconnected group inputs unless they have a local value to restore. */
 export function pruneDisconnectedRows(before: Graph, after: Graph): Graph {
   if (before === after || before.wires === after.wires) return after;
   const connected = new Set(
@@ -333,24 +333,26 @@ export function pruneDisconnectedRows(before: Graph, after: Graph): Graph {
   if (removed.size === 0) return after;
   let changed = false;
   const nodes = after.nodes.map((node) => {
-    let nodeChanged = false;
+    const pruned: string[] = [];
     const groups = Object.fromEntries(
-      Object.entries(node.groups).map(([group, rows]) => {
-        const next = rows.filter(
-          (row) => !removed.has(`${node.id}\n${group}/${row}`),
-        );
-        nodeChanged ||= next.length !== rows.length;
-        return [group, next];
-      }),
+      Object.entries(node.groups).map(([group, rows]) => [
+        group,
+        rows.filter((row) => {
+          const socket = `${group}/${row}`;
+          if (
+            !removed.has(`${node.id}\n${socket}`) ||
+            Object.hasOwn(node.values, socket)
+          ) {
+            return true;
+          }
+          pruned.push(socket);
+          return false;
+        }),
+      ]),
     );
-    if (!nodeChanged) return node;
+    if (pruned.length === 0) return node;
     changed = true;
-    return withoutSocketNames(
-      { ...node, groups },
-      Object.keys(node.socketNames ?? {}).filter((socket) =>
-        removed.has(`${node.id}\n${socket}`),
-      ),
-    );
+    return withoutSocketNames({ ...node, groups }, pruned);
   });
   return changed ? { ...after, nodes } : after;
 }
@@ -561,18 +563,20 @@ export function removeRow(
   row: string,
 ): Graph {
   const socket = `${group}/${row}`;
-  const next = replace(graph, id, (node) =>
-    withoutSocketNames(
+  const next = replace(graph, id, (node) => {
+    const { [socket]: _, ...values } = node.values;
+    return withoutSocketNames(
       {
         ...node,
+        values,
         groups: {
           ...node.groups,
           [group]: (node.groups[group] ?? []).filter((each) => each !== row),
         },
       },
       [socket],
-    ),
-  );
+    );
+  });
   return {
     ...next,
     wires: next.wires.filter(

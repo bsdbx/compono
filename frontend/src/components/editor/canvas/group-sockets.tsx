@@ -10,8 +10,9 @@ import { useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GroupSocket } from "@/api/types";
 import { cn } from "@/lib/utils";
-import { socketTypeName, WIRE_COLOR } from "./accepts";
+import { groupItemLabel, WIRE_COLOR } from "./accepts";
 import { useCanvas } from "./context";
+import { TextField } from "./fields";
 import {
   addRow,
   type GraphNode,
@@ -20,6 +21,7 @@ import {
   placeRow,
   removeRow,
   renameSocket,
+  setValue,
 } from "./graph";
 import { NodeNameInput } from "./node-name-input";
 import { SocketHandle } from "./socket-handle";
@@ -33,9 +35,11 @@ const NO_ROWS: string[] = [];
 export function GroupSockets({
   node,
   group,
+  wired,
 }: {
   node: GraphNode;
   group: GroupSocket;
+  wired: ReadonlySet<string>;
 }) {
   const canvas = useCanvas();
   const { getZoom } = useReactFlow();
@@ -48,9 +52,17 @@ export function GroupSockets({
     getZoom,
   );
   const rows = drag.rows;
-  const typeLabel = socketTypeName(group.type);
-  const labelFor = (row: string) =>
-    node.socketNames?.[`${group.id}/${row}`] ?? typeLabel;
+  const item = group.item_label ?? group.label;
+  const labelFor = (row: string, index: number) =>
+    node.socketNames?.[`${group.id}/${row}`] ?? groupItemLabel(group, index);
+  const localText = (socket: string) => {
+    const value = node.values[socket];
+    return group.type.kind === "text" &&
+      !wired.has(socket) &&
+      typeof value === "string"
+      ? value
+      : "";
+  };
   const rowOrder = rows.join("\n");
   const updateNodeInternals = useUpdateNodeInternals();
   useLayoutEffect(() => {
@@ -97,7 +109,7 @@ export function GroupSockets({
         </span>
         <button
           type="button"
-          aria-label={`Add ${group.label} input`}
+          aria-label={`Add ${item} input`}
           title="Add input"
           className="nodrag nopan flex size-5 items-center justify-center rounded text-subtle-foreground hover:bg-accent hover:text-foreground"
           onClick={() =>
@@ -134,7 +146,8 @@ export function GroupSockets({
           <ol ref={drag.list} aria-label={`${group.label} inputs`}>
             {rows.map((row, index) => {
               const socket = `${group.id}/${row}`;
-              const label = labelFor(row);
+              const label = labelFor(row, index);
+              const typed = group.type.kind === "text" && !wired.has(socket);
               return (
                 <li
                   key={row}
@@ -151,7 +164,7 @@ export function GroupSockets({
                     connecting && "[&_button]:pointer-events-none",
                     drag.preview?.valid &&
                       drag.preview.row === row &&
-                      "bg-accent/60 ring-1 ring-selection/30 ring-inset [&>button]:opacity-30 [&>[data-group-row-label]]:opacity-30",
+                      "bg-accent/60 ring-1 ring-selection/30 ring-inset [&>button]:opacity-30 [&>label]:opacity-30 [&>[data-group-row-label]]:opacity-30",
                   )}
                 >
                   <SocketHandle
@@ -161,11 +174,15 @@ export function GroupSockets({
                     side="left"
                     offset={-1}
                     invisible
-                    label={`${group.label} ${index + 1}: ${label}`}
+                    label={
+                      group.item_label
+                        ? label
+                        : `${item} ${index + 1}: ${label}`
+                    }
                   />
                   <button
                     type="button"
-                    aria-label={`Reorder ${group.label} ${index + 1}`}
+                    aria-label={`Reorder ${item} ${index + 1}`}
                     title="Drag to reorder · Alt+Up/Down"
                     className="relative z-1 flex size-4.5 shrink-0 touch-none cursor-grab items-center justify-center rounded text-subtle-foreground hover:text-foreground active:cursor-grabbing"
                     onPointerDown={(event) => startDrag(event, row)}
@@ -193,7 +210,11 @@ export function GroupSockets({
                   {renaming === row ? (
                     <NodeNameInput
                       name={label}
-                      label="Child name"
+                      label={
+                        group.item_label
+                          ? `${group.item_label} name`
+                          : "Child name"
+                      }
                       className="text-xs"
                       onSave={(value) =>
                         canvas.edit((graph) =>
@@ -202,17 +223,28 @@ export function GroupSockets({
                             node.id,
                             group.id,
                             row,
-                            value === typeLabel ? "" : value,
+                            value === groupItemLabel(group, index) ? "" : value,
                           ),
                         )
                       }
                       onDone={() => setRenaming(undefined)}
                     />
+                  ) : typed ? (
+                    <TextField
+                      label={label}
+                      value={localText(socket)}
+                      onChange={(value) =>
+                        canvas.edit(
+                          (graph) => setValue(graph, node.id, socket, value),
+                          `value:${node.id}:${socket}`,
+                        )
+                      }
+                    />
                   ) : (
                     <button
                       type="button"
                       data-group-row-label
-                      aria-label={`${group.label} ${index + 1} name`}
+                      aria-label={`${item} ${index + 1} name`}
                       className="absolute inset-0 cursor-default truncate pr-8 pl-7.5 text-left"
                       title={label}
                       onDoubleClick={(event) => {
@@ -231,7 +263,7 @@ export function GroupSockets({
                   )}
                   <button
                     type="button"
-                    aria-label={`Remove ${group.label} ${index + 1}`}
+                    aria-label={`Remove ${item} ${index + 1}`}
                     title="Remove input"
                     className="relative z-1 ml-auto flex size-4.5 shrink-0 items-center justify-center rounded text-subtle-foreground opacity-0 hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/socket-row:opacity-100 [@media(pointer:coarse)]:opacity-100"
                     onClick={() =>
@@ -283,7 +315,10 @@ export function GroupSockets({
             >
               <GripVertical className="size-3 shrink-0 text-subtle-foreground" />
               <span className="min-w-0 flex-1 truncate">
-                {labelFor(drag.preview.row)}
+                {labelFor(drag.preview.row, rows.indexOf(drag.preview.row))}
+              </span>
+              <span className="min-w-0 truncate">
+                {localText(`${group.id}/${drag.preview.row}`)}
               </span>
               <X className="size-3 shrink-0 text-subtle-foreground" />
             </div>,
